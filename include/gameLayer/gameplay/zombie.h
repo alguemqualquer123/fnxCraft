@@ -2,21 +2,19 @@
 #include <gameplay/entity.h>
 
 
-struct DroppedItem: public PhysicalEntity
+struct Zombie: public PhysicalEntity
 {
-	BlockType type = 0;
-	unsigned char count = 0;
 
 	void update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter);
 };
 
 
-struct DroppedItemClient: public ClientEntity<DroppedItem>
+struct ZombieClient: public ClientEntity<Zombie>
 {
 	void update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter);
 };
 
-struct DroppedItemServer : public ServerEntity<DroppedItem>
+struct ZombieServer: public ServerEntity<Zombie>
 {
 	void update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter);
 };
