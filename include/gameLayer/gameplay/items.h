@@ -179,6 +179,49 @@ enum ItemTypes : unsigned short
 	pawKeychain,
 	vitamins,
 
+	// Fish and aquatic items
+	fishSpawnEgg,
+	cookedFish,
+	rawFish,
+	fishingRod,
+
+	// Food items
+	rawMeat,
+	cookedMeat,
+	bread,
+	stew,
+	bakedPotato,
+	roastedCorn,
+	cheese,
+	cookedChicken,
+	chickenSoup,
+
+	// Drink items
+	waterBottle,
+	juice,
+	milk,
+	coffee,
+	tea,
+
+	// Farming items
+	seeds,
+	wheatSeeds,
+	potatoSeeds,
+	cornSeeds,
+	carrotSeeds,
+	boneMeal,
+	fertilizer,
+	wateringCan,
+	compost,
+
+	woodenBow,
+	copperBow,
+	leadBow,
+	ironBow,
+	silverBow,
+	goldBow,
+	goblinBow,
+
 	lastItem,
 
 };
@@ -258,6 +301,10 @@ struct Item
 	bool isArmour();
 	bool isPotion();
 	bool isEquipement();
+	bool isBow();
+	bool isSeed();
+	bool isBoneMealItem();
+	bool isFertilizerItem();
 
 
 	std::string getItemName();

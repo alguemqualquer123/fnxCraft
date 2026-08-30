@@ -8,6 +8,9 @@
 #include <gameplay/player.h>	
 #include <array>
 
+struct ServerChunkStorer;
+std::array<glm::ivec2, 9> *getChunkNeighboursOffsets();
+
 
 struct Personality
 {

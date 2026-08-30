@@ -13,6 +13,76 @@
 #include <chunkSystem.h>
 #include <gamePlayLogic.h>
 #include <iostream>
+#include <sstream>
+
+// GL Error checking for render pass debugging
+static int glCheckErrors(const char *passName, int line = 0)
+{
+	GLenum err;
+	int count = 0;
+	while ((err = glGetError()) != GL_NO_ERROR)
+	{
+		const char *errStr = "UNKNOWN";
+		switch (err)
+		{
+		case GL_INVALID_ENUM: errStr = "GL_INVALID_ENUM"; break;
+		case GL_INVALID_VALUE: errStr = "GL_INVALID_VALUE"; break;
+		case GL_INVALID_OPERATION: errStr = "GL_INVALID_OPERATION"; break;
+		case GL_OUT_OF_MEMORY: errStr = "GL_OUT_OF_MEMORY"; break;
+		case GL_INVALID_FRAMEBUFFER_OPERATION: errStr = "GL_INVALID_FRAMEBUFFER_OPERATION"; break;
+		}
+		std::cerr << "[GL ERROR] " << passName << " (line " << line << "): " << errStr << " (0x" << std::hex << err << std::dec << ")" << std::endl;
+		count++;
+	}
+	return count;
+}
+
+// Macro for easy usage: GL_CHECK("pass name")
+#define GL_CHECK(pass) glCheckErrors(pass, __LINE__)
+
+static GLenum getMatchingFormat(GLenum internalFormat)
+{
+	switch (internalFormat)
+	{
+	case GL_RGBA8: return GL_RGBA;
+	case GL_RGB8: return GL_RGB;
+	case GL_RGBA16F: return GL_RGBA;
+	case GL_RGB16F: return GL_RGB;
+	case GL_RGBA16: return GL_RGBA;
+	case GL_RGB16: return GL_RGB;
+	case GL_RGBA32F: return GL_RGBA;
+	case GL_RGB32F: return GL_RGB;
+	case GL_RGB16UI: return GL_RGB_INTEGER;
+	case GL_RGBA16UI: return GL_RGBA_INTEGER;
+	case GL_R8: return GL_RED;
+	case GL_RG8: return GL_RG;
+	case GL_R16F: return GL_RED;
+	case GL_RG16F: return GL_RG;
+	case GL_R11F_G11F_B10F: return GL_RGB;
+	case GL_DEPTH_COMPONENT24: return GL_DEPTH_COMPONENT;
+	default: return GL_RGBA;
+	}
+}
+
+static GLenum getMatchingType(GLenum internalFormat)
+{
+	switch (internalFormat)
+	{
+	case GL_RGBA16F:
+	case GL_RGB16F:
+	case GL_RGBA32F:
+	case GL_RGB32F:
+	case GL_R16F:
+	case GL_RG16F:
+	case GL_R11F_G11F_B10F:
+		return GL_FLOAT;
+	case GL_RGB16UI:
+	case GL_RGBA16UI:
+		return GL_UNSIGNED_SHORT;
+	default:
+		return GL_UNSIGNED_BYTE;
+	}
+}
 #include <rendering/sunShadow.h>
 #include <platformTools.h>
 #include <gameplay/entityManagerClient.h>
@@ -188,7 +258,7 @@ float vertexData[] = {
 	0.5, 0.5, -0.5,
 	-0.5, 0.5, 0.5,
 	
-#pragma region leaves
+	// === leaves ===
 
 	//moving leaves
 	//front
@@ -226,9 +296,9 @@ float vertexData[] = {
 	0.5, 0.5, 0.5,
 	0.5, -0.5, 0.5,
 	0.5, -0.5, -0.5,
-#pragma endregion
+	// === end leaves ===
 
-#pragma region torch and water
+	// === torch and water ===
 
 	//torch
 	//front
@@ -354,9 +424,9 @@ float vertexData[] = {
 	0.5, 0.5, 0.5,
 	0.5, -0.625, 0.5,
 	0.5, -0.625, -0.5,
-#pragma endregion
+	// === end torch and water ===
 
-#pragma region stairs
+	// === stairs ===
 
 	//half bottom
 		//front
@@ -506,9 +576,9 @@ float vertexData[] = {
 		0, 0.5, 0.5,
 		0, 0.5, -0.5,
 		0, 0, -0.5,
-#pragma endregion
+	// === end stairs ===
 
-#pragma region slabs
+	// === slabs ===
 
 	//bottom slabs!!!
 	//top
@@ -547,7 +617,7 @@ float vertexData[] = {
 		-0.5, 0.0, 0.5,
 		-0.5, 0.0, -0.5,
 		0.5, 0.0, -0.5,
-#pragma endregion
+	// === end slabs ===
 
 
 	//walls inner part
@@ -656,7 +726,6 @@ float vertexData[] = {
 		0.5, -0.5, 0.0,
 
 
-	#pragma region LOD1
 		//lod 1
 
 			//front
@@ -694,8 +763,6 @@ float vertexData[] = {
 			1.5, 1.5, 1.5,
 			1.5, -0.5, 1.5,
 			1.5, -0.5, -0.5,
-
-		#pragma endregion
 
 
 
@@ -762,7 +829,7 @@ float vertexUV[] = {
 	0, 0,
 	1, 0,
 
-#pragma region other
+	// === other ===
 
 	//grass
 	//front
@@ -949,9 +1016,9 @@ float vertexUV[] = {
 	0, 1,
 	0, 0,
 	1, 0,
-#pragma endregion
+	// === end other ===
 
-#pragma region stairs
+	// === stairs ===
 
 
 	//half botom
@@ -1096,7 +1163,7 @@ float vertexUV[] = {
 		0.5, 1,
 		0, 1,
 		0, 0.5,
-#pragma endregion
+	// === end stairs ===
 
 
 	//bottom slabs!!!
@@ -1237,7 +1304,6 @@ float vertexUV[] = {
 	0.5, 0,
 	1, 0,
 
-	#pragma region lods
 
 		//front
 		2, 1, //
@@ -1274,11 +1340,6 @@ float vertexUV[] = {
 		0, 1, //
 		0, -1,//
 		2, -1,//
-
-
-
-	#pragma endregion
-
 
 	//top for decals
 	1, 0,
@@ -2058,9 +2119,10 @@ void Renderer::create(ModelsManager &modelsManager)
 
 }
 
+int g_waterLevelsStartOrientation = 0;
+
 void Renderer::recreateBlockGeometryData(ModelsManager &modelsManager)
 {
-
 	auto noRotation = [&](int i)
 	{
 		return 
@@ -2076,6 +2138,8 @@ void Renderer::recreateBlockGeometryData(ModelsManager &modelsManager)
 	newVertexData.clear();
 	int newVertexDataSize = sizeof(vertexData) / sizeof(vertexData[0]);
 	int newVertexUVSize = sizeof(vertexUV) / sizeof(vertexUV[0]);
+	newVertexDataSize += WATER_LEVEL_COUNT * WATER_LEVEL_FACES * 3 * 4;
+	newVertexUVSize += WATER_LEVEL_COUNT * WATER_LEVEL_FACES * 2 * 4;
 	for (int i = 0; i < ModelsManager::BLOCK_MODELS_COUNT; i++)
 	{
 
@@ -2205,6 +2269,39 @@ void Renderer::recreateBlockGeometryData(ModelsManager &modelsManager)
 			i == ModelsManager::crateModel, noRotation(i));
 	}
 
+	//partial water (levels 1..7) shapes, appended after everything else so they never collide
+	//with block model orientations. orientation = g_waterLevelsStartOrientation + (level-1)*6 + face.
+	//face order matches the base cube: 0 front, 1 back, 2 top, 3 bottom, 4 left, 5 right.
+	const int waterBaseStart = 22; //base full water shapes in the vertexData table
+	const float waterTopY = 0.375f; //water top sinks a bit to avoid z-fighting
+	const float waterYRange = waterTopY - (-0.5f);
+
+	g_waterLevelsStartOrientation = currentVertexIndex / 12;
+
+	for (int level = 1; level <= WATER_LEVEL_COUNT; level++)
+	{
+		const float h = (8 - level) / 8.f; //surface height
+		for (int face = 0; face < WATER_LEVEL_FACES; face++)
+		{
+			const int src = (waterBaseStart + face) * 12;
+			for (int v = 0; v < 4; v++)
+			{
+				const float x = vertexData[src + v * 3 + 0];
+				const float y = vertexData[src + v * 3 + 1];
+				const float z = vertexData[src + v * 3 + 2];
+				const float yNew = -0.5f + (y + 0.5f) * ((h + 0.5f) / waterYRange);
+				newVertexData[currentVertexIndex++] = x;
+				newVertexData[currentVertexIndex++] = yNew;
+				newVertexData[currentVertexIndex++] = z;
+			}
+
+			for (int u = 0; u < 2 * 4; u++)
+			{
+				newUVData[currentUvIndex++] = vertexUV[(waterBaseStart + face) * 2 * 4 + u];
+			}
+		}
+	}
+
 	//todo optimize with buffer storage!!!! (don't forget to recreate the buffer!!)
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, vertexDataBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, newVertexData.size() * sizeof(float), newVertexData.data(), GL_STATIC_DRAW);
@@ -2262,6 +2359,7 @@ void Renderer::reloadShaders()
 	GET_UNIFORM2(defaultShader, u_lightPos);
 	GET_UNIFORM2(defaultShader, u_sunShadowTexture);
 	GET_UNIFORM2(defaultShader, u_timeGrass);
+	GET_UNIFORM2(defaultShader, u_waterLevelsStart);
 	GET_UNIFORM2(defaultShader, u_writeScreenSpacePositions);
 	GET_UNIFORM2(defaultShader, u_lastFrameColor);
 	GET_UNIFORM2(defaultShader, u_lastFramePositionViewSpace);
@@ -2382,6 +2480,7 @@ void Renderer::reloadShaders()
 		GET_UNIFORM2(zpassShader, u_positionFloat);
 		GET_UNIFORM2(zpassShader, u_renderOnlyWater);
 		GET_UNIFORM2(zpassShader, u_timeGrass);
+		GET_UNIFORM2(zpassShader, u_waterLevelsStart);
 
 		zpassShader.u_vertexData = getStorageBlockIndex(zpassShader.shader.id, "u_vertexData");
 		glShaderStorageBlockBinding(zpassShader.shader.id, zpassShader.u_vertexData, 1);
@@ -2717,6 +2816,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 	glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CLEAR THE FBO");
 	fboMain.clearFBO();
 	glPopDebugGroup();
+	GL_CHECK("after FBO clear");
 
 	fboLastFrame.updateSize(screenX, screenY);
 	fboLastFramePositions.updateSize(screenX, screenY);
@@ -2735,6 +2835,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		glDrawBuffers(5, attachments);
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	GL_CHECK("after FBO setup");
 
 
 	glm::vec3 posFloat = {};
@@ -2922,6 +3023,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 
 	programData.skyBoxLoaderAndDrawer.drawBefore(c.getProjectionMatrix() * c.getViewMatrix(),
 		mainLightPosition, dayTime);
+	GL_CHECK("skybox drawBefore");
 
 	fboSkyBox.copyColorFromOtherFBO(fboMain.color,
 		fboMain.size.x, fboMain.size.y);
@@ -2929,6 +3031,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 	glPopDebugGroup();
 
 #pragma endregion
+	GL_CHECK("after skybox");
 
 
 #pragma region setup uniforms and stuff
@@ -2949,6 +3052,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		glUniform3iv(zpassShader.u_positionInt, 1, &posInt[0]);
 		glUniform1i(zpassShader.u_renderOnlyWater, 0);
 		glUniform1f(zpassShader.u_timeGrass, timeGrass);
+		glUniform1i(zpassShader.u_waterLevelsStart, g_waterLevelsStartOrientation);
 
 
 
@@ -3030,6 +3134,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		glUniform1f(defaultShader.u_baseAmbientExtra, adaptiveExposure.bonusAmbient);
 
 		glUniform1f(defaultShader.u_timeGrass, timeGrass);
+		glUniform1i(defaultShader.u_waterLevelsStart, g_waterLevelsStartOrientation);
 
 		glUniformMatrix4fv(defaultShader.u_cameraProjection, 1, GL_FALSE, glm::value_ptr(c.getProjectionMatrix()));
 
@@ -3256,7 +3361,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 				}
 			}
 		}
-		else
+else
 		{
 			for (auto &chunk : chunkVectorCopy)
 			{
@@ -3276,7 +3381,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 					command.instanceCount = facesCount;
 					command.firstIndex = 0;
 					command.baseVertex = 0;
-					command.baseInstance = entry.beg / (4 * sizeof(int));
+					command.baseInstance = entry.beg / (4 * sizeof(int)); 
 
 					// Add draw command to the array
 					drawCommands.push_back(command);
@@ -3547,6 +3652,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		programData.GPUProfiler.startSubProfile("depth pre pass 1");
 		depthPrePass();
 		programData.GPUProfiler.endSubProfile("depth pre pass 1");
+		GL_CHECK("after depth pre pass");
 	#pragma endregion
 
 
@@ -3555,17 +3661,22 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		programData.GPUProfiler.startSubProfile("solid pass 2");
 		solidPass();
 		programData.GPUProfiler.endSubProfile("solid pass 2");
+		GL_CHECK("after solid pass");
 	#pragma endregion
 
 
 	#pragma region render entities
 		programData.GPUProfiler.startSubProfile("entities");
-		renderEntities(deltaTime, c, modelsManager, blocksLoader,
-			entityManager, vp, c.getProjectionMatrix(), viewMatrix, posFloat, posInt,
-			programData.renderer.defaultShader.shadingSettings.exposure, chunkSystem, skyLightIntensity,
-			currentSkinBindlessTexture, playerClicked, playerRunning, playerHand, currentHeldItemIndex,
-			showHand, playersConnectionData);
+		{
+			auto projection = c.getProjectionMatrix();
+			renderEntities(deltaTime, c, modelsManager, blocksLoader,
+				entityManager, vp, projection, viewMatrix, posFloat, posInt,
+				programData.renderer.defaultShader.shadingSettings.exposure, chunkSystem, skyLightIntensity,
+				currentSkinBindlessTexture, playerClicked, playerRunning, playerHand, currentHeldItemIndex,
+				showHand, playersConnectionData);
+		}
 		programData.GPUProfiler.endSubProfile("entities");
+		GL_CHECK("after entities");
 	#pragma endregion
 
 
@@ -3621,6 +3732,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		//todo disable ssr for this step?
 		renderTransparentGeometry(true, false);
 		programData.GPUProfiler.endSubProfile("render first water 5");
+		GL_CHECK("after water depth peel");
 	#pragma endregion
 
 
@@ -3635,6 +3747,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		renderTransparentGeometryPhaze(true, true, true);
 		//renderTransparentGeometryPhaze(false, false, true);
 		programData.GPUProfiler.endSubProfile("final transparency 7");
+		GL_CHECK("after final transparency");
 	#pragma endregion
 
 		{
@@ -3650,19 +3763,24 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		programData.GPUProfiler.startSubProfile("depth pre pass 1");
 		depthPrePass();
 		programData.GPUProfiler.endSubProfile("depth pre pass 1");
+		GL_CHECK("after depth pre pass (cheap)");
 
 		
 		programData.GPUProfiler.startSubProfile("solid pass 2");
 		solidPass();
 		programData.GPUProfiler.endSubProfile("solid pass 2");
+		GL_CHECK("after solid pass (cheap)");
 
 	#pragma region render entities
 		programData.GPUProfiler.startSubProfile("entities");
-		renderEntities(deltaTime, c, modelsManager, blocksLoader,
-			entityManager, vp, c.getProjectionMatrix(), viewMatrix, posFloat, posInt,
-			programData.renderer.defaultShader.shadingSettings.exposure, chunkSystem, skyLightIntensity,
-			currentSkinBindlessTexture, playerClicked, playerRunning, playerHand, currentHeldItemIndex,
-			showHand, playersConnectionData);
+		{
+			auto projection = c.getProjectionMatrix();
+			renderEntities(deltaTime, c, modelsManager, blocksLoader,
+				entityManager, vp, projection, viewMatrix, posFloat, posInt,
+				programData.renderer.defaultShader.shadingSettings.exposure, chunkSystem, skyLightIntensity,
+				currentSkinBindlessTexture, playerClicked, playerRunning, playerHand, currentHeldItemIndex,
+				showHand, playersConnectionData);
+		}
 		programData.GPUProfiler.endSubProfile("entities");
 	#pragma endregion
 
@@ -3757,6 +3875,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 	{
 
 		static bool reading = 0;
+		static int exposureReadAttempts = 0;
 
 		static ImVec4 color = {0,0,0,1};
 
@@ -3795,10 +3914,11 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboMain.color, 0);
 			//glBindTexture(GL_TEXTURE_2D, fboMain.color);
 			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels - 1);
-			reading = 1;
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mipLevels - 1);			reading = 1;
+			exposureReadAttempts = 0;
 		}else
 		{
+			exposureReadAttempts++;
 			glBindBuffer(GL_PIXEL_PACK_BUFFER, automatixExposureReadBUffer);
 			GLfloat *ptr = (GLfloat *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
 
@@ -3809,19 +3929,20 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 				screenColor = glm::pow(screenColor, glm::vec3(1.f / 2.2f));
 
 				averageLuminosity = glm::dot(screenColor, glm::vec3(0.2126, 0.7152, 0.0722));
-				//std::cout << averageLuminosity << "\n";
-				//std::cout << ptr[0] << " " <<  ptr[1] << " " << ptr[2] << "\n";
 
 				color.x = screenColor[0];
 				color.y = screenColor[1];
 				color.z = screenColor[2];
 
+
 				glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 				reading = 0;
 			}
-			else
+			else if (exposureReadAttempts > 5)
 			{
-				//std::cout << "no\n";
+				// PBO read failed too many times, reset and use fallback
+				reading = 0;
+				averageLuminosity = 0.5f;
 			}
 		}
 
@@ -4012,6 +4133,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 #pragma endregion
 
 		programData.GPUProfiler.endSubProfile("Bloom");
+		GL_CHECK("after bloom");
 
 	};
 
@@ -4227,6 +4349,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		copyToMainFboOnlyLastFrameStuff();
 
 		programData.GPUProfiler.endSubProfile("tone mapping");
+		GL_CHECK("after tone mapping");
 
 	}
 
@@ -4246,6 +4369,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		glUniform1i(fxaaShader.u_texture, 0);
 	
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		GL_CHECK("after FXAA");
 	}
 
 	//secondaryFBO->copyDepthAndColorToMainFbo(fboMain.size.x, fboMain.size.y);
@@ -4363,6 +4487,8 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 	glBindVertexArray(0);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	GL_CHECK("END renderFromBakedData");
+
 }
 
 //draw decal
@@ -4470,6 +4596,14 @@ void Renderer::renderDecal(glm::ivec3 position, Camera &c, Block b, ProgramData 
 	glDepthFunc(GL_LESS);
 }
 
+//dropped items slowly spin around their vertical axis (like in minecraft)
+static float droppedItemSpin(std::uint64_t eid)
+{
+	float t = (float)std::clock() / (float)CLOCKS_PER_SEC;
+	float phase = ((float)((eid * 2654435761u) & 0x7FF) / 2048.f) * 6.28318530718f;
+	return t * 2.6f + phase;
+}
+
 void Renderer::renderEntities(
 	float deltaTime,
 	Camera &c,
@@ -4550,14 +4684,11 @@ void Renderer::renderEntities(
 
 			if (playerRunning)
 			{
-				static Oscilator handOscilator(0.3);
+				static Oscilator handOscilator(0.22);
 				BoneTransform handIdle2;
-				handIdle2.position = glm::vec3{0.1,-2.1,-0.4};
-				handIdle2.rotation = glm::vec3{glm::radians(123.f),glm::radians(0.f) ,
-				glm::radians(2.f)};
-
+				handIdle2.position = glm::vec3{0.0f,-1.85f,-0.25f};
+				handIdle2.rotation = glm::vec3{glm::radians(132.f),glm::radians(6.f), glm::radians(8.f)};
 				handOscilator.update(deltaTime);
-
 				if (handOscilator.currentFaze)
 				{
 					handIdle = handIdle2;
@@ -4644,7 +4775,7 @@ void Renderer::renderEntities(
 		{
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinningMatrixSSBO);
 			glBufferData(GL_SHADER_STORAGE_BUFFER, skinningMatrix.size() * sizeof(glm::mat4),
-				&skinningMatrix[0][0][0], GL_STREAM_DRAW);
+				skinningMatrix.data(), GL_STREAM_DRAW);
 
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, perEntityDataSSBO);
 			glBufferData(GL_SHADER_STORAGE_BUFFER, entityData.size() * sizeof(entityData[0]),
@@ -4807,7 +4938,7 @@ void Renderer::renderEntities(
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, skinningMatrixSSBO);
 		//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, skinningMatrixSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, skinningMatrix.size() * sizeof(glm::mat4),
-			&skinningMatrix[0][0][0], GL_STREAM_DRAW);
+			skinningMatrix.data(), GL_STREAM_DRAW);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, perEntityDataSSBO);
 		//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, perEntityDataSSBO);
@@ -4823,12 +4954,26 @@ void Renderer::renderEntities(
 	entityRenderer.itemEntitiesToRender.clear();
 
 	renderAllEntitiesOfOneType(modelsManager.human, entityManager.players, true);
+	if (!showHand)
+	{
+		auto &lp = entityManager.localPlayer;
+		PlayerClient tmp;
+		tmp.entityBuffered = lp.entity;
+		std::unordered_map<std::uint64_t, PlayerClient> single;
+		single[lp.entityId ? lp.entityId : 1] = tmp;
+		auto backup = playersConnectionData;
+		GLuint64 skin = currentSkinBindlessTexture ? currentSkinBindlessTexture : modelsManager.gpuIds[ModelsManager::TexturesLoaded::SteveTexture];
+		playersConnectionData[single.begin()->first].skinBindlessTexture = skin;
+		renderAllEntitiesOfOneType(modelsManager.human, single, true);
+		playersConnectionData = backup;
+	}
 	renderAllEntitiesOfOneType(modelsManager.human, entityManager.zombies);
 	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.pigs);
 	renderAllEntitiesOfOneType(modelsManager.cat, entityManager.cats);
 	renderAllEntitiesOfOneType(modelsManager.goblin, entityManager.goblins);
 	renderAllEntitiesOfOneType(modelsManager.trainingDummy, entityManager.trainingDummy);
 	renderAllEntitiesOfOneType(modelsManager.scareCrow, entityManager.scareCrows);
+	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.fish);
 
 
 	glBindVertexArray(0);
@@ -4941,6 +5086,11 @@ void Renderer::renderEntities(
 				glUniform1i(entityRenderer.blockEntityshader.u_lightValue, rez);
 
 
+				glm::mat4 blockModel = glm::rotate(glm::scale(glm::vec3{0.4f}),
+					droppedItemSpin(e.first), glm::vec3(0, 1, 0));
+				glUniformMatrix4fv(entityRenderer.blockEntityshader.u_modelMatrix, 1, GL_FALSE,
+					glm::value_ptr(blockModel));
+
 				glDrawArrays(GL_TRIANGLES, 0, 36);
 			}
 
@@ -4976,7 +5126,7 @@ void Renderer::renderEntities(
 	{
 
 		//not for blocks
-		auto renderOneItem = [&](auto type, glm::dvec3 pos, int light, glm::mat4 *mat = 0)
+		auto renderOneItem = [&](auto type, glm::dvec3 pos, int light, float rotY = 0.f, glm::mat4 *mat = 0)
 		{
 			std::uint64_t texture;
 
@@ -5056,8 +5206,18 @@ void Renderer::renderEntities(
 					scale = 1;
 				}
 
+				glm::mat4 modelMatrix;
+				if (rotY != 0.f)
+				{
+					modelMatrix = glm::rotate(glm::scale(glm::vec3{scale}), rotY, glm::vec3(0, 1, 0));
+				}
+				else
+				{
+					modelMatrix = glm::scale(glm::vec3{scale});
+				}
+
 				glUniformMatrix4fv(entityRenderer.itemEntityShader.u_modelMatrix, 1, GL_FALSE,
-					glm::value_ptr(glm::scale(glm::vec3{scale})));
+					glm::value_ptr(modelMatrix));
 			}
 
 
@@ -5096,7 +5256,8 @@ void Renderer::renderEntities(
 				rez = 15;
 			}
 
-			renderOneItem(e.second.entityBuffered.type, e.second.getRubberBandPosition(), rez);
+			renderOneItem(e.second.entityBuffered.type, e.second.getRubberBandPosition(), rez,
+				droppedItemSpin(e.first));
 
 		}
 
@@ -5113,7 +5274,7 @@ void Renderer::renderEntities(
 			}
 			else if(handItem->type)
 			{
-				renderOneItem(handItem->type, {}, 15, &handItemMatrix);
+				renderOneItem(handItem->type, {}, 15, 0.f, &handItemMatrix);
 			}
 
 
@@ -6087,8 +6248,8 @@ void Renderer::FBO::create(GLint addColor, bool addDepth,
 	{
 		glGenTextures(1, &color);
 		glBindTexture(GL_TEXTURE_2D, color);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1
-			, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, 1, 1
+			, 0, getMatchingFormat(colorFormat), getMatchingType(colorFormat), NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -6102,7 +6263,7 @@ void Renderer::FBO::create(GLint addColor, bool addDepth,
 		glGenTextures(1, &secondaryColor);
 		glBindTexture(GL_TEXTURE_2D, secondaryColor);
 		// Set the width and height of your texture (e.g., 1024x1024)
-		glTexImage2D(GL_TEXTURE_2D, 0, secondaryColorFormat, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, secondaryColorFormat, 1, 1, 0, getMatchingFormat(secondaryColorFormat), getMatchingType(secondaryColorFormat), NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -6120,10 +6281,7 @@ void Renderer::FBO::create(GLint addColor, bool addDepth,
 		glGenTextures(1, &thirdColor);
 		glBindTexture(GL_TEXTURE_2D, thirdColor);
 		
-		GLenum internalFormat = GL_RGB;
-		if (thirdColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
-		glTexImage2D(GL_TEXTURE_2D, 0, thirdColorFormat, 1, 1, 0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, thirdColorFormat, 1, 1, 0, getMatchingFormat(thirdColorFormat), getMatchingType(thirdColorFormat), NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -6143,10 +6301,7 @@ void Renderer::FBO::create(GLint addColor, bool addDepth,
 		glGenTextures(1, &fourthColor);
 		glBindTexture(GL_TEXTURE_2D, fourthColor);
 
-		GLenum internalFormat = GL_RGB;
-		if (fourthColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
-		glTexImage2D(GL_TEXTURE_2D, 0, fourthColorFormat, 1, 1, 0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, fourthColorFormat, 1, 1, 0, getMatchingFormat(fourthColorFormat), getMatchingType(fourthColorFormat), NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -6167,10 +6322,7 @@ void Renderer::FBO::create(GLint addColor, bool addDepth,
 		glGenTextures(1, &fifthColor);
 		glBindTexture(GL_TEXTURE_2D, fifthColor);
 
-		GLenum internalFormat = GL_RGB;
-		if (fifthColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
-		glTexImage2D(GL_TEXTURE_2D, 0, fifthColorFormat, 1, 1, 0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, fifthColorFormat, 1, 1, 0, getMatchingFormat(fifthColorFormat), getMatchingType(fifthColorFormat), NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -6377,44 +6529,35 @@ void Renderer::FBO::updateSize(int x, int y)
 		{
 			glBindTexture(GL_TEXTURE_2D, color);
 			glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, x, y,
-				0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+				0, getMatchingFormat(colorFormat), getMatchingType(colorFormat), NULL);
 		}
 
 		if (secondaryColor)
 		{
 			glBindTexture(GL_TEXTURE_2D, secondaryColor);
 			glTexImage2D(GL_TEXTURE_2D, 0, secondaryColorFormat, x, y,
-				0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+				0, getMatchingFormat(secondaryColorFormat), getMatchingType(secondaryColorFormat), NULL);
 		}
 
 		if (thirdColor)
 		{
-			GLenum internalFormat = GL_RGB;
-			if (thirdColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
 			glBindTexture(GL_TEXTURE_2D, thirdColor);
 			glTexImage2D(GL_TEXTURE_2D, 0, thirdColorFormat, x, y,
-				0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+				0, getMatchingFormat(thirdColorFormat), getMatchingType(thirdColorFormat), NULL);
 		}
 		
 		if (fourthColor)
 		{
-			GLenum internalFormat = GL_RGB;
-			if (fourthColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
 			glBindTexture(GL_TEXTURE_2D, fourthColor);
 			glTexImage2D(GL_TEXTURE_2D, 0, fourthColorFormat, x, y,
-				0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+				0, getMatchingFormat(fourthColorFormat), getMatchingType(fourthColorFormat), NULL);
 		}
 
 		if (fifthColor)
 		{
-			GLenum internalFormat = GL_RGB;
-			if (fifthColorFormat == GL_RGB16UI) { internalFormat = GL_RGB_INTEGER; }
-
 			glBindTexture(GL_TEXTURE_2D, fifthColor);
 			glTexImage2D(GL_TEXTURE_2D, 0, fifthColorFormat, x, y,
-				0, internalFormat, GL_UNSIGNED_BYTE, NULL);
+				0, getMatchingFormat(fifthColorFormat), getMatchingType(fifthColorFormat), NULL);
 		}
 
 		if (depth)
@@ -6521,6 +6664,18 @@ void Renderer::FBO::clearFBO()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+	// Check if FBO is complete before clearing
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		// FBO not complete - skip clear and restore default framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		return;
+	}
+
+	// Get max color attachments this GPU supports
+	GLint maxAttachments = 0;
+	glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxAttachments);
 
 	if (depth && color)
 	{
@@ -6535,25 +6690,25 @@ void Renderer::FBO::clearFBO()
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
-	if (secondaryColor)
+	if (secondaryColor && maxAttachments > 1)
 	{
 		const float clearColor2[] = {0.0f, 0.0f, 0.0f, 0.0f};
 		glClearBufferfv(GL_COLOR, 1, clearColor2);
 	}
 
-	if (thirdColor)
+	if (thirdColor && maxAttachments > 2)
 	{
 		const float clearColor3[] = {0.0f, 0.0f, 0.0f, 0.0f};
 		glClearBufferfv(GL_COLOR, 2, clearColor3);
 	}
 
-	if (fourthColor)
+	if (fourthColor && maxAttachments > 3)
 	{
 		const float clearColor3[] = {0.0f, 0.0f, 0.0f, 0.0f};
 		glClearBufferfv(GL_COLOR, 3, clearColor3);
 	}
 
-	if (fifthColor)
+	if (fifthColor && maxAttachments > 4)
 	{
 		const float clearColor3[] = {0.0f, 0.0f, 0.0f, 0.0f};
 		glClearBufferfv(GL_COLOR, 4, clearColor3);

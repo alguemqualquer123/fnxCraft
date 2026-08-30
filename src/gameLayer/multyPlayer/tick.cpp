@@ -1,11 +1,13 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #include <gameplay/entity.h>
+#include <multyPlayer/waterSimulation.h>
 #include <multyPlayer/tick.h>
 #include <chunkSystem.h>
 #include <iostream>
 #include <multyPlayer/enetServerFunction.h>
 #include <deque>
+#include <queue>
 #include <platformTools.h>
 #include <gameplay/gameplayRules.h>
 #include <gameplay/crafting.h>
@@ -386,6 +388,35 @@ bool spawnCat(
 }
 
 
+bool spawnFish(
+	ServerChunkStorer &chunkManager,
+	Fish fish, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	//todo also send packets
+	//todo generic spawn for any entity
+
+	auto chunkPos = determineChunkThatIsEntityIn(fish.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		FishServer e = {};
+		e.entity = fish;
+		e.entity.fishType = fish.fishType;
+
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::fish);
+		c->entityData.fish.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+
+
 void killEntity(WorldSaver &worldSaver, std::uint64_t entity, ServerChunkStorer &chunkCache)
 {
 	auto entityType = getEntityTypeFromEID(entity);
@@ -489,9 +520,73 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 			{
 				allSurvivalClients.insert({found->first, &found->second});
 			}
-
+		}
+		{
+			static std::unordered_map<glm::ivec3, int> redstonePower;
+			redstonePower.clear();
+			std::queue<std::pair<glm::ivec3,int>> q;
+			for(auto &kv : chunkCache.savedChunks){
+				if(!kv.second->otherData.withinSimulationDistance) continue;
+				auto &cd = kv.second->chunk;
+				int baseX = kv.first.x * CHUNK_SIZE;
+				int baseZ = kv.first.y * CHUNK_SIZE;
+				for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=0;y<CHUNK_HEIGHT;y++){
+					Block &b = cd.unsafeGet(x,y,z);
+					if(b.getType()==BlockTypes::redstoneTorch){
+						glm::ivec3 p = {baseX+x, y, baseZ+z};
+						redstonePower[p]=15;
+						q.push({p,15});
+						b.setRedstonePower(15);
+					}
+				}
+			}
+			const glm::ivec3 dirs[4]={{1,0,0},{-1,0,0},{0,0,1},{0,0,-1}};
+			while(!q.empty()){
+				auto [pos, pw] = q.front(); q.pop();
+				if(pw<=1) continue;
+				for(auto &d: dirs){
+					glm::ivec3 np = pos + d;
+					Block *nb = chunkCache.getBlockSafe(np);
+					if(!nb) continue;
+					if(nb->getType()==BlockTypes::redstoneDust){
+						int cur = redstonePower.count(np) ? redstonePower[np] : nb->getRedstonePower();
+						int npw = pw -1;
+						if(npw > cur){
+							redstonePower[np]=npw;
+							nb->setRedstonePower(npw);
+							auto *sc = chunkCache.getChunkOrGetNull(divideChunk(np.x), divideChunk(np.z));
+							if(sc) sc->otherData.dirty=true;
+							modifiedBlocks[np]=*nb;
+							q.push({np, npw});
+						}
+					}
+				}
+			}
+			for(auto &kv : chunkCache.savedChunks){
+				if(!kv.second->otherData.withinSimulationDistance) continue;
+				auto &cd = kv.second->chunk;
+				int baseX = kv.first.x * CHUNK_SIZE;
+				int baseZ = kv.first.y * CHUNK_SIZE;
+				for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=0;y<CHUNK_HEIGHT;y++){
+					Block &b = cd.unsafeGet(x,y,z);
+					if(b.getType()==BlockTypes::redstoneDust){
+						glm::ivec3 p = {baseX+x, y, baseZ+z};
+						if(redstonePower.find(p)==redstonePower.end()){
+							if(b.getRedstonePower()!=0){ b.setRedstonePower(0); modifiedBlocks[p]=b; kv.second->otherData.dirty=true; }
+						}
+					} else if(b.getType()==BlockTypes::redstoneLamp){
+						glm::ivec3 p = {baseX+x, y, baseZ+z};
+						bool powered=false;
+						for(auto &d: dirs){ glm::ivec3 np=p+d; Block *nb=chunkCache.getBlockSafe(np); if(nb && nb->getType()==BlockTypes::redstoneDust && nb->getRedstonePower()>0) powered=true; if(nb && nb->getType()==BlockTypes::redstoneTorch) powered=true; }
+						int cur = b.getRedstonePower();
+						int want = powered ? 15 : 0;
+						if(cur != want){ b.setRedstonePower(want); modifiedBlocks[p]=b; kv.second->otherData.dirty=true; if(want) chunkCache.getBlockSafe(p)->setLightLevel(15); else chunkCache.getBlockSafe(p)->setLightLevel(0); }
+					}
+				}
+			}
 		}
 	}
+
 
 #pragma endregion
 
@@ -845,6 +940,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 								if (legal)
 								{
 									auto lastBlock = b->getType();
+									Block lastBlockFull = *b;
 									chunk->removeBlockWithData({convertedX,
 										i.t.pos.y, convertedZ}, lastBlock);
 									*b = actualPlacedBLock;
@@ -880,15 +976,32 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 										if (client->playerData.otherPlayerSettings.gameMode ==
 											OtherPlayerSettings::SURVIVAL)
 										{
-											//todo other checks here like tools
-
 											MotionState ms;
 											ms.velocity.y = 2;
-
-											spawnDroppedItemEntity(chunkCache,
-												worldSaver, 1, lastBlock, nullptr,
-												glm::dvec3(i.t.pos), ms);
-
+											if(isCrop(lastBlock)){
+												int stage = lastBlockFull.getCropStage();
+												if(stage >= 7){
+													if(lastBlock==BlockTypes::wheatCrop){
+														spawnDroppedItemEntity(chunkCache, worldSaver, 1, ItemTypes::wheat, nullptr, glm::dvec3(i.t.pos), ms);
+														spawnDroppedItemEntity(chunkCache, worldSaver, 2, ItemTypes::wheatSeeds, nullptr, glm::dvec3(i.t.pos)+glm::dvec3(0.3,0,0), ms);
+													}else if(lastBlock==BlockTypes::potatoCrop){
+														spawnDroppedItemEntity(chunkCache, worldSaver, 2, ItemTypes::potatoSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													}else if(lastBlock==BlockTypes::cornCrop){
+														spawnDroppedItemEntity(chunkCache, worldSaver, 2, ItemTypes::cornSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													}else if(lastBlock==BlockTypes::carrotCrop){
+														spawnDroppedItemEntity(chunkCache, worldSaver, 2, ItemTypes::carrotSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													}
+												}else{
+													if(lastBlock==BlockTypes::wheatCrop) spawnDroppedItemEntity(chunkCache, worldSaver, 1, ItemTypes::wheatSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													else if(lastBlock==BlockTypes::potatoCrop) spawnDroppedItemEntity(chunkCache, worldSaver, 1, ItemTypes::potatoSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													else if(lastBlock==BlockTypes::cornCrop) spawnDroppedItemEntity(chunkCache, worldSaver, 1, ItemTypes::cornSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+													else if(lastBlock==BlockTypes::carrotCrop) spawnDroppedItemEntity(chunkCache, worldSaver, 1, ItemTypes::carrotSeeds, nullptr, glm::dvec3(i.t.pos), ms);
+												}
+											}else{
+												spawnDroppedItemEntity(chunkCache,
+													worldSaver, 1, lastBlock, nullptr,
+													glm::dvec3(i.t.pos), ms);
+											}
 
 										}
 
@@ -1419,15 +1532,23 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 										g.lastPosition = position;
 										spawnGoblin(chunkCache, g, worldSaver, rng);
 									}
-									else if (from->type == ItemTypes::scareCrowSpawnEgg)
-									{
-										ScareCrow g;
-										glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
-										g.position = position;
-										g.lastPosition = position;
-										spawnScareCrow(chunkCache, g, worldSaver, rng);
-									}
-									else if (from->isEatable())
+					else if (from->type == ItemTypes::scareCrowSpawnEgg)
+					{
+						ScareCrow g;
+						glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
+						g.position = position;
+						g.lastPosition = position;
+						spawnScareCrow(chunkCache, g, worldSaver, rng);
+					}
+					else if (from->type == ItemTypes::fishSpawnEgg)
+					{
+						Fish f;
+						glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
+						f.position = position;
+						f.lastPosition = position;
+						spawnFish(chunkCache, f, worldSaver, rng);
+					}
+					else if (from->isEatable())
 									{
 
 										auto effects = getItemEffects(*from, client->playerData.inventory);
@@ -1439,12 +1560,28 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 											)
 										{
 											allowed = 0;
-										}
-										else
-										{
-											client->playerData.applyDamageOrLife(healing);
-											client->playerData.effects.applyEffects(effects);
-										}
+										}											else
+											{
+												client->playerData.applyDamageOrLife(healing);
+												client->playerData.effects.applyEffects(effects);
+
+												// Restore hunger from food
+												float hungerRestore = getItemHungerRestoration(*from);
+												if (hungerRestore > 0)
+												{
+													client->playerData.hunger += hungerRestore;
+													client->playerData.hunger = std::min(client->playerData.hunger, HUNGER_MAX);
+												}
+
+												// Restore thirst from drinks
+												float thirstRestore = getItemThirstRestoration(*from);
+												if (thirstRestore > 0)
+												{
+													client->playerData.thirst += thirstRestore;
+													client->playerData.thirst = std::min(client->playerData.thirst, THIRST_MAX);
+												}
+
+											}
 
 
 									}
@@ -1724,7 +1861,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 											packetData.attackStrength = 3.f;
 
 											broadCastNotLocked(packet, &packetData, sizeof(packetData),
-												false, true, channelOtherVisualThings);
+												nullptr, true, channelOtherVisualThings);
 
 										}
 
@@ -1881,7 +2018,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 							packetData.pos = worldSaver.spawnPosition;
 
 							broadCastNotLocked(packet, &packetData, sizeof(packetData),
-								false, true, channelChunksAndBlocks);
+								nullptr, true, channelChunksAndBlocks);
 						}
 
 					}
@@ -2124,6 +2261,65 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 
 
 	}
+
+
+#pragma endregion
+
+#pragma region hunger and thirst
+	// Survival: hunger and thirst depletion + starvation/dehydration damage
+	for (auto &c : allSurvivalClients)
+	{
+		auto &playerData = c.second->playerData;
+
+		if (playerData.killed) { continue; }
+
+		// Deplete hunger
+		playerData.hunger -= HUNGER_DEPLETION_RATE * deltaTime;
+		playerData.hunger = std::max(playerData.hunger, 0.f);
+
+		// Deplete thirst (faster)
+		playerData.thirst -= THIRST_DEPLETION_RATE * deltaTime;
+		playerData.thirst = std::max(playerData.thirst, 0.f);
+
+		// Starvation damage
+		if (playerData.hunger <= 0)
+		{
+			playerData.hungerDamageTimer += deltaTime;
+			if (playerData.hungerDamageTimer >= 1.f)
+			{
+				playerData.hungerDamageTimer -= 1.f;
+				playerData.applyDamageOrLife(-(int)HUNGER_DAMAGE_RATE);
+			}
+		}
+		else
+		{
+			playerData.hungerDamageTimer = 0;
+		}
+
+		// Dehydration damage
+		if (playerData.thirst <= 0)
+		{
+			playerData.thirstDamageTimer += deltaTime;
+			if (playerData.thirstDamageTimer >= 1.f)
+			{
+				playerData.thirstDamageTimer -= 1.f;
+				playerData.applyDamageOrLife(-(int)THIRST_DAMAGE_RATE);
+			}
+		}
+		else
+		{
+			playerData.thirstDamageTimer = 0;
+		}
+
+		// Send hunger/thirst updates to client periodically
+		playerData.survivalTickTimer += deltaTime;
+		if (playerData.survivalTickTimer >= 0.5f)
+		{
+			playerData.survivalTickTimer = 0;
+			// TODO: send hunger/thirst to client for HUD display
+		}
+	}
+#pragma endregion
 
 
 #pragma endregion
@@ -2420,6 +2616,49 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		}
 	
 	};
+
+
+	updateWaterSimulation(chunkCache, modifiedBlocks);
+
+	{
+		static uint64_t farmTick=0; farmTick++;
+		if((farmTick % 40)==0){
+			for(auto &kv : chunkCache.savedChunks){
+				auto *sc = kv.second;
+				if(!sc->otherData.withinSimulationDistance) continue;
+				auto &cd = sc->chunk;
+				const int baseX = kv.first.x * CHUNK_SIZE;
+				const int baseZ = kv.first.y * CHUNK_SIZE;
+				for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=1;y<CHUNK_HEIGHT;y++){
+					Block &b = cd.unsafeGet(x,y,z);
+					if(!b.isCrop()) continue;
+					int stage = b.getCropStage();
+					if(stage >= 7) continue;
+					Block *below = cd.unsafeGet(x,y-1,z).getType()==BlockTypes::air ? nullptr : &cd.unsafeGet(x,y-1,z);
+					if(!below || !(below->getType()==BlockTypes::dirt || below->getType()==BlockTypes::grassBlock || below->getType()==BlockTypes::coarseDirt)) continue;
+					bool hasWater=false;
+					for(int dx=-4;dx<=4 && !hasWater;dx++) for(int dz=-4;dz<=4 && !hasWater;dz++){
+						int nx = x+dx, nz = z+dz;
+						if(nx<0||nx>=CHUNK_SIZE||nz<0||nz>=CHUNK_SIZE){
+							glm::ivec3 wp = {baseX+x+dx, y-1, baseZ+z+dz};
+							Block *wb = chunkCache.getBlockSafe(wp);
+							if(wb && wb->getType()==BlockTypes::water) hasWater=true;
+						}else{
+							Block &wb = cd.unsafeGet(nx,y-1,nz);
+							if(wb.getType()==BlockTypes::water) hasWater=true;
+						}
+					}
+					if(!hasWater) continue;
+					if((rand()%8)!=0) continue;
+					Block nb = b; nb.setCropStage(stage+1);
+					glm::ivec3 wpos = {baseX+x, y, baseZ+z};
+					b = nb;
+					sc->otherData.dirty = true;
+					modifiedBlocks[wpos] = nb;
+				}
+			}
+		}
+	}
 
 
 #pragma endregion

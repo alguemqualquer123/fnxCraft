@@ -258,6 +258,15 @@ enum BlockTypes : unsigned short
 	birchFence,
 	birchLogFence,
 
+	wheatCrop,
+	potatoCrop,
+	cornCrop,
+	carrotCrop,
+
+	redstoneDust,
+	redstoneTorch,
+	redstoneLamp,
+
 	BlocksCount
 };
 
@@ -363,6 +372,10 @@ bool isStainedGlass(BlockType type);
 unsigned char isInteractable(BlockType type);
 
 bool isBlock(std::uint16_t type);
+
+bool isCrop(BlockType type);
+bool isRedstone(BlockType type);
+bool isRedstoneDust(BlockType type);
 
 bool noRotationForFurniture(std::uint16_t type);
 
@@ -524,6 +537,53 @@ struct Block
 	bool getTopPartForSlabs()
 	{
 		return (typeAndFlags >> 11) & 0b0000'1;
+	}
+
+	//water level, 0 = full block, 1..7 = partial water (surface height (8-level)/8)
+	unsigned char getWaterLevel()
+	{
+		return (typeAndFlags >> 11) & 0b111;
+	}
+
+	void setWaterLevel(unsigned char level)
+	{
+		level &= 0b111;
+		level <<= 11;
+		typeAndFlags &= 0b1110'0111'1111'1111;
+		typeAndFlags |= level;
+	}
+
+	bool isWater()
+	{
+		return getType() == BlockTypes::water;
+	}
+
+	bool isCrop()
+	{
+		auto t = getType();
+		return t == BlockTypes::wheatCrop || t == BlockTypes::potatoCrop || t == BlockTypes::cornCrop || t == BlockTypes::carrotCrop;
+	}
+
+	unsigned char getCropStage()
+	{
+		return (typeAndFlags >> 11) & 0b111;
+	}
+
+	void setCropStage(unsigned char s)
+	{
+		s &= 0b111; s <<= 11;
+		typeAndFlags &= 0b1110'0111'1111'1111;
+		typeAndFlags |= s;
+	}
+
+	unsigned char getRedstonePower()
+	{
+		return (typeAndFlags >> 11) & 0b1111;
+	}
+	void setRedstonePower(unsigned char p)
+	{
+		typeAndFlags &= ~(0b1111 << 11);
+		typeAndFlags |= (p & 0b1111) << 11;
 	}
 
 	bool isDecorativeFurniture()

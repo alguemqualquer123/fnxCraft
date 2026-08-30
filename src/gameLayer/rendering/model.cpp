@@ -1043,6 +1043,39 @@ gl2d::Texture loadPlayerSkin(const char *path)
 			memcpy(newData.data() + width * height * 4, decodedImage, width * height * 4);
 			texture.createFromBuffer(newData.data(), width, height * 2, true, true);
 		}
+		else if(width == 64 && height == 64)
+		{
+			std::vector<unsigned char> upscaled(128*128*4);
+			for(int y=0;y<64;y++) for(int x=0;x<64;x++){
+				for(int dy=0;dy<2;dy++) for(int dx=0;dx<2;dx++){
+					int s = (y*64+x)*4;
+					int d = ((y*2+dy)*128 + (x*2+dx))*4;
+					upscaled[d+0]=decodedImage[s+0];
+					upscaled[d+1]=decodedImage[s+1];
+					upscaled[d+2]=decodedImage[s+2];
+					upscaled[d+3]=decodedImage[s+3];
+				}
+			}
+			texture.createFromBuffer((const char*)upscaled.data(), 128, 128, true, true);
+		}
+		else if(width == 64 && height == 32)
+		{
+			std::vector<unsigned char> upscaled(128*64*4);
+			for(int y=0;y<32;y++) for(int x=0;x<64;x++){
+				for(int dy=0;dy<2;dy++) for(int dx=0;dx<2;dx++){
+					int s = (y*64+x)*4;
+					int d = ((y*2+dy)*128 + (x*2+dx))*4;
+					upscaled[d+0]=decodedImage[s+0];
+					upscaled[d+1]=decodedImage[s+1];
+					upscaled[d+2]=decodedImage[s+2];
+					upscaled[d+3]=decodedImage[s+3];
+				}
+			}
+			std::vector<char> newData;
+			newData.resize(128*128*4);
+			memcpy(newData.data() + 128*64*4, upscaled.data(), 128*64*4);
+			texture.createFromBuffer(newData.data(), 128, 128, true, true);
+		}
 
 		STBI_FREE(decodedImage);
 

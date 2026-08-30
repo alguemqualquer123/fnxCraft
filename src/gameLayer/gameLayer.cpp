@@ -22,8 +22,10 @@
 #include <filesystem>
 #include <audioEngine.h>
 #include <gameplay/loot.h>
+#include <localization.h>
 
 #include <platformTools.h>
+#include <gameLayer/SplashScreen.h>
 
 #if REMOVE_IMGUI == 0
 #include "imgui.h"
@@ -305,6 +307,7 @@ static ShadingSettings shadingSettingsCopy;
 
 bool initGame() //main server and title screen stuff
 {
+	SplashScreen::draw(0.02f, "Inicializando...", "Preparando arquivos");
 
 	srand(time(0));
 	createErrorFile();
@@ -313,11 +316,16 @@ bool initGame() //main server and title screen stuff
 
 
 	programData.GPUProfiler.initGPUProfiler();
+	SplashScreen::draw(0.08f, "Inicializando GPU...", "Profiler e VSync");
 
 	gl2d::setVsync(false);
 
 	AudioEngine::init();
 	AudioEngine::loadSettingsOrSetToDefaultIfFail();
+	SplashScreen::draw(0.15f, "Carregando audio...", "Engine de som");
+
+	loadLanguageSettings();
+	SplashScreen::draw(0.20f, "Idioma...", "Carregando traducoes");
 
 	loadShadingSettings();
 	{
@@ -334,23 +342,39 @@ bool initGame() //main server and title screen stuff
 
 	}
 	shadingSettingsCopy = getShadingSettings();
+	SplashScreen::draw(0.28f, "Interface...", "Preparando UI");
 
 	programData.ui.init();
+	SplashScreen::draw(0.35f, "Renderizador...", "Gyzmos e Skybox");
 
 	programData.gyzmosRenderer.create();
 	programData.pointDebugRenderer.create();
 	programData.skyBoxLoaderAndDrawer.createGpuData();
 	programData.sunRenderer.create();
+	SplashScreen::draw(0.45f, "Texturas...", "Pacotes e blocos");
 
 	loadAllDefaultTexturePacks();
 	programData.renderer.create(programData.modelsManager);
 	programData.renderer.renderAllBlocksUiTextures(programData.blocksLoader, programData.modelsManager);
 
+	{
+		int missingBlocks = 0, missingItems = 0;
+		for (int i = 0; i < BlocksCount; i++)
+			if (programData.blocksLoader.texturesIds[i*4] == programData.blocksLoader.texturesIds[0]) missingBlocks++;
+		for (int i = 0; i < (int)(ItemTypes::lastItem - ItemsStartPoint); i++)
+			if (programData.blocksLoader.texturesIdsItems[i] == programData.blocksLoader.texturesIds[0]) missingItems++;
+		if (missingBlocks > 1 || missingItems > 0)
+			std::cout << "[AssetValidator] Missing textures — blocks: " << missingBlocks << " (incl. air), items: " << missingItems << " (checker fallback)\n";
+	}
+	SplashScreen::draw(0.70f, "Modelos 3D...", "Carregando assets");
+
 
 	AudioEngine::loadAllMusic();
+	SplashScreen::draw(0.80f, "Musicas...", "Trilha sonora");
 	AudioEngine::playTitleMusic();
 
 	programData.defaultCover.loadFromFile(RESOURCES_PATH "defaultCover.png");
+	SplashScreen::draw(0.88f, "Rede...", "Inicializando ENet");
 
 
 	if (enet_initialize() != 0)
@@ -365,6 +389,7 @@ bool initGame() //main server and title screen stuff
 
 	//glEnable(GL_LINE_WIDTH);
 	glLineWidth(4);
+	SplashScreen::draw(0.98f, "Quase la...", "Finalizando");
 
 
 	//KeyValuePair settings;
@@ -569,33 +594,67 @@ bool gameLogic(float deltaTime)
 		displayWorldSelectorMenuButton(programData);
 
 
-		if (programData.ui.menuRenderer.Button("Join game", Colors_Gray,
+		if (programData.ui.menuRenderer.Button(loc_JoinGame(), Colors_Gray,
 			programData.ui.buttonTexture))
 		{
-			if (initGameplay(programData, ipString))
+			std::string trimmed = ipString;
+			trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+			trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+			if (!trimmed.empty() && trimmed.find_first_not_of("0123456789.: \t\r\nabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_") != std::string::npos)
+			{
+				lastError = "IP invalido / Invalid IP";
+			}
+			else if (initGameplay(programData, ipString))
 			{
 				gameStarted = true;
+				lastError.clear();
 			}
 			else
 			{
-				lastError = "Couldn't join server";
+				if (trimmed.empty())
+					lastError = std::string(loc_CouldntJoinServer()) + " (servidor local nao iniciou / local server failed)";
+				else
+					lastError = std::string(loc_CouldntJoinServer()) + " - Verifique IP:porta e firewall UDP 7771 / Check IP:port & UDP 7771 firewall";
 			}
 		}
 		
-		programData.ui.menuRenderer.InputText("IP: ", ipString, sizeof(ipString),
+		programData.ui.menuRenderer.InputText(loc_IP(), ipString, sizeof(ipString),
 			Colors_Gray, programData.ui.buttonTexture, false);
+		programData.ui.menuRenderer.Text("Ex: 192.168.1.10  ou  192.168.1.10:7771  ou  203.0.113.5:7771", glm::vec4(0.85f, 0.85f, 0.85f, 0.9f));
+		programData.ui.menuRenderer.Text("Dica: host precisa liberar UDP 7771 no roteador/firewall", glm::vec4(0.7f, 0.7f, 0.9f, 0.9f));
 
 
-		displaySettingsMenuButton(programData);
+	displaySettingsMenuButton(programData);
 
-		displaySkinSelectorMenuButton(programData);
+	displaySkinSelectorMenuButton(programData);
 
-		if (!lastError.empty())
-		{
-			programData.ui.menuRenderer.Text(lastError, glm::vec4(1, 0, 0, 1));
-		}
+	static ConfirmationModal exitModal;
+	if (programData.ui.menuRenderer.Button(loc_Exit(), Colors_Gray, programData.ui.buttonTexture))
+	{
+		exitModal.open(loc_Exit(), loc_AreYouSureExit());
+	}
+
+	if (!lastError.empty())
+	{
+		programData.ui.menuRenderer.Text(lastError, glm::vec4(1, 0, 0, 1));
+	}
 
 		programData.ui.menuRenderer.End();
+
+		// Render exit confirmation modal
+		if (exitModal.show)
+		{
+			glm::vec2 screenSize = {programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH};
+			if (exitModal.render(
+				programData.ui.renderer2d, programData.ui.font, screenSize))
+			{
+				if (exitModal.result)
+				{
+					return false; // Exit the game
+				}
+			}
+		}
+
 	}
 	else
 	{

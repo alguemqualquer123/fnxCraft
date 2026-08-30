@@ -1,4 +1,5 @@
 #include "multyPlayer/enetServerFunction.h"
+#include <gameLayer/GamePaths.h>
 #include <atomic>
 #include <thread>
 #include <enet/enet.h>
@@ -23,6 +24,10 @@
 #include <filesystem>
 #include <platformTools.h>
 #include <profiler.h>
+#include <multyPlayer/events/eventSystem.h>
+#include <multyPlayer/commandSystem.h>
+#include <algorithm>
+#include <cstring>
 
 //todo add to a struct
 ENetHost *server = 0;
@@ -31,6 +36,25 @@ std::unordered_map<std::uint64_t, Client> connections;
 static std::thread enetServerThread;
 
 EntityIdHolder entityIds;
+
+//world spawn point mirrored from the WorldSaver each server tick, used by /spawn
+static glm::ivec3 serverSpawnPosition(0, 107, 0);
+static int serverSeed = 0;
+
+glm::ivec3 getWorldSpawnPosition()
+{
+	return serverSpawnPosition;
+}
+
+void setWorldSpawnPosition(const glm::ivec3 &pos)
+{
+	serverSpawnPosition = pos;
+}
+
+int getWorldSeed()
+{
+	return serverSeed;
+}
 
 
 std::uint64_t getEntityIdAndIncrement(WorldSaver &worldSaver, int entityType)
@@ -830,6 +854,47 @@ void recieveData(ENetHost *server, ENetEvent &event, std::vector<ServerTask> &se
 			break;
 		}
 
+		case headerCommandSuggestions:
+		{
+			if (size <= 0) { break; }
+			if (data[size - 1] != 0) { break; } //the request must be null terminated
+			if (size > 256) { break; }
+
+			//the permission level is authoritative from the server side
+			int perm = 0;
+			if (p.cid)
+			{
+				auto c = getClientSafe(p.cid);
+				if (!c) { break; }
+				perm = c->playerData.otherPlayerSettings.commandPermisionLevel;
+			}
+			else
+			{
+				perm = 3;
+			}
+
+			std::string prefix(data);
+
+			auto suggestions = getCommandSuggestions(perm, prefix);
+
+			Packet_CommandSuggestions packetData;
+			packetData.count = (uint16_t)std::min<size_t>(suggestions.size(), 32);
+			for (int i = 0; i < packetData.count; i++)
+			{
+				strncpy(packetData.entries[i], suggestions[i].c_str(), 63);
+				packetData.entries[i][63] = 0;
+			}
+
+			Packet newPacket;
+			newPacket.cid = 0;
+			newPacket.header = headerCommandSuggestions;
+
+			sendPacket(connection->second.peer, newPacket, (const char *)&packetData,
+				sizeof(packetData), true, channelHandleConnections);
+
+			break;
+		}
+
 		case headerClientChangeBlockData:
 		{
 			int a = 0;
@@ -846,6 +911,46 @@ void recieveData(ENetHost *server, ENetEvent &event, std::vector<ServerTask> &se
 			serverTask.t.metaData.resize(blockData->blockDataHeader.dataSize);
 			memcpy(serverTask.t.metaData.data(), data + sizeof(Packet_ClientChangeBlockData), blockData->blockDataHeader.dataSize);
 			serverTasks.push_back(serverTask);
+
+			break;
+		}
+
+		case headerClientTriggerServerEvent:
+		{
+			// Custom event from client (FiveM-style)
+			if (size < sizeof(uint32_t)) { break; }
+
+			// Read event name length (varint)
+			const char *ptr = data;
+			const char *end = data + size;
+			uint32_t nameLen = 0;
+			int shift = 0;
+			while (ptr < end)
+			{
+				unsigned char b = *ptr++;
+				nameLen |= (uint32_t)(b & 0x7F) << shift;
+				if (!(b & 0x80)) break;
+				shift += 7;
+			}
+
+			if (ptr + nameLen > end) break;
+
+			std::string eventName(ptr, nameLen);
+			ptr += nameLen;
+
+			// Deserialize event args
+			EventData eventData;
+			eventData.eventName = eventName;
+			size_t remaining = end - ptr;
+			if (remaining > 0)
+			{
+				eventData.deserialize(ptr, remaining);
+			}
+
+			// Dispatch to event system
+			// For now, just log it
+			std::cout << "[Server] Event received from client " << p.cid
+				<< ": " << eventName << " with " << eventData.args.size() << " args\n";
 
 			break;
 		}
@@ -944,10 +1049,15 @@ void enetServerFunction(std::string path)
 	StructuresManager structuresManager;
 	BiomesManager biomesManager;
 	WorldSaver worldSaver;
-	serverProfiler = {};
+	serverProfiler = Profiler{};
 
-	worldSaver.savePath = RESOURCES_PATH "worlds/"; //"saves/";
-	worldSaver.savePath += path + "/world";
+	{
+		std::filesystem::path worldsRoot = GamePaths::get().worlds();
+		if (std::filesystem::exists(std::filesystem::path(RESOURCES_PATH "worlds") / path))
+			worldsRoot = std::filesystem::path(RESOURCES_PATH "worlds");
+		worldSaver.savePath = (worldsRoot / path / "world").string();
+	}
+	// legacy: worldSaver.savePath = RESOURCES_PATH "worlds/" + path + "/world"
 
 
 	{
@@ -989,6 +1099,7 @@ void enetServerFunction(std::string path)
 			if (s.loadSettings(buffer.str().c_str()))
 			{
 				s.sanitize();
+				serverSeed = s.seed;
 				wg.applySettings(s);
 			}
 			else
@@ -1020,6 +1131,7 @@ void enetServerFunction(std::string path)
 			if (s.loadSettings(buffer.str().c_str()))
 			{
 				s.seed = seed;
+				serverSeed = seed;
 				wg.applySettings(s);
 			}
 			else
@@ -1146,6 +1258,16 @@ void enetServerFunction(std::string path)
 	calculatePendingPacketsMetrics();
 
 		serverProfiler.endFrame();
+
+		//throttle the loop so this thread doesn't spin at 100% cpu/full speed
+		auto frameEnd = std::chrono::high_resolution_clock::now();
+		float frameTime = (std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - start)).count() / 1000000.0f;
+		float targetFrameTime = 1.f / (float)targetTicksPerSeccond;
+		if (frameTime < targetFrameTime)
+		{
+			std::this_thread::sleep_for(
+				std::chrono::microseconds((long long)((targetFrameTime - frameTime) * 1000000.0f)));
+		}
 	}
 
 	clearSD(worldSaver);

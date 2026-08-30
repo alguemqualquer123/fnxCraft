@@ -19,6 +19,14 @@ struct PlayerConnectionData;
 
 using uniform = GLint;
 
+//shared between the mesher (chunk.cpp) and the vertex data builder (renderer.cpp)
+constexpr int WATER_LEVEL_COUNT = 7;
+constexpr int WATER_LEVEL_FACES = 6;
+
+//first vertex shape orientation used for partial water (>= 22 && < 22+14 stay the original full water),
+//set by Renderer::recreateBlockGeometryData, valid for the current vertexData buffer
+extern int g_waterLevelsStartOrientation;
+
 
 struct QueryObject
 {
@@ -137,6 +145,7 @@ struct Renderer
 		GLuint u_normalsData = GL_INVALID_INDEX;
 		GLuint u_lights = GL_INVALID_INDEX;
 		uniform u_timeGrass = -1;
+		uniform u_waterLevelsStart = -1;
 		uniform u_writeScreenSpacePositions = -1;
 		uniform u_lastFrameColor = -1;
 		uniform u_lastFramePositionViewSpace = -1;
@@ -338,6 +347,7 @@ struct Renderer
 		GLuint u_textureSamplerers;
 		GLuint u_renderOnlyWater;
 		GLuint u_timeGrass;
+		uniform u_waterLevelsStart = -1;
 	}zpassShader;
 	
 	struct EntityRenderer

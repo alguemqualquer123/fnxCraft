@@ -53,7 +53,26 @@ glm::vec3 Player::getColliderSize()
 
 void Player::update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter)
 {
-	updateForces(deltaTime, !fly);
+	// Check if player is in water (at mid-body height so the player floats stably at the
+	// surface instead of rapidly bobbing between "in water" and "in air" at feet level)
+	glm::dvec3 waterCheck = position + glm::dvec3(0, 0.6, 0);
+	bool inWater = isPositionInWater(waterCheck, chunkGetter);
+
+	if (inWater && !fly)
+	{
+		// In water: apply water physics with buoyancy
+		PhysicalSettings ps;
+		ps.gravityModifier = 0.3f;  // Reduced gravity in water
+
+		// Apply water buoyancy and drag
+		applyWaterPhysics(forces, position, deltaTime, ps, true, WATER_BUOYANCY_FORCE);
+
+		updateForces(deltaTime, true, ps);
+	}
+	else
+	{
+		updateForces(deltaTime, !fly);
+	}
 
 	resolveConstrainsAndUpdatePositions(chunkGetter, deltaTime, getColliderSize());
 }

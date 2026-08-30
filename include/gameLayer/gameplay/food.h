@@ -5,6 +5,8 @@
 
 Effects getItemEffects(Item &item, PlayerInventory &inventory);
 int getItemHealing(Item &item, PlayerInventory &inventory);
+float getItemHungerRestoration(Item &item);
+float getItemThirstRestoration(Item &item);
 
 
 

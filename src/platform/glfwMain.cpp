@@ -6,23 +6,27 @@
 #include <iostream>
 #include <ctime>
 #include "platformTools.h"
+#include "platformDetection.h"
 #include "config.h"
 #include <raudio.h>
 #include "platformInput.h"
 #include "otherPlatformFunctions.h"
 #include "gameLayer.h"
+#include <gameLayer/GamePaths.h>
+#include <gameLayer/SplashScreen.h>
+#include <thread>
 #include <fstream>
 #include <chrono>
 #include <profilerLib/include/profilerLib.h>
 #include <errorReporting.h>
 
 
-#ifdef _WIN32
+#ifdef PLATFORM_WINDOWS
 #define GPU_ENGINE 1
 extern "C"
 {
-	__declspec(dllexport) unsigned long NvOptimusEnablement = GPU_ENGINE;
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = GPU_ENGINE;
+	EXPORT_GPU_PREFERENCE unsigned long NvOptimusEnablement = GPU_ENGINE;
+	EXPORT_GPU_PREFERENCE int AmdPowerXpressRequestHighPerformance = GPU_ENGINE;
 }
 #endif
 
@@ -34,7 +38,7 @@ extern "C"
 	#include "imguiThemes.h"
 #endif
 
-#ifdef _WIN32
+#ifdef PLATFORM_WINDOWS
 #include <Windows.h>
 #endif
 
@@ -50,6 +54,27 @@ bool fullScreen = 0;
 
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+
+	if ((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_V) && (action == GLFW_PRESS || action == GLFW_REPEAT))
+	{
+		const char *clip = glfwGetClipboardString(window);
+		if (clip)
+		{
+			for (const char *p = clip; *p; ++p)
+			{
+				unsigned char c = (unsigned char)*p;
+				if (c == '\r' || c == '\n') continue;
+				if (c < 127)
+					platform::internal::addToTypedInput(c);
+			}
+		}
+		return;
+	}
+
+	if ((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_C) && action == GLFW_PRESS)
+	{
+		return;
+	}
 
 	if ((action == GLFW_REPEAT || action == GLFW_PRESS) && key == GLFW_KEY_BACKSPACE)
 	{
@@ -116,8 +141,8 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 		{
 			platform::internal::setButtonState(platform::Button::Right, state);
 		}
-		else
-		if (key == GLFW_KEY_LEFT_CONTROL)
+	else
+	if (key == GLFW_KEY_LEFT_CONTROL || key == GLFW_KEY_RIGHT_CONTROL)
 		{
 			platform::internal::setButtonState(platform::Button::LeftCtrl, state);
 		}
@@ -135,6 +160,10 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 		if (key == GLFW_KEY_SLASH)
 		{
 			platform::internal::setButtonState(platform::Button::SlashQuestionMark, state);
+		}else
+		if (key == GLFW_KEY_TAB)
+		{
+			platform::internal::setButtonState(platform::Button::Tab, state);
 		}else
 		if (key >= GLFW_KEY_F1 && key <= GLFW_KEY_F12)
 		{
@@ -344,12 +373,14 @@ bool HasExtension(const char *name)
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
+	GamePaths::get().init(argc, argv);
+	GamePaths::get().ensureDirectories();
 
-#ifdef _WIN32
+#ifdef PLATFORM_WINDOWS
 	timeBeginPeriod(1);
-#ifdef _MSC_VER 
+#ifdef COMPILER_MSVC 
 #if INTERNAL_BUILD
 	AllocConsole();
 	(void)freopen("conin$", "r", stdin);
@@ -369,16 +400,33 @@ int main()
 #pragma region window and opengl
 
 	permaAssertComment(glfwInit(), "err initializing glfw");
-	//glfwWindowHint(GLFW_SAMPLES, 4);
+#ifdef __APPLE__
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#else
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+#endif
 
 	int w = 500;
 	int h = 500;
-	wind = glfwCreateWindow(w, h, "geam", nullptr, nullptr);
+	wind = glfwCreateWindow(w, h, "ourCraft", nullptr, nullptr);
 	glfwMakeContextCurrent(wind);
-	//glfwSwapInterval(1);
+	glfwSwapInterval(1);
+
+	{
+		GLFWimage icon = {};
+		int channels = 0;
+		const char *paths[] = { RESOURCES_PATH "icon.png", "./icon.png", "./resources/icon.png", "../resources/icon.png" };
+		for (auto p : paths)
+		{
+			icon.pixels = stbi_load(p, &icon.width, &icon.height, &channels, 4);
+			if (icon.pixels) { glfwSetWindowIcon(wind, 1, &icon); stbi_image_free(icon.pixels); break; }
+		}
+	}
 
 	glfwSetKeyCallback(wind, keyCallback);
 	glfwSetMouseButtonCallback(wind, mouseCallback);
@@ -394,7 +442,11 @@ int main()
 	{
 		std::cout << "Error, Bindless texture extension not supported!\nUsually integrated GPUs don't support this extension, this will be fixed in the future.\n";
 		std::cout << "Press enter to try anyway...\n";
+#ifdef PLATFORM_WINDOWS
 		system("pause");
+#else
+		std::cin.get();
+#endif
 	}
 
 
@@ -456,9 +508,13 @@ int main()
 #pragma endregion
 
 #pragma region initGame
-	if (!initGame())
 	{
-		return 0;
+		SplashScreen::init(wind);
+		SplashScreen::draw(0.f, "Iniciando ourCraft...", "Preparando janela");
+		bool ok = initGame();
+		SplashScreen::draw(1.f, "Pronto!", "Bem-vindo");
+		std::this_thread::sleep_for(std::chrono::milliseconds(380));
+		if (!ok) return 0;
 	}
 #pragma endregion
 

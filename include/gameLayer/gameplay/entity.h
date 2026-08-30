@@ -20,6 +20,11 @@
 
 struct Client;
 
+// Forward declarations for template-dependent functions
+float getRandomNumberFloat(std::minstd_rand &rng, float min, float max);
+bool getRandomChance(std::minstd_rand &rng, float chance);
+float computeRestantTimer(std::uint64_t older, std::uint64_t newer);
+
 //basic entity structure
 //
 //
@@ -462,6 +467,8 @@ struct PhysicalEntity
 	}
 
 	void jump(float impulse = BASIC_JUMP_IMPULSE);
+
+	void swimUp(float impulse = WATER_SWIM_IMPULSE);
 
 	void move(glm::vec2 move);
 

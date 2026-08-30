@@ -351,6 +351,11 @@ namespace AudioEngine
 		SoundCollection(RESOURCES_PATH "/sounds/buttonOff"),
 		SoundCollection(RESOURCES_PATH "/sounds/buttonSlider"),
 
+		// Water sounds
+		SoundCollection(RESOURCES_PATH "/sounds/waterSplash"),
+		SoundCollection(RESOURCES_PATH "/sounds/waterSwim"),
+		SoundCollection(RESOURCES_PATH "/sounds/waterExit"),
+
 
 	};
 

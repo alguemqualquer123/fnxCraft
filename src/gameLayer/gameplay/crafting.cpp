@@ -164,8 +164,27 @@ static CraftingRecepie recepies[] =
 	recepie<4>(Item(BlockTypes::goblinChest, 1),{Item(BlockTypes::wooden_plank, 8),  Item(ItemTypes::cloth, 5),  Item(ItemTypes::fang, 2),  Item(ItemTypes::ironIngot, 1)}).setRequiresGoblin(),
 
 
-	//food
+	//food recipes
 	recepie<2>(Item(ItemTypes::applePie, 1), {Item(ItemTypes::apple, 2),  Item(ItemTypes::wheat, 3)}).setRequiresCookingPot(),
+	recepie<1>(Item(ItemTypes::bread, 3), {Item(ItemTypes::wheat, 3)}).setRequiresCookingPot(),
+	recepie<2>(Item(ItemTypes::stew, 1), {Item(ItemTypes::rawMeat, 1), Item(ItemTypes::waterBottle, 1)}).setRequiresCookingPot(),
+	recepie<1>(Item(ItemTypes::cookedMeat, 1), {Item(ItemTypes::rawMeat, 1)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::cookedChicken, 1), {Item(ItemTypes::cookedFish, 1)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::bakedPotato, 1), {Item(BlockTypes::mud, 1)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::roastedCorn, 1), {Item(ItemTypes::wheatSeeds, 2)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::cookedFish, 1), {Item(ItemTypes::rawFish, 1)}).setRequiresFurnace(),
+	recepie<2>(Item(ItemTypes::chickenSoup, 1), {Item(ItemTypes::cookedChicken, 2), Item(ItemTypes::waterBottle, 1)}).setRequiresCookingPot(),
+
+	//drink recipes
+	recepie<1>(Item(ItemTypes::waterBottle, 1), {Item(BlockTypes::glass, 1)}),
+	recepie<2>(Item(ItemTypes::juice, 1), {Item(ItemTypes::apple, 1), Item(ItemTypes::strawberry, 1)}),
+	recepie<1>(Item(ItemTypes::milk, 1), {Item(BlockTypes::glass, 1)}),
+
+	//farming recipes
+	recepie<1>(Item(ItemTypes::seeds, 4), {Item(ItemTypes::wheatSeeds, 2)}),
+	recepie<1>(Item(ItemTypes::boneMeal, 3), {Item(ItemTypes::bone, 1)}),
+	recepie<1>(Item(ItemTypes::fertilizer, 4), {Item(ItemTypes::compost, 2)}),
+	recepie<1>(Item(ItemTypes::wateringCan, 1), {Item(ItemTypes::copperIngot, 4)}).setRequiresWorkBench(),
 
 
 	//coins
@@ -259,6 +278,11 @@ std::vector<CraftingRecepieIndex> getAllPossibleRecepies(PlayerInventory &player
 			if (recepies[i].requiresFurnace && craftingStation != WorkStationType::WorkStationType_Furnace) { good = false; }
 			if (recepies[i].requiresGoblin && craftingStation != WorkStationType::WorkStationType_GoblinStitchingPost) { good = false; }
 			if (recepies[i].requiresCookingPot && craftingStation != WorkStationType::WorkStationType_CookingPot) { good = false; }
+			if (recepies[i].requiresFurnace) {
+				bool hasFuel=false;
+				for(int j=0;j<PlayerInventory::INVENTORY_CAPACITY;j++) if(playerInventory.items[j].type==BlockTypes::wooden_plank) hasFuel=true;
+				if(!hasFuel) good=false;
+			}
 			
 			int benchesRequired = 0;
 			benchesRequired += recepies[i].requiresWorkBench + recepies[i].requiresFurnace + recepies[i].requiresGoblin;
@@ -351,6 +375,17 @@ bool canItemBeCrafted(CraftingRecepie &recepie, PlayerInventory &inventory)
 
 void craftItemUnsafe(CraftingRecepie &recepie, PlayerInventory &inventory)
 {
+	if(recepie.requiresFurnace){
+		bool hasFuel=false;
+		for(int j=0;j<PlayerInventory::INVENTORY_CAPACITY;j++){
+			if(inventory.items[j].type==BlockTypes::wooden_plank && inventory.items[j].counter>0){ hasFuel=true; break; }
+		}
+		if(hasFuel){
+			for(int j=0;j<PlayerInventory::INVENTORY_CAPACITY;j++){
+				if(inventory.items[j].type==BlockTypes::wooden_plank && inventory.items[j].counter>0){ inventory.items[j].counter--; if(inventory.items[j].counter==0) inventory.items[j]=Item(); break; }
+			}
+		}else return;
+	}
 	Item neededItems[sizeof(recepie.items) / sizeof(recepie.items[0])];
 
 	for (int i = 0; i < sizeof(recepie.items) / sizeof(recepie.items[0]); i++)

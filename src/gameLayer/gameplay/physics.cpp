@@ -695,6 +695,12 @@ void MotionState::jump(float impulse)
 	}
 }
 
+void PhysicalEntity::swimUp(float impulse)
+{
+	// Swimming up works regardless of ground contact
+	applyImpulse(forces, glm::vec3{0, impulse, 0});
+}
+
 
 void colideWithOthers(glm::dvec3 &pos, glm::vec3 collider, MotionState &forces, std::vector<ColidableEntry> &others)
 {
@@ -723,3 +729,59 @@ void colideWithOthers(glm::dvec3 &pos, glm::vec3 collider, MotionState &forces, 
 	}
 
 }
+
+
+#pragma region Water Physics
+
+bool isPositionInWater(glm::dvec3 position, decltype(chunkGetterSignature) *chunkGetter)
+{
+	auto blockPos = from3DPointToBlock(position);
+	auto chunkPos = fromBlockPosToChunkPos(blockPos.x, blockPos.z);
+	auto chunk = chunkGetter(chunkPos);
+
+	if (!chunk) return false;
+
+	auto blockInChunk = fromBlockPosToBlockPosInChunk(blockPos);
+	auto block = chunk->unsafeGet(blockInChunk.x, blockInChunk.y, blockInChunk.z);
+
+	return block.getType() == BlockTypes::water;
+}
+
+bool isEntityHeadInWater(glm::dvec3 position, float height, decltype(chunkGetterSignature) *chunkGetter)
+{
+	// Check at head level (position.y + height - some offset for the head)
+	glm::dvec3 headPos = position;
+	headPos.y += height * 0.85f; // Check near the top of the entity
+	return isPositionInWater(headPos, chunkGetter);
+}
+
+void applyWaterPhysics(MotionState &forces, glm::dvec3 &position, float deltaTime,
+	PhysicalSettings &physicalSettings, bool isInWater, float buoyancyForce)
+{
+	if (!isInWater) return;
+
+	// Apply buoyancy force (upward)
+	forces.acceleration.y += buoyancyForce * physicalSettings.gravityModifier;
+
+	// Damp vertical velocity so floating doesn't oscillate wildly (avoids "fast bobbing" look)
+	forces.velocity.y *= (1.f - WATER_VERTICAL_DAMPING * deltaTime);
+
+	// Apply water drag (much higher than air drag)
+	glm::vec3 waterDrag = WATER_DRAG_COEFICIENT * -forces.velocity * glm::abs(forces.velocity) / 2.f;
+	float dragLength = glm::length(waterDrag);
+	if (dragLength > 0)
+	{
+		if (dragLength > MAX_WATER_DRAG)
+		{
+			waterDrag /= dragLength;
+			waterDrag *= MAX_WATER_DRAG;
+		}
+		forces.acceleration += waterDrag;
+	}
+
+	// Reduce horizontal movement speed in water
+	forces.velocity.x *= (1.f - (1.f - WATER_SWIM_SPEED_MULTIPLIER) * deltaTime * 5.f);
+	forces.velocity.z *= (1.f - (1.f - WATER_SWIM_SPEED_MULTIPLIER) * deltaTime * 5.f);
+}
+
+#pragma endregion

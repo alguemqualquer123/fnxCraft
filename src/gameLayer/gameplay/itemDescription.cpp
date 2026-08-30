@@ -9,7 +9,7 @@ const char *itemsDescriptions[] =
 	"Brittle. Still has some fight left in it.",                   // bone
 
 	"Shiny and slightly warm.",                                    // copperIngot
-	"Heavy. Don’t lick it.",                                       // leadIngot
+	"Heavy. Donï¿½t lick it.",                                       // leadIngot
 	"Reliable. For serious crafting.",                             // ironIngot
 	"Classy and conductive.",                                      // silverIngot
 	"Fancy and overpriced.",                                       // goldIngot
@@ -20,7 +20,7 @@ const char *itemsDescriptions[] =
 	"Heavy hitter.",                                               // lead pickaxe
 	"Trees tremble.",                                              // lead axe
 	"Might dig more than holes.",                                  // lead shovel
-	"Classic miner’s choice.",                                     // iron pickaxe
+	"Classic minerï¿½s choice.",                                     // iron pickaxe
 	"Cuts like a dream.",                                          // iron axe
 	"Efficient and stylish.",                                      // iron shovel
 	"Almost too pretty to use.",                                   // silver pickaxe
@@ -30,7 +30,7 @@ const char *itemsDescriptions[] =
 	"Swing with style.",                                           // gold axe
 	"For luxurious holes.",                                        // gold shovel
 
-	"Won’t impress goblins.",                                      // copper sword
+	"Wonï¿½t impress goblins.",                                      // copper sword
 	"Packs a punch.",                                              // lead sword
 	"Trusty and true.",                                            // iron sword
 	"Elegant and sharp.",                                          // silver sword
@@ -40,7 +40,7 @@ const char *itemsDescriptions[] =
 	"For practice, not pride.",                                    // trainingSword
 	"Massive but harmless.",                                       // trainingWarHammer
 	"Pointy, but padded.",                                         // trainingSpear
-	"Won’t cut deep—hopefully.",                                   // trainingKnife
+	"Wonï¿½t cut deepï¿½hopefully.",                                   // trainingKnife
 	"All bark, no bite.",                                          // trainingBattleAxe
 
 	"" ,														//"copperWarHammer" ,
@@ -73,11 +73,11 @@ const char *itemsDescriptions[] =
 
 	"Keeps you going.",                                            // apple
 	"A bit tart.",                                                 // blackBerrie
-	"Nature’s candy.",                                             // blueBerrie
+	"Natureï¿½s candy.",                                             // blueBerrie
 	"Double the fun.",                                             // cherries
 	"Why did you eat that?",                                       // chilliPepper
 	"Shake it first.",                                             // cocconut
-	"Don’t slip on them.",                                         // grapes
+	"Donï¿½t slip on them.",                                         // grapes
 	"Pucker up.",                                                  // lime
 	"Soft and sweet.",                                             // peach
 	"Spiky outside, sweet inside.",                                // pinapple
@@ -90,7 +90,7 @@ const char *itemsDescriptions[] =
 	"Clink with every step.",                                      // copper boots
 	"Slightly protective, very loud.",                             // copper ChestPlate
 	"Stylish head protection.",                                    // copper cap
-	"Don’t try to swim.",                                          // lead boots
+	"Donï¿½t try to swim.",                                          // lead boots
 	"Heavy-duty defense.",                                         // lead ChestPlate
 	"Thicc hat energy.",                                           // lead cap
 	"For the serious adventurer.",                                 // iron boots
@@ -121,7 +121,7 @@ const char *itemsDescriptions[] =
 	"Hot and dramatic.",                                           // magenta paint
 	"Loudly lovely.",                                              // pink paint
 
-	"Don’t spend it all at once.",                                 // copper coin
+	"Donï¿½t spend it all at once.",                                 // copper coin
 	"Feels richer already.",                                       // silver coin
 	"Now you're getting somewhere.",                               // gold coin
 	"You're filthy rich.",                                         // diamond coin
@@ -153,7 +153,46 @@ const char *itemsDescriptions[] =
 	"Starts healing faster",
 	"All fruit good effects are longer",
 	"Stealthy like a cat",
-	"ALl healing items will heal a little more"
+	"ALl healing items will heal a little more",
+
+	"Spawns a fish in water",
+	"Restores hunger when cooked",
+	"Needs cooking to be safe",
+	"For catching fish",
+
+	"Raw, needs cooking",
+	"Restores a lot of hunger",
+	"Basic food, filling",
+	"Warm and hearty",
+	"Hot and tasty",
+	"Roasted to perfection",
+	"Melty and delicious",
+	"Tender and juicy",
+	"Comfort food",
+
+	"Fresh and clean",
+	"Sweet and refreshing",
+	"Creamy and nutritious",
+	"Keeps you awake",
+	"Relaxing and warm",
+
+	"Plant these to grow food",
+	"For farming wheat",
+	"For growing potatoes",
+	"For growing corn",
+	"For growing carrots",
+	"Speeds up crop growth",
+	"Makes crops grow faster",
+	"For watering crops",
+	"Organic fertilizer",
+
+	"Simple but effective",
+	"Sturdy and reliable",
+	"Heavy draw weight",
+	"Balanced and true",
+	"Elegant and deadly",
+	"Golden but fragile",
+	"Crude but sharp"
 
 };
 

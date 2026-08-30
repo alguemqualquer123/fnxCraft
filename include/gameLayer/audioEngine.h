@@ -77,6 +77,10 @@ namespace AudioEngine
 		uiOff,
 		uiSlider,
 
+		// Water sounds
+		waterSplash,
+		waterSwim,
+		waterExit,
 
 		LAST_SOUND
 	};

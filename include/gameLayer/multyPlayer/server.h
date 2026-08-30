@@ -83,6 +83,13 @@ size_t getServerTotalPendingSize();
 std::string executeServerCommand(std::uint64_t cid, const char *command);
 
 
+//current world spawn point, used by the /spawn command
+glm::ivec3 getWorldSpawnPosition();
+void setWorldSpawnPosition(const glm::ivec3 &pos);
+//the seed the world was created with, used by the /seed command
+int getWorldSeed();
+
+
 unsigned int getRandomTickSpeed();
 
 void setServerSettings(ServerSettings settings);

@@ -3,10 +3,12 @@
 #include <filesystem>
 #include <iostream>
 #include <platform/platformInput.h>
+#include <platform/platformDetection.h>
 #include "multyPlayer/createConnection.h"
 #include <audioEngine.h>
 #include <safeSave.h>
 #include <sstream>
+#include <localization.h>
 
 void displayRenderSettingsMenuButton(ProgramData &programData)
 {
@@ -29,22 +31,21 @@ void displayRenderSettingsMenu(ProgramData &programData)
 		[programData.ui.menuRenderer.internal.currentId])
 	{
 		if (s == "Rendering" || s == "Settings")
-		{
-			programData.ui.renderer2d.renderText({150,50},
-				("fps: " + std::to_string(programData.currentFps)).c_str(), programData.ui.font, Colors_Gray, 0.75f);
+		{				programData.ui.renderer2d.renderText({150,50},
+					(loc_FPS() + std::to_string(programData.currentFps)).c_str(), programData.ui.font, Colors_Gray, 0.75f);
 			break;
 		}
 	}
 
 
 
-	programData.ui.menuRenderer.Text("Rendering Settings...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_RenderingSettings(), Colors_White);
 
-	programData.ui.menuRenderer.sliderInt("View Distance", &getShadingSettings().viewDistance,
+	programData.ui.menuRenderer.sliderInt(loc_ViewDistance(), &getShadingSettings().viewDistance,
 		1, 50, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
 
-	programData.ui.menuRenderer.sliderInt("Lod Strength", &getShadingSettings().lodStrength,
+	programData.ui.menuRenderer.sliderInt(loc_LodStrength(), &getShadingSettings().lodStrength,
 		0, 5, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
 
@@ -52,22 +53,22 @@ void displayRenderSettingsMenu(ProgramData &programData)
 {
 	programData.ui.menuRenderer.BeginMenu("Water", Colors_Gray, programData.ui.buttonTexture);
 
-	programData.ui.menuRenderer.Text("Water settings...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_WaterSettings(), Colors_White);
 
 
-	programData.ui.menuRenderer.colorPicker("Water color",
+	programData.ui.menuRenderer.colorPicker(loc_WaterColor(),
 		&programData.renderer.defaultShader.shadingSettings.waterColor[0],
 		programData.ui.buttonTexture, programData.ui.buttonTexture, Colors_Gray, Colors_Gray);
 	getShadingSettings().waterColor = programData.renderer.defaultShader.shadingSettings.waterColor;
 
 
-	programData.ui.menuRenderer.colorPicker("Under water color",
+	programData.ui.menuRenderer.colorPicker(loc_UnderWaterColor(),
 		&programData.renderer.defaultShader.shadingSettings.underWaterColor[0],
 		programData.ui.buttonTexture, programData.ui.buttonTexture, Colors_Gray, Colors_Gray);
 	getShadingSettings().underWaterColor = programData.renderer.defaultShader.shadingSettings.underWaterColor;
 
 
-	programData.ui.menuRenderer.sliderFloat("Underwater Fog strength",
+	programData.ui.menuRenderer.sliderFloat(loc_UnderwaterFogStrength(),
 		&programData.renderer.defaultShader.shadingSettings.underwaterDarkenStrength,
 		0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, 
 		programData.ui.buttonTexture, Colors_White
@@ -75,14 +76,14 @@ void displayRenderSettingsMenu(ProgramData &programData)
 	getShadingSettings().underwaterDarkenStrength = programData.renderer.defaultShader.shadingSettings.underwaterDarkenStrength;
 
 
-	programData.ui.menuRenderer.sliderFloat("Underwater Fog Distance",
+	programData.ui.menuRenderer.sliderFloat(loc_UnderwaterFogDistance(),
 		&programData.renderer.defaultShader.shadingSettings.underwaterDarkenDistance,
 		0, 40, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
 	getShadingSettings().underwaterDarkenDistance = programData.renderer.defaultShader.shadingSettings.underwaterDarkenDistance;
 
 
-	programData.ui.menuRenderer.sliderFloat("Underwater Fog Gradient",
+	programData.ui.menuRenderer.sliderFloat(loc_UnderwaterFogGradient(),
 		&programData.renderer.defaultShader.shadingSettings.fogGradientUnderWater,
 		0, 32, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
@@ -103,15 +104,15 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 #pragma region bloom
 	programData.ui.menuRenderer.BeginMenu("Bloom", Colors_Gray, programData.ui.buttonTexture);
-	programData.ui.menuRenderer.Text("Bloom settings...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_BloomSettings(), Colors_White);
 
 	programData.ui.menuRenderer.toggleOptions("BLoom: ", "OFF|ON", &getShadingSettings().bloom, true, Colors_White, 0, programData.ui.buttonTexture,
 		Colors_Gray);
 
 	if (getShadingSettings().bloom)
 	{
-		programData.ui.menuRenderer.sliderFloat("Bloom Multiplier", &getShadingSettings().bloomMultiplier, 0, 1, DEFAULT_SLIDER);
-		programData.ui.menuRenderer.sliderFloat("Bloom Tresshold", &getShadingSettings().bloomTresshold, 0.1, 1, DEFAULT_SLIDER);
+		programData.ui.menuRenderer.sliderFloat(loc_BloomMultiplier(), &getShadingSettings().bloomMultiplier, 0, 1, DEFAULT_SLIDER);
+		programData.ui.menuRenderer.sliderFloat(loc_BloomThreshold(), &getShadingSettings().bloomTresshold, 0.1, 1, DEFAULT_SLIDER);
 	};
 
 	programData.ui.menuRenderer.EndMenu();
@@ -119,15 +120,15 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 #pragma region lights
 	programData.ui.menuRenderer.BeginMenu("Lights", Colors_Gray, programData.ui.buttonTexture);
-	programData.ui.menuRenderer.Text("Lights settings...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_LightsSettings(), Colors_White);
 
 	programData.ui.menuRenderer.toggleOptions("Lights: ", "OFF|ON", &getShadingSettings().useLights, true, Colors_White, 0,
 		programData.ui.buttonTexture, Colors_Gray, "If this is on, torches will contribute with specualr and diffuse lights.");
 
 	if (getShadingSettings().useLights)
 	{
-		programData.ui.menuRenderer.sliderInt("Max lights", &getShadingSettings().maxLights, 1, 100, DEFAULT_SLIDER);
-		programData.ui.menuRenderer.sliderFloat("Lights strength", &getShadingSettings().lightsStrength, 0.1, 2, DEFAULT_SLIDER);
+		programData.ui.menuRenderer.sliderInt(loc_MaxLights(), &getShadingSettings().maxLights, 1, 100, DEFAULT_SLIDER);
+		programData.ui.menuRenderer.sliderFloat(loc_LightsStrength(), &getShadingSettings().lightsStrength, 0.1, 2, DEFAULT_SLIDER);
 	};
 
 	programData.ui.menuRenderer.EndMenu();
@@ -136,10 +137,10 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 #pragma region color post processing
 	programData.ui.menuRenderer.BeginMenu("Color post processing", Colors_Gray, programData.ui.buttonTexture);
 
-	programData.ui.menuRenderer.Text("Color post processing", {(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65});
+	programData.ui.menuRenderer.Text(loc_ColorPostProcessing(), {(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65});
 
 	//static glm::vec4 colorsTonemapper[] = {{0.6,0.9,0.6,1}, {0.6,0.9,0.6,1}, {0.7,0.8,0.6,1} , {0.4,0.8,0.4,1}};
-	programData.ui.menuRenderer.toggleOptions("Tonemapper: ",
+	programData.ui.menuRenderer.toggleOptions(loc_Tonemapper(),
 		"ACES|AgX|ZCAM|Uncharted|PBR neutral", &getShadingSettings().tonemapper,
 		true, {(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65}, nullptr, programData.ui.buttonTexture,
 		{(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65},
@@ -147,7 +148,7 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 -Aces: a filmic look.\n-AgX: a more dull neutral look.\n-ZCAM a verey neutral and vanila look\n   preserves colors, slightly more expensive.\n-Unchrated :))");
 	programData.renderer.defaultShader.shadingSettings.tonemapper = getShadingSettings().tonemapper;
 
-	if (programData.ui.menuRenderer.Button("Reset settings...", {(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65}, programData.ui.buttonTexture))
+	if (programData.ui.menuRenderer.Button(loc_ResetSettings(), {(float)0x7F / 255.0f, (float)0x7F / 255.0f, (float)0x7F / 255.0f, 0.65}, programData.ui.buttonTexture))
 	{
 		getShadingSettings().toneMapSaturation = 1;
 		getShadingSettings().toneMapVibrance = 1;
@@ -159,16 +160,16 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 		getShadingSettings().toneMapGain = glm::vec3(0.5);
 	}
 
-	programData.ui.menuRenderer.sliderFloat("Vignette", &getShadingSettings().vignette, 0, 1, DEFAULT_SLIDER_TRANSPARENT);
-	programData.ui.menuRenderer.sliderFloat("Saturation", &getShadingSettings().toneMapSaturation, 0, 2, DEFAULT_SLIDER_TRANSPARENT);
-	programData.ui.menuRenderer.sliderFloat("Vibrance", &getShadingSettings().toneMapVibrance, 0, 2, DEFAULT_SLIDER_TRANSPARENT);
-	programData.ui.menuRenderer.sliderFloat("Gamma", &getShadingSettings().toneMapGamma, 0.1, 2, DEFAULT_SLIDER_TRANSPARENT);
-	programData.ui.menuRenderer.sliderFloat("Shadow Boost", &getShadingSettings().toneMapShadowBoost, -1, 1, DEFAULT_SLIDER_TRANSPARENT);
-	programData.ui.menuRenderer.sliderFloat("Highlight Boost", &getShadingSettings().toneMapHighlightBoost, -1, 1, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_Vignette(), &getShadingSettings().vignette, 0, 1, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_Saturation(), &getShadingSettings().toneMapSaturation, 0, 2, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_Vibrance(), &getShadingSettings().toneMapVibrance, 0, 2, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_Gamma(), &getShadingSettings().toneMapGamma, 0.1, 2, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_ShadowBoost(), &getShadingSettings().toneMapShadowBoost, -1, 1, DEFAULT_SLIDER_TRANSPARENT);
+	programData.ui.menuRenderer.sliderFloat(loc_HighlightBoost(), &getShadingSettings().toneMapHighlightBoost, -1, 1, DEFAULT_SLIDER_TRANSPARENT);
 	
 
-	programData.ui.menuRenderer.colorPicker("Lift", &getShadingSettings().toneMapLift[0], DEFAULT_COLOR_PICKER_TRANSPARENT);
-	programData.ui.menuRenderer.colorPicker("Gain", &getShadingSettings().toneMapGain[0], DEFAULT_COLOR_PICKER_TRANSPARENT);
+	programData.ui.menuRenderer.colorPicker(loc_Lift(), &getShadingSettings().toneMapLift[0], DEFAULT_COLOR_PICKER_TRANSPARENT);
+	programData.ui.menuRenderer.colorPicker(loc_Gain(), &getShadingSettings().toneMapGain[0], DEFAULT_COLOR_PICKER_TRANSPARENT);
 
 	//glUniform1f(applyToneMapper.u_saturation, shadingSettings.toneMapSaturation);
 	//glUniform1f(applyToneMapper.u_vibrance, shadingSettings.toneMapVibrance);
@@ -197,7 +198,7 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 	programData.ui.menuRenderer.Text("", {});
 	
-	programData.ui.menuRenderer.sliderInt("Chunk building extra threads", 
+	programData.ui.menuRenderer.sliderInt(loc_ChunkBuildingThreads(), 
 		&getShadingSettings().workerThreadsForBaking,
 		0, 10, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
@@ -206,7 +207,7 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 #pragma region SSR
 	programData.ui.menuRenderer.BeginMenu("Screen Space Reflections", Colors_Gray, programData.ui.buttonTexture);
-	programData.ui.menuRenderer.Text("Screen Space Reflections settings...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_SSRSettings(), Colors_White);
 
 	programData.ui.menuRenderer.toggleOptions("SSR: ", "OFF|ON", &getShadingSettings().SSR, true, Colors_White, 0, programData.ui.buttonTexture,
 		Colors_Gray);
@@ -222,7 +223,7 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 	//programData.menuRenderer.BeginMenu("Volumetric", Colors_Gray, programData.buttonTexture);
 	//programData.menuRenderer.Text("Volumetric Settings...", Colors_White);
-	programData.ui.menuRenderer.sliderFloat("Fog gradient (O to disable it)",
+	programData.ui.menuRenderer.sliderFloat(loc_FogGradient(),
 		&getShadingSettings().fogGradient,
 		0, 100, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
@@ -230,7 +231,7 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 
 
 	static glm::vec4 colorsShadows[] = {{0.0,1,0.0,1}, {0.8,0.6,0.6,1}, {0.9,0.3,0.3,1}};
-	programData.ui.menuRenderer.toggleOptions("Shadows: ", "Off|Hard|Soft",
+	programData.ui.menuRenderer.toggleOptions(loc_Shadows(), "Off|Hard|Soft",
 		&getShadingSettings().shadows, true,
 		Colors_White, colorsShadows, programData.ui.buttonTexture,
 		Colors_Gray, "Shadows can affect the performance significantly."
@@ -274,14 +275,43 @@ void displaySettingsMenuButton(ProgramData &programData)
 	programData.ui.menuRenderer.EndMenu();
 }
 
+void displayLanguageMenuButton(ProgramData &programData)
+{
+	programData.ui.menuRenderer.BeginMenu("Language", Colors_Gray, programData.ui.buttonTexture);
+
+	programData.ui.menuRenderer.Text(loc_LanguageName(), Colors_White);
+
+	Language &lang = getCurrentLanguage();
+
+	if (programData.ui.menuRenderer.Button(
+		(lang == Language::English) ? "> English" : "English",
+		Colors_Gray, programData.ui.buttonTexture))
+	{
+		setCurrentLanguage(Language::English);
+		saveLanguageSettings();
+	}
+
+	if (programData.ui.menuRenderer.Button(
+		(lang == Language::Portuguese_BR) ? "> Portugues (BR)" : "Portugues (BR)",
+		Colors_Gray, programData.ui.buttonTexture))
+	{
+		setCurrentLanguage(Language::Portuguese_BR);
+		saveLanguageSettings();
+	}
+
+	programData.ui.menuRenderer.EndMenu();
+}
+
 void displaySettingsMenu(ProgramData &programData)
 {
 
-	programData.ui.menuRenderer.Text("Settings", Colors_White);
+	programData.ui.menuRenderer.Text(loc_Settings(), Colors_White);
 
 	displayRenderSettingsMenuButton(programData);
 	
 	displayVolumeMenuButton(programData);
+
+	displayLanguageMenuButton(programData);
 }
 
 bool shouldReloadTexturePacks()
@@ -337,20 +367,18 @@ void displayTexturePacksSettingsMenuButton(ProgramData &programData)
 void openFolder(const char *path)
 {
 	//TODO!
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef PLATFORM_WINDOWS
 	std::string command = "explorer ";
 	command += path;
 	system(command.c_str());
-#elif defined(__APPLE__) || defined(__MACH__)
+#elif defined(PLATFORM_MACOS)
 	std::string command = "open ";
 	command += path;
 	system(command.c_str());
-#elif defined(__linux__)
+#elif defined(PLATFORM_LINUX)
 	std::string command = "xdg-open ";
 	command += path;
 	system(command.c_str());
-#else
-	
 #endif
 }
 
@@ -417,7 +445,7 @@ void displayTexturePacksSettingsMenu(ProgramData &programData)
 	std::error_code err;
 
 
-	programData.ui.menuRenderer.Text("Texture packs...", Colors_White);
+	programData.ui.menuRenderer.Text(loc_TexturesPacks(), Colors_White);
 
 	//todo
 	//if (programData.ui.menuRenderer.Button("Open Folder", Colors_Gray))
@@ -687,8 +715,9 @@ void loadTexture()
 		}
 		else
 		{
-			currentTextureLoaded
-				= loadPlayerSkin((RESOURCES_PATH "skins/" + currentTextureLoadedName + ".png").c_str());
+			currentTextureLoaded = loadPlayerSkin((RESOURCES_PATH "skins/" + currentTextureLoadedName + ".png").c_str());
+			if(!currentTextureLoaded.id) currentTextureLoaded = loadPlayerSkin(("./resources/skins/" + currentTextureLoadedName + ".png").c_str());
+			if(!currentTextureLoaded.id) currentTextureLoaded = loadPlayerSkin(("resources/skins/" + currentTextureLoadedName + ".png").c_str());
 		}
 	}
 
@@ -864,7 +893,7 @@ void displaySkinSelectorMenu(ProgramData &programData)
 {
 	std::error_code err;
 
-	programData.ui.menuRenderer.Text("Change Skin", Colors_White);
+	programData.ui.menuRenderer.Text(loc_ChangeSkin(), Colors_White);
 
 	//todo
 	//if (programData.ui.menuRenderer.Button("Open Folder", Colors_Gray))
@@ -902,17 +931,26 @@ void displaySkinSelectorMenu(ProgramData &programData)
 		}
 
 		std::vector<std::string> skins;
-
-		for (auto const &d : std::filesystem::directory_iterator{RESOURCES_PATH "skins", err})
-		{
-			if (!d.is_directory())
+		auto collectSkins = [&](const char* p){
+			std::error_code e2;
+			if(!std::filesystem::exists(p, e2)) return;
+			for (auto const &d : std::filesystem::directory_iterator{p, e2})
 			{
-				if (d.path().filename().extension() == ".png")
+				if (!d.is_directory())
 				{
-					skins.push_back(d.path().filename().stem().string());
+					if (d.path().filename().extension() == ".png")
+					{
+						std::string name = d.path().filename().stem().string();
+						if(std::find(skins.begin(), skins.end(), name)==skins.end())
+							skins.push_back(name);
+					}
 				}
 			}
-		}
+		};
+		collectSkins(RESOURCES_PATH "skins");
+		collectSkins("./resources/skins");
+		collectSkins("resources/skins");
+		std::sort(skins.begin(), skins.end());
 
 		int posInVect = -1;
 		if (currentSkinSelected == "")
@@ -949,14 +987,9 @@ void displaySkinSelectorMenu(ProgramData &programData)
 
 
 			auto textBox = glui::Box().xCenter().yBottom().xDimensionPercentage(1).yDimensionPercentage(0.2)();
-			if (currentSkinSelected == "")
-			{
-				glui::renderText(renderer, "Default", programData.ui.font, textBox, Colors_White, true);
-			}
-			else
-			{
-				glui::renderText(renderer, currentSkinSelected, programData.ui.font, textBox, Colors_White, true);
-			}
+			std::string label = currentSkinSelected == "" ? "Default" : currentSkinSelected;
+			label += " (" + std::to_string(posInVect+2) + "/" + std::to_string(skins.size()+1) + ")";
+			glui::renderText(renderer, label, programData.ui.font, textBox, Colors_White, true);
 
 			auto center = glui::Box().xCenter().yCenter().yDimensionPercentage(0.5).xDimensionPercentage(0.5)();
 			center.z = std::min(center.z, center.w);
@@ -1030,13 +1063,13 @@ void displayVolumeMenuButton(ProgramData &programData)
 void displayVolumeMenu(ProgramData &programData)
 {
 
-	programData.ui.menuRenderer.Text("Audio Settings", Colors_White);
+	programData.ui.menuRenderer.Text(loc_AudioSettings(), Colors_White);
 
-	programData.ui.menuRenderer.sliderFloat("Master Volume", &AudioEngine::getMasterVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
+	programData.ui.menuRenderer.sliderFloat(loc_MasterVolume(), &AudioEngine::getMasterVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
 	programData.ui.menuRenderer.newLine();
-	programData.ui.menuRenderer.sliderFloat("Music Volume", &AudioEngine::getMusicVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
-	programData.ui.menuRenderer.sliderFloat("UI Volume", &AudioEngine::getUIVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
-	programData.ui.menuRenderer.sliderFloat("Sounds Volume", &AudioEngine::getSoundsVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
+	programData.ui.menuRenderer.sliderFloat(loc_MusicVolume(), &AudioEngine::getMusicVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
+	programData.ui.menuRenderer.sliderFloat(loc_UIVolume(), &AudioEngine::getUIVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
+	programData.ui.menuRenderer.sliderFloat(loc_SoundsVolume(), &AudioEngine::getSoundsVolume(), 0, 1, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
 
 }
 
@@ -1057,7 +1090,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 
 
 
-	programData.ui.menuRenderer.Text("Select world", Colors_White);
+	programData.ui.menuRenderer.Text(loc_SelectWorld(), Colors_White);
 
 	//programData.ui.menuRenderer.Button("Create new world", Colors_Gray, programData.ui.buttonTexture);
 	programData.ui.menuRenderer.Text("", Colors_White);
@@ -1215,7 +1248,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 					}
 
 					auto rightButton = glui::Box().xRight().yCenter().xDimensionPercentage(0.5).yDimensionPercentage(1)();
-					if (drawButton(shrinkPercentage(rightButton, {0.1,0.05}), Colors_Gray, "Settings"))
+					if (drawButton(shrinkPercentage(rightButton, {0.1,0.05}), Colors_Gray, loc_Settings()))
 					{
 						
 
@@ -1234,7 +1267,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 
 				{
 					auto leftButton = glui::Box().xLeft().yCenter().xDimensionPercentage(0.5).yDimensionPercentage(1)();
-					if (drawButton(shrinkPercentage(leftButton, {0.1,0.05}), Colors_Gray, "Create a new world!"))
+					if (drawButton(shrinkPercentage(leftButton, {0.1,0.05}), Colors_Gray, loc_CreateNewWorld()))
 					{
 						programData.ui.menuRenderer.StartManualMenu("Create world");
 					}
@@ -1299,7 +1332,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 				programData.ui.menuRenderer.ExitCurrentMenu();
 			}
 
-			if (programData.ui.menuRenderer.Button("Cancle", Colors_Gray, programData.ui.buttonTexture))
+			if (programData.ui.menuRenderer.Button("Cancel", Colors_Gray, programData.ui.buttonTexture))
 			{
 				programData.ui.menuRenderer.ExitCurrentMenu();
 			}
@@ -1329,7 +1362,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 		programData.ui.menuRenderer.temporalViewPort
 			= glm::vec4(0, 0, programData.ui.renderer2d.windowW / 2.6f, programData.ui.renderer2d.windowH);
 
-		programData.ui.menuRenderer.Text("Create a new world!", Colors_White);
+		programData.ui.menuRenderer.Text(loc_CreateNewWorld(), Colors_White);
 		
 
 		drawBackground();
@@ -1398,30 +1431,31 @@ void displayWorldSelectorMenu(ProgramData &programData)
 				{
 					int finalSeed = 0;
 					{
-						//std::ofstream f(finalName + "/seed.txt");
-
+						bool isNumeric = true;
+						bool hasContent = false;
+						for(int i=0;i<(int)sizeof(seed);i++) if(seed[i]!=0){ hasContent=true; if(!isdigit((unsigned char)seed[i])) isNumeric=false; }
 						long long computedSeed = 0;
-						long long pow = 1;
-						for (int i = sizeof(seed) - 1; i >= 0; i--)
-						{
-							if (seed[i] != 0)
-							{
-								computedSeed += (seed[i] - '0') * pow;
-								pow *= 10;
-							}
-						}
-
-						if (computedSeed == 0)
-						{
+						if(!hasContent){
 							computedSeed = time(0);
+						}else if(isNumeric){
+							long long pow = 1;
+							for (int i = sizeof(seed) - 1; i >= 0; i--)
+							{
+								if (seed[i] != 0)
+								{
+									computedSeed += (seed[i] - '0') * pow;
+									pow *= 10;
+								}
+							}
+							if(computedSeed==0) computedSeed = time(0);
+						}else{
+							int h = 0;
+							for(int i=0;i<(int)sizeof(seed);i++) if(seed[i]!=0) h = h*31 + (unsigned char)seed[i];
+							computedSeed = h;
 						}
-
-						finalSeed = computedSeed;
+						finalSeed = (int)computedSeed;
 						if (finalSeed < 0) { finalSeed = -finalSeed; }
 						if (finalSeed == 0) { finalSeed = 1; }
-
-						//f << (int)finalSeed;
-						//f.close();
 					};
 
 					{

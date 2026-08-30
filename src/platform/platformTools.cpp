@@ -1,7 +1,8 @@
 #include <platform/platformTools.h>
+#include <platform/platformDetection.h>
 
 
-#ifdef _WIN32
+#ifdef PLATFORM_WINDOWS
 
 
 #include <Windows.h>
@@ -102,7 +103,7 @@ void assertFuncInternal(
 	}
 	case IDRETRY: // Break into the debugger then return control to caller
 	{
-		__debugbreak();
+		DEBUG_BREAK();
 		return;
 	}
 	case IDIGNORE: // Return control to caller
@@ -123,6 +124,7 @@ void assertFuncInternal(
 
 #include <cassert>
 #include <iostream>
+#include <csignal>
 
 void assertFuncProduction(
 	const char *expression,

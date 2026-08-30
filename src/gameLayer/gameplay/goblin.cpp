@@ -63,10 +63,19 @@ bool GoblinServer::update(float deltaTime, decltype(chunkGetterSignature) *chunk
 {
 	BasicEnemyBehaviourOtherSettings settings;
 	settings.hearBonus = -0.1;
-
+	if(entity.life.life < 40) settings.hearBonus += 0.3;
 
 	basicEnemyBehaviour.update(this, deltaTime, chunkGetter, serverChunkStorer, rng, yourEID, othersDeleted,
 		pathFindingSurvival, playersPositionSurvival, getPosition(), allClients, settings);
+
+	if(entity.life.life < 18 && !playersPositionSurvival.empty()){
+		double best=1e9; glm::dvec3 nearest{0};
+		for(auto &p: playersPositionSurvival){ double d=glm::distance(p.second, getPosition()); if(d<best){best=d; nearest=p.second;}}
+		if(best < 14){
+			glm::vec2 away = glm::vec2(getPosition().x - nearest.x, getPosition().z - nearest.z);
+			if(glm::length(away) > 0.01){ away = glm::normalize(away); basicEnemyBehaviour.direction = away * 1.1f; basicEnemyBehaviour.keepJumpingTimer = 0.35f; basicEnemyBehaviour.playerLockedOn = 0; }
+		}
+	}
 
 
 	/*

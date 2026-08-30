@@ -50,3 +50,6 @@ bool initGameplay(ProgramData &programData, const char *c);
 bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData);
 
 void closeGameLogic();
+
+//used by the /time server command to change the day/night cycle
+void setDayTimeGlobally(float dayTime);

@@ -1789,6 +1789,8 @@ bool Chunk::bakeAndDontSendDataToOpenGl(Chunk *left,
 			auto color = b.getColor();
 
 			bool isWater = b.getType() == BlockTypes::water;
+			int waterLevel = b.getWaterLevel();
+			bool partialWater = isWater && waterLevel > 0;
 
 			if ((sides[i] != nullptr
 				&& (!(sides[i])->isOpaque() && sides[i]->getType() != b.getType())
@@ -1800,11 +1802,18 @@ bool Chunk::bakeAndDontSendDataToOpenGl(Chunk *left,
 				//(i == 3 && y == 0) ||		//display the bottom face
 				(i == 2 && y == CHUNK_HEIGHT - 1)
 				)
+				|| (
+				//partial water: show the side wall against a shallower water neighbor
+				partialWater && (i == 0 || i == 1 || i == 4 || i == 5)
+				&& sides[i] && sides[i]->getType() == BlockTypes::water
+				&& sides[i]->getWaterLevel() > waterLevel
+				)
 				)
 			{
-
 				//no faces in between water
-				if (isWater && sides[i] && sides[i]->getType() == BlockTypes::water) { continue; }
+				if (isWater && sides[i] && sides[i]->getType() == BlockTypes::water
+					&& !(partialWater && sides[i]->getWaterLevel() > waterLevel)
+					) { continue; }
 
 				//no faces in between same types
 				if (sides[i] && sides[i]->getType() == b.getType()) { continue; }
@@ -1817,6 +1826,15 @@ bool Chunk::bakeAndDontSendDataToOpenGl(Chunk *left,
 
 				if (isWater)
 				{
+					if (partialWater && lod != 1)
+					{
+						//front back top bottom left right - scaled per level
+						pushFaceShapeTextureAndColor(*currentVector,
+							g_waterLevelsStartOrientation + (waterLevel - 1) * WATER_LEVEL_FACES + i,
+							getGpuIdIndexForBlock(b.getType(), i), color);
+					}
+					else
+					{
 					//front back top bottom left right
 					if (i == 0 || i == 1 || i == 4 || i == 5)
 					{
@@ -1915,6 +1933,8 @@ bool Chunk::bakeAndDontSendDataToOpenGl(Chunk *left,
 					//{
 					//	currentVector->push_back(mergeShorts(i + 22, getGpuIdIndexForBlock(b.type, i)));
 					//}
+
+					}
 
 				}
 				else

@@ -19,7 +19,7 @@ size_t ChestBlock::formatIntoData(std::vector<unsigned char> &appendTo)
 
 bool ChestBlock::readFromBuffer(unsigned char *data, size_t size, size_t &outReadSize)
 {
-	*this = {};
+	for (auto &item : items) { item = Item{}; }
 	size_t currentAdvance = 0;
 
 	auto readOne = [&](Item &item)

@@ -168,6 +168,13 @@ const char *texturesNames[] = {
 	"grassDecal/corner2",	//144
 	"grassDecal/full",		//145
 	"grassDecal/3sides",	//146
+	"wheatCrop",		//147
+	"potatoCrop",		//148
+	"cornCrop",		//149
+	"carrotCrop",		//150
+	"redstoneDust",		//151
+	"redstoneTorch",		//152
+	"redstoneLamp",		//153
 
 
 };
@@ -662,6 +669,14 @@ uint16_t blocksLookupTable[] = {
 	62, 62, 62, 62, 62, 62,
 	24, 24, 25, 25, 24, 24,
 
+	147,147,147,147,147,147, //wheatCrop
+	148,148,148,148,148,148, //potatoCrop
+	149,149,149,149,149,149, //cornCrop
+	150,150,150,150,150,150, //carrotCrop
+	151,151,151,151,151,151, //redstoneDust
+	152,152,152,152,152,152, //redstoneTorch
+	153,153,153,153,153,153, //redstoneLamp
+
 };
 
 static_assert(BlockTypes::BlocksCount == sizeof(blocksLookupTable) / (sizeof(blocksLookupTable[0]) * 6), 
@@ -1057,35 +1072,24 @@ void BlocksLoader::loadAllTextures(std::string filePath, bool reportErrors)
 
 	if (appendMode)
 	{
-		//default texture
+		//default texture (missing texture fallback - minecraft style checkerboard, clearly visible)
 		{
-			unsigned char data[16] = {};
+			constexpr int SIZE = 16;
+			unsigned char data[SIZE * SIZE * 4] = {};
 
-			{
-				int i = 0;
-				data[i++] = 0;
-				data[i++] = 0;
-				data[i++] = 0;
-				data[i++] = 255;
-
-				data[i++] = 146;
-				data[i++] = 52;
-				data[i++] = 235;
-				data[i++] = 255;
-
-				data[i++] = 146;
-				data[i++] = 52;
-				data[i++] = 235;
-				data[i++] = 255;
-
-				data[i++] = 0;
-				data[i++] = 0;
-				data[i++] = 0;
-				data[i++] = 255;
-			}
+			for (int y = 0; y < SIZE; y++)
+				for (int x = 0; x < SIZE; x++)
+				{
+					bool purple = (((x / 4) + (y / 4)) % 2) == 0;
+					int i = (x + y * SIZE) * 4;
+					data[i + 0] = purple ? 146 : 0;
+					data[i + 1] = purple ? 52 : 0;
+					data[i + 2] = purple ? 235 : 0;
+					data[i + 3] = 255;
+				}
 
 			gl2d::Texture t;
-			t.createFromBuffer((char *)data, 2, 2, true, false);
+			t.createFromBuffer((char *)data, SIZE, SIZE, true, false);
 
 			texturesIds.push_back(t.id);
 			auto handle = glGetTextureHandleARB(t.id);

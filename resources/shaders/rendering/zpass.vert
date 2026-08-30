@@ -17,6 +17,10 @@ uniform int u_renderOnlyWater;
 
 uniform float u_timeGrass;
 
+//first shape orientation for partial water (levels 1..7), set by the renderer.
+//orientation range: [u_waterLevelsStart, u_waterLevelsStart + 7*6)
+uniform int u_waterLevelsStart = 0;
+
 uniform float u_zBias = 0;
 
 //geometry
@@ -112,6 +116,36 @@ vec3 calculateVertexPos(int vertexId)
 			facePosition.z) * 2 - u_timeGrass * SPEED) * FREQUENCY)) * AMPLITUDE;	
 
 		vertexShape.y += mask * (offset + offset2 - 0.08);
+
+	}else
+	if(u_waterLevelsStart > 0 && in_faceOrientation >= u_waterLevelsStart
+		&& in_faceOrientation < u_waterLevelsStart + 42) //water with level (partial water)
+	{
+		vertexShape.x += vertexData[(in_faceOrientation) * 3 * 4 + vertexId * 3 + 0];
+		vertexShape.y += vertexData[(in_faceOrientation) * 3 * 4 + vertexId * 3 + 1];
+		vertexShape.z += vertexData[(in_faceOrientation) * 3 * 4 + vertexId * 3 + 2];
+
+		int face = (in_faceOrientation - u_waterLevelsStart) % 6;
+		if(face == 2) //top
+		{
+			int mask = waterMask[2 * 4 + vertexId];
+
+			float SPEED = 3.1f;		
+			float FREQUENCY = 0.5f;		
+			float AMPLITUDE = 0.034f;		
+
+			float SPEED2 = 1.92f;		
+			float FREQUENCY2 = 0.04f;		
+			float AMPLITUDE2 = 0.008f;		
+
+			float offset = biasUp(cos((facePosition.x + vertexShape.x + vertexShape.z + 
+			facePosition.z - u_timeGrass * SPEED) * FREQUENCY)) * AMPLITUDE;		
+
+			float offset2 = (sin((1 + facePosition.x + vertexShape.x + (vertexShape.z + 
+				facePosition.z) * 2 - u_timeGrass * SPEED) * FREQUENCY)) * AMPLITUDE;	
+
+			vertexShape.y += mask * (offset + offset2 - 0.08);
+		}
 
 	}else
 	if(in_faceOrientation >= 10 && in_faceOrientation < 16) //animated trees

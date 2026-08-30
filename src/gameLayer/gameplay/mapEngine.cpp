@@ -85,9 +85,9 @@ void createMapChunkFromChunk(ChunkData &chunkData, MapEngine::MapChunk &chunk, P
 void MapEngine::update(ProgramData &programData, float deltaTime,
 	glm::ivec2 chunkPos, ChunkSystem &chunkSystem)
 {
-
+	centerPos = chunkPos;
 	camera.zoom += platform::getScroll() * 0.2;
-
+	if(platform::isKeyHeld(platform::Button::LeftCtrl)) camera.zoom += platform::getScroll() * 0.8;
 	camera.zoom = glm::clamp(camera.zoom, 0.6f, 10.f);
 
 
@@ -188,7 +188,8 @@ void MapEngine::update(ProgramData &programData, float deltaTime,
 		}
 
 		//renderer.renderRectangle({mousePosInViewRect, 5, 5}, Colors_Red);
-
+		renderer.renderRectangle({(float)centerPos.x - 2, (float)centerPos.y - 2, 4, 4}, Colors_Red);
+		renderer.renderRectangle({(float)centerPos.x - 1, (float)centerPos.y - 3, 2, 6}, Colors_Red);
 	}
 	renderer.popCamera();
 

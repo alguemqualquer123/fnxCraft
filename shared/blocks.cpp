@@ -76,6 +76,12 @@ int blockReorder[] = {
 
 	// Creative
 	testBlock, control1, control2, control3, control4, structureBase,
+
+	// Crops
+	wheatCrop, potatoCrop, cornCrop, carrotCrop,
+
+	// Redstone
+	redstoneDust, redstoneTorch, redstoneLamp,
 };
 
 
@@ -237,10 +243,11 @@ bool isOpaque(BlockType type)
 		&& type != BlockTypes::torchWood
 		&& type != BlockTypes::goblinTorch
 		&& type != BlockTypes::lamp
+		&& type != BlockTypes::redstoneDust
+		&& type != BlockTypes::redstoneTorch
 		&& type != BlockTypes::cobweb
 		&& !isWallMountedBlock(type)
 		&& !isDecorativeFurniture(type)
-		//&& type != BlockTypes::glowstone
 		&& !(isStairsMesh(type))
 		&& !(isSlabMesh(type))
 		&& !(isWallMesh(type))
@@ -301,6 +308,8 @@ bool isLightEmitor(BlockType type)
 		|| type == BlockTypes::torchWood
 		|| type == BlockTypes::goblinTorch
 		|| type == BlockTypes::lamp
+		|| type == BlockTypes::redstoneTorch
+		|| type == BlockTypes::redstoneLamp
 		|| type == BlockTypes::candleHolder
 		|| type == BlockTypes::skullTorch;
 }
@@ -311,12 +320,25 @@ bool isTransparentGeometry(BlockType type)
 		::isAnyGlass(type);
 }
 
+bool isCrop(BlockType type)
+{
+	return type == BlockTypes::wheatCrop || type == BlockTypes::potatoCrop
+		|| type == BlockTypes::cornCrop || type == BlockTypes::carrotCrop;
+}
+
+bool isRedstone(BlockType type)
+{
+	return type == BlockTypes::redstoneDust || type == BlockTypes::redstoneTorch || type == BlockTypes::redstoneLamp;
+}
+bool isRedstoneDust(BlockType type){ return type == BlockTypes::redstoneDust; }
+
 bool isGrassMesh(BlockType type)
 {
 	return type == BlockTypes::grass
 		|| type == BlockTypes::rose
 		|| type == BlockTypes::cactus_bud
 		|| type == BlockTypes::dead_bush
+		|| isCrop(type)
 		;
 }
 
@@ -324,14 +346,13 @@ bool isColidable(BlockType type)
 {
 	return
 		type != BlockTypes::air &&
-		type != BlockTypes::grass &&
-		type != BlockTypes::rose &&
-		type != BlockTypes::cactus_bud &&
-		type != BlockTypes::dead_bush &&
+		!isGrassMesh(type) &&
 		type != BlockTypes::torch &&
 		type != BlockTypes::lamp &&
 		type != BlockTypes::torchWood &&
 		type != BlockTypes::goblinTorch &&
+		type != BlockTypes::redstoneDust &&
+		type != BlockTypes::redstoneTorch &&
 		type != BlockTypes::water &&
 		type != BlockTypes::jar &&
 		type != BlockTypes::globe &&
@@ -618,7 +639,7 @@ bool isAnyPlant(BlockType type)
 		type == rose ||
 		type == dead_bush ||
 		type == vines ||
-		type == cactus_bud;
+		type == cactus_bud || isCrop(type);
 }
 
 bool isAnyGlass(BlockType type)

@@ -13,6 +13,9 @@
 #include "rendering/UiEngine.h"
 #include "glui/glui.h"
 #include <platformTools.h>
+#include <platform/platformDetection.h>
+#include <localization.h>
+
 #if REMOVE_IMGUI == 0
 #include <imgui.h>
 #endif
@@ -28,6 +31,15 @@
 #include <gameplay/physics.h>
 #include <gameplay/entityManagerClient.h>
 #include <gameplay/items.h>
+
+#ifdef PLATFORM_WINDOWS
+#include <Windows.h>
+#include <commdlg.h>
+#else
+#ifndef MAXSHORT
+#define MAXSHORT 32767
+#endif
+#endif
 #include <gameplay/crafting.h>
 #include <rendering/renderSettings.h>
 #include <audioEngine.h>
@@ -40,6 +52,8 @@
 struct GameData
 {
 	Camera c;
+	int cameraMode = 0;
+	float thirdPersonDistance = 4.f;
 	ChunkSystem chunkSystem;
 	bool escapePressed = 0;
 	bool showLightLevels = 0;
@@ -53,12 +67,21 @@ struct GameData
 	CameraShaker cameraShaker;
 
 	MapEngine mapEngine;
+	bool showF3Debug = false;
+	bool showChunkBorders = false;
+	float bowCharge = 0;
+	bool bowCharging = false;
+	struct BreakParticle { glm::dvec3 pos; glm::vec3 vel; float life=1.f; float maxLife=1.f; glm::vec3 color={1,1,1}; };
+	std::vector<BreakParticle> breakParticles;
 	bool isInsideMapView = 0;
 	bool isInsideChat = 0;
 	char chatBuffer[250] = {};
 	int chatBufferPosition = 0;
 	std::deque<std::string> chat;
 	float chatStayOnTimer = 0;
+	std::vector<std::string> commandSuggestions = {};
+	std::string lastRequestedCommandPrefix = "";
+	int chatSuggestionSelected = 0;
 
 	//debug stuff
 	glm::ivec3 point = {};
@@ -119,6 +142,9 @@ struct GameData
 	int craftingSlider = 0;
 	bool showUI = 1;
 
+	ConfirmationModal exitWorldModal;
+	ConfirmationModal exitGameModal;
+
 	std::minstd_rand rng;
 
 	void clearData()
@@ -132,6 +158,14 @@ struct GameData
 	}
 
 }gameData;
+
+//the /time command changes this, it controls the sun position
+float globalDayTime = 0.25f;
+
+void setDayTimeGlobally(float dayTime)
+{
+	globalDayTime = dayTime;
+}
 
 ThreadPool threadPoolForChunkBaking;
 
@@ -155,8 +189,9 @@ void loadCurrentSkin()
 	}
 	else
 	{
-		gameData.currentSkinTexture 
-			= loadPlayerSkin((RESOURCES_PATH "skins/" + gameData.currentSkinName + ".png").c_str());
+		gameData.currentSkinTexture = loadPlayerSkin((RESOURCES_PATH "skins/" + gameData.currentSkinName + ".png").c_str());
+		if(!gameData.currentSkinTexture.id) gameData.currentSkinTexture = loadPlayerSkin(("./resources/skins/" + gameData.currentSkinName + ".png").c_str());
+		if(!gameData.currentSkinTexture.id) gameData.currentSkinTexture = loadPlayerSkin(("resources/skins/" + gameData.currentSkinName + ".png").c_str());
 	}
 
 	if (!gameData.currentSkinTexture.id)
@@ -183,6 +218,7 @@ void loadCurrentSkin()
 
 }
 
+#ifdef PLATFORM_WINDOWS
 bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const char *initialDir,
 	const char *filter)
 {
@@ -206,6 +242,14 @@ bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const cha
 	// Show the file open dialog
 	return GetOpenFileNameA(&ofn);
 }
+#else
+bool ShowOpenFileDialog(void* hwnd, char *filePath, int filePathSize, const char *initialDir,
+	const char *filter)
+{
+	// Linux stub - file dialog not implemented
+	return false;
+}
+#endif
 
 bool initGameplay(ProgramData &programData, const char *c) //GAME STUFF!
 {
@@ -371,7 +415,8 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			gameData.serverTimer, disconnect,
 			gameData.currentBlockInteractionRevisionNumber, shouldExitBlockInteraction,
 			gameData.killed, respawned, gameData.chat, gameData.chatStayOnTimer,
-			gameData.interaction, gameData.playersConnectionData);
+			gameData.interaction, gameData.playersConnectionData,
+			gameData.commandSuggestions);
 
 		if (disconnect) { return 0; }
 
@@ -640,6 +685,25 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		gameData.showUI = !gameData.showUI;
 	}
 
+	if (!stopMainInput && platform::isKeyReleased(platform::Button::F5))
+	{
+		gameData.cameraMode = (gameData.cameraMode + 1) % 3;
+	}
+
+	if (platform::isKeyReleased(platform::Button::F3))
+	{
+		gameData.showF3Debug = !gameData.showF3Debug;
+	}
+
+	if (platform::isKeyHeld(platform::Button::F3) && platform::isKeyReleased(platform::Button::G))
+	{
+		gameData.showChunkBorders = !gameData.showChunkBorders;
+	}
+	if (platform::isKeyReleased(platform::Button::F3) && platform::isKeyHeld(platform::Button::G))
+	{
+		gameData.showChunkBorders = !gameData.showChunkBorders;
+	}
+
 	if (!stopMainInput || gameData.insideInventoryMenu)
 		if (platform::isKeyReleased(platform::Button::E))
 		{
@@ -742,7 +806,16 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 					|| platform::getControllerButtons().buttons[platform::ControllerButtons::Rthumb].held
 					)
 				{
-					gameData.entityManager.localPlayer.entity.jump();
+					// Check if player is in water for swimming
+					if (player.isInWater)
+					{
+						// Swimming up in water
+						gameData.entityManager.localPlayer.entity.swimUp(WATER_SWIM_IMPULSE);
+					}
+					else
+					{
+						gameData.entityManager.localPlayer.entity.jump();
+					}
 				}
 			}
 
@@ -826,6 +899,35 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			}
 
 			movementForCameraShake = moveDir;
+
+			auto &held = *player.inventory.getItemFromIndex(gameData.currentItemSelected, nullptr);
+			bool hasArrow = false;
+			for(int i=PlayerInventory::ARROWS_START_INDEX;i<PlayerInventory::ARROWS_START_INDEX+4;i++){ Item *a = player.inventory.getItemFromIndex(i,nullptr); if(a && a->isArrow() && a->counter>0){ hasArrow=true; break; } }
+			if(held.isBow() && hasArrow && platform::isRMouseHeld() && !stopMainInput)
+			{
+				gameData.bowCharging = true;
+				gameData.bowCharge = std::min(gameData.bowCharge + deltaTime, 1.1f);
+			}
+			else if(gameData.bowCharging && platform::isRMouseReleased())
+			{
+				if(held.isBow() && hasArrow && gameData.bowCharge > 0.15f)
+				{
+					float power = glm::mix(9.f, 26.f, std::clamp(gameData.bowCharge/0.9f, 0.f, 1.f));
+					int arrowSlot = -1;
+					for(int i=PlayerInventory::ARROWS_START_INDEX;i<PlayerInventory::ARROWS_START_INDEX+4;i++){ Item *a = player.inventory.getItemFromIndex(i,nullptr); if(a && a->isArrow() && a->counter>0){ arrowSlot=i; break; } }
+					if(arrowSlot!=-1){
+						glm::vec3 shootDir = glm::normalize(gameData.c.viewDirection);
+						gameData.entityManager.dropItemByClient(player.entity.position + glm::dvec3(0,0.5,0), arrowSlot, gameData.undoQueue, shootDir * power, gameData.serverTimer, player.inventory, 1);
+					}
+				}
+				gameData.bowCharging = false;
+				gameData.bowCharge = 0;
+			}
+			else if(!platform::isRMouseHeld())
+			{
+				gameData.bowCharging = false;
+				gameData.bowCharge = 0;
+			}
 		}
 
 
@@ -867,6 +969,13 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			}
 
 			gameData.currentItemSelected = std::clamp(gameData.currentItemSelected, 0, 8);
+
+			if (gameData.cameraMode != 0)
+			{
+				auto s = platform::getScroll();
+				if (s > 0.5f) gameData.thirdPersonDistance = std::clamp(gameData.thirdPersonDistance - 0.5f, 2.f, 10.f);
+				else if (s < -0.5f) gameData.thirdPersonDistance = std::clamp(gameData.thirdPersonDistance + 0.5f, 2.f, 10.f);
+			}
 
 		}
 
@@ -1035,9 +1144,27 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		gameData.c.position = gameData.entityManager.localPlayer.entity.position
 			+ glm::dvec3(0,1.5,0);
 
+		if (gameData.cameraMode != 0)
+		{
+			glm::dvec3 eye = gameData.c.position;
+			glm::vec3 dir = glm::normalize(gameData.c.viewDirection);
+			float dist = gameData.thirdPersonDistance;
+			glm::vec3 offsetDir = (gameData.cameraMode == 1) ? -dir : dir;
+			glm::dvec3 target = eye + glm::dvec3(offsetDir) * (double)dist;
+			glm::ivec3 hitPos; std::optional<glm::ivec3> prev; float hitDist;
+			Block *hit = gameData.chunkSystem.rayCast(eye, offsetDir, hitPos, dist, prev, hitDist);
+			if (hit)
+			{
+				float safe = std::max(0.3f, hitDist - 0.4f);
+				target = eye + glm::dvec3(offsetDir) * (double)safe;
+			}
+			gameData.c.position = target;
+		}
 
 		gameData.entityManager.doAllUpdates(deltaTime, chunkGetter, gameData.serverTimer);
 
+		for(auto &p : gameData.breakParticles){ p.vel.y -= 9.8f * deltaTime * 0.7f; p.pos += glm::dvec3(p.vel) * (double)deltaTime; p.life -= deltaTime; }
+		gameData.breakParticles.erase(std::remove_if(gameData.breakParticles.begin(), gameData.breakParticles.end(), [](auto &p){ return p.life<=0; }), gameData.breakParticles.end());
 
 		gameData.cameraShaker.updateCameraShake(deltaTime, movementForCameraShake, 
 			glm::vec3(player.entity.position - playerPosLastFrame) * deltaTime,
@@ -1431,7 +1558,56 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 								data.revisionNumber = player.inventory.revisionNumber;
 								bool good = true;
 
-								if (item.isPaint())
+								if (item.isBow())
+								{
+									good = false;
+								}
+								else if (item.isSeed() && blockToPlace)
+								{
+									Block *below = gameData.chunkSystem.getBlockSafe(blockToPlace->x, blockToPlace->y -1, blockToPlace->z);
+									Block *at = gameData.chunkSystem.getBlockSafe(blockToPlace->x, blockToPlace->y, blockToPlace->z);
+									if(at && at->getType()==BlockTypes::air && below && (below->getType()==BlockTypes::dirt || below->getType()==BlockTypes::grassBlock || below->getType()==BlockTypes::coarseDirt))
+									{
+										bool hasWater=false;
+										for(int dx=-4;dx<=4 && !hasWater;dx++) for(int dz=-4;dz<=4 && !hasWater;dz++){
+											auto *wb = gameData.chunkSystem.getBlockSafe(blockToPlace->x+dx, blockToPlace->y-1, blockToPlace->z+dz);
+											if(wb && wb->getType()==BlockTypes::water) hasWater=true;
+										}
+										if(hasWater || player.otherPlayerSettings.gameMode==OtherPlayerSettings::CREATIVE){
+											Block crop; 
+											if(item.type==ItemTypes::potatoSeeds) crop.setType(BlockTypes::potatoCrop);
+											else if(item.type==ItemTypes::cornSeeds) crop.setType(BlockTypes::cornCrop);
+											else if(item.type==ItemTypes::carrotSeeds) crop.setType(BlockTypes::carrotCrop);
+											else crop.setType(BlockTypes::wheatCrop);
+											crop.setCropStage(0);
+											gameData.chunkSystem.placeBlockNoClient(*blockToPlace, crop, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+											if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
+										}
+									}
+									good = false;
+								}
+								else if ((item.isBoneMealItem() || item.isFertilizerItem() || item.type==ItemTypes::compost) && raycastBlock && raycastBlock->isCrop())
+								{
+									int stage = raycastBlock->getCropStage();
+									if(stage < 7){
+										int inc = item.isFertilizerItem() ? 3 : item.type==ItemTypes::compost ? 2 : 1;
+										int ns = std::min(7, stage + inc);
+										Block nb = *raycastBlock; nb.setCropStage(ns);
+										gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+										if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
+									}
+									good = false;
+								}
+								else if (item.type==ItemTypes::wateringCan && raycastBlock && raycastBlock->isCrop())
+								{
+									int stage = raycastBlock->getCropStage();
+									if(stage < 7 && (rand()%2==0)){
+										Block nb = *raycastBlock; nb.setCropStage(stage+1);
+										gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+									}
+									good = false;
+								}
+								else if (item.isPaint())
 								{
 									data.position = rayCastPos;
 								}
@@ -1678,6 +1854,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 									, gameData.undoQueue,
 									gameData.entityManager.localPlayer.entity.position,
 									gameData.lightSystem, gameData.entityManager);
+								for(int i=0;i<6;i++){ GameData::BreakParticle p; p.pos = glm::dvec3(rayCastPos)+glm::dvec3(0.5,0.5,0.5); p.vel = glm::vec3((rand()%100-50)/80.f, (rand()%100)/60.f +1.f, (rand()%100-50)/80.f); p.life=0.6f; p.maxLife=0.6f; p.color = glm::vec3(0.6f,0.5f,0.35f); if(raycastBlock && raycastBlock->getType()==BlockTypes::grassBlock) p.color={0.4f,0.6f,0.2f}; else if(raycastBlock && raycastBlock->getType()==BlockTypes::stone) p.color={0.6f,0.6f,0.6f}; gameData.breakParticles.push_back(p); }
 								gameData.currentBlockBreaking = {};
 
 								auto b = gameData.chunkSystem.getBlockSafe(rayCastPos.x, rayCastPos.y, rayCastPos.z);
@@ -1730,6 +1907,63 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		}
 	}
 
+	// Update player water state and drowning
+	player.isInWater = underWater;
+	player.isSwimming = underWater;
+
+	// Drowning logic
+	if (underWater && player.otherPlayerSettings.gameMode == OtherPlayerSettings::SURVIVAL)
+	{
+		// Check if head is also underwater
+		bool headUnderwater = isEntityHeadInWater(player.entity.position, 
+			Player::getMaxColliderSize().y, 
+			[](glm::ivec2 pos) -> ChunkData* { 
+				auto c = gameData.chunkSystem.getChunkSafeFromChunkPos(pos.x, pos.y); 
+				return c ? &c->data : nullptr;
+			});
+
+		if (headUnderwater)
+		{
+			// Countdown drowning timer
+			player.drowningTimer -= deltaTime;
+			
+			if (player.drowningTimer <= 0)
+			{
+				// Start taking drowning damage
+				player.drowningDamageTimer -= deltaTime;
+				
+				if (player.drowningDamageTimer <= 0)
+				{
+					// Apply drowning damage
+					player.life.life -= DROWNING_DAMAGE;
+					player.drowningDamageTimer = DROWNING_TICK_INTERVAL;
+					player.justRecievedDamageTimer = 0.2f;
+					
+					// Clamp life to 0
+					if (player.life.life < 0) player.life.life = 0;
+					
+					// Send damage task to server
+					Task task;
+					task.taskType = Task::clientRecievedDamageLocally;
+					task.damage = DROWNING_DAMAGE;
+					submitTaskClient(task);
+				}
+			}
+		}
+		else
+		{
+			// Head is above water, reset drowning timer
+			player.drowningTimer = DROWNING_MAX_TIME;
+			player.drowningDamageTimer = 0;
+		}
+	}
+	else
+	{
+		// Not in water or in creative mode, reset drowning timer
+		player.drowningTimer = DROWNING_MAX_TIME;
+		player.drowningDamageTimer = 0;
+	}
+
 	glm::vec3 posFloat = {};
 	glm::ivec3 posInt = {};
 	gameData.c.decomposePosition(posFloat, posInt);
@@ -1761,6 +1995,29 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 	gameData.gameplayFrameProfiler.startSubProfile("lightsSystem");
 	gameData.lightSystem.update(gameData.chunkSystem);
+	if(!gameData.isInsideMapView){
+		static float flick=0; flick+=deltaTime*7.f;
+		int pcx = divideChunk(blockPositionPlayer.x);
+		int pcz = divideChunk(blockPositionPlayer.z);
+		for(int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++){
+			auto *ch = gameData.chunkSystem.getChunkSafeFromChunkPos(pcx+dx, pcz+dz);
+			if(!ch) continue;
+			for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=0;y<CHUNK_HEIGHT;y++){
+				Block &b = ch->unsafeGet(x,y,z);
+				if(b.getType()==BlockTypes::torch || b.getType()==BlockTypes::torchWood || b.getType()==BlockTypes::goblinTorch || b.getType()==BlockTypes::lamp){
+					int hash = (x*73856093) ^ (y*19349663) ^ (z*83492791);
+					float off = (hash % 100) / 100.f * 6.28f;
+					float flicker = 0.85f + 0.15f * sin(flick + off);
+					int lvl = (int)(14 * flicker);
+					lvl = std::clamp(lvl, 11, 15);
+					if(b.getLight()!=lvl){
+						b.setLightLevel(lvl);
+						gameData.chunkSystem.setChunkAndNeighboursFlagDirtyFromBlockPos(ch->data.x*CHUNK_SIZE+x, ch->data.z*CHUNK_SIZE+z);
+					}
+				}
+			}
+		}
+	}
 	gameData.gameplayFrameProfiler.endSubProfile("lightsSystem");
 
 #pragma endregion
@@ -1772,10 +2029,14 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 #pragma region weather and time
 
 	static float dayTime = 0.25;
+
+	//the /time command can override this (setDayTimeGlobally)
+	dayTime = globalDayTime;
 	programData.renderer.sunPos = calculateSunPosition(dayTime);
 	
 	//dayTime += deltaTime * 0.05f;
 	if (dayTime > 0) { dayTime -= (int)dayTime; }
+	globalDayTime = dayTime;
 
 #pragma endregion
 
@@ -1796,6 +2057,14 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		if (!underWater)
 		{
 			gameData.dropsStrength = 4;
+			AudioEngine::playSound(AudioEngine::waterExit, 0.5f);
+		}
+	}
+	else
+	{
+		if (underWater)
+		{
+			AudioEngine::playSound(AudioEngine::waterSplash, 0.6f);
 		}
 	}
 	
@@ -1811,6 +2080,21 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 	float finalDropStrength = std::min(1.f, gameData.dropsStrength/3.f);
 #pragma endregion
 
+#pragma region water swim sounds
+	{
+		static float swimTimer=0;
+		if(underWater && isPlayerMovingSpeed){
+			swimTimer -= deltaTime;
+			if(swimTimer<=0){
+				AudioEngine::playSound(AudioEngine::waterSwim, 0.45f);
+				swimTimer = 0.65f;
+			}
+		}else{
+			swimTimer = 0.35f;
+		}
+	}
+#pragma endregion
+
 
 	if(w != 0 && h != 0 && !gameData.isInsideMapView)
 	{
@@ -1818,6 +2102,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		gameData.gameplayFrameProfiler.startSubProfile("rendering");
 
 		//programData.renderer.render(data, gameData.c, programData.texture);
+		bool showHand = gameData.showUI && gameData.cameraMode == 0;
 		programData.renderer.renderFromBakedData(gameData.sunShadow,gameData.chunkSystem, 
 			gameData.c, programData, programData.blocksLoader, gameData.entityManager,
 			programData.modelsManager, 
@@ -1825,7 +2110,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			gameData.point, underWater, w, h, deltaTime, dayTime, gameData.currentSkinBindlessTexture,
 			gameData.handHit, isPlayerMovingSpeed, gameData.playerFOVHandTransform,
 			gameData.currentItemSelected, finalDropStrength, 
-			gameData.showUI, gameData.playersConnectionData
+			showHand, gameData.playersConnectionData
 			);
 
 
@@ -2058,6 +2343,43 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			programData.gyzmosRenderer.drawCube(blockPositionPlayer);
 		}
 
+		if (gameData.showChunkBorders)
+		{
+			int pcx = (int)std::floor((double)blockPositionPlayer.x / CHUNK_SIZE);
+			int pcz = (int)std::floor((double)blockPositionPlayer.z / CHUNK_SIZE);
+			for(int dx=-2;dx<=2;dx++) for(int dz=-2;dz<=2;dz++){
+				int cx = pcx + dx;
+				int cz = pcz + dz;
+				double x0 = cx * CHUNK_SIZE - 0.5;
+				double z0 = cz * CHUNK_SIZE - 0.5;
+				double x1 = x0 + CHUNK_SIZE;
+				double z1 = z0 + CHUNK_SIZE;
+				glm::dvec3 p00 = {x0, 0, z0};
+				glm::dvec3 p10 = {x1, 0, z0};
+				glm::dvec3 p01 = {x0, 0, z1};
+				glm::dvec3 p11 = {x1, 0, z1};
+				glm::dvec3 p00h = {x0, (double)CHUNK_HEIGHT, z0};
+				glm::dvec3 p10h = {x1, (double)CHUNK_HEIGHT, z0};
+				glm::dvec3 p01h = {x0, (double)CHUNK_HEIGHT, z1};
+				glm::dvec3 p11h = {x1, (double)CHUNK_HEIGHT, z1};
+				auto col = (dx==0 && dz==0) ? glm::vec3(1,0,0) : glm::vec3(1,1,0);
+				programData.gyzmosRenderer.drawLine(p00, p10);
+				programData.gyzmosRenderer.drawLine(p10, p11);
+				programData.gyzmosRenderer.drawLine(p11, p01);
+				programData.gyzmosRenderer.drawLine(p01, p00);
+				programData.gyzmosRenderer.drawLine(p00, p00h);
+				programData.gyzmosRenderer.drawLine(p10, p10h);
+				programData.gyzmosRenderer.drawLine(p01, p01h);
+				programData.gyzmosRenderer.drawLine(p11, p11h);
+			}
+		}
+
+		for(auto &par : gameData.breakParticles){
+			glm::ivec3 ip = glm::floor(par.pos);
+			glm::vec3 fp = glm::vec3(par.pos - glm::dvec3(ip));
+			programData.gyzmosRenderer.drawCube(ip, fp, glm::vec3(0.14f));
+		}
+
 		programData.gyzmosRenderer.render(gameData.c, posInt, posFloat);
 
 		programData.GPUProfiler.endSubProfile("Debug rendering");
@@ -2067,6 +2389,54 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 
 	auto centerChunk = gameData.chunkSystem.getChunkSafeFromBlockPos(posInt.x, posInt.z);
+
+	if (gameData.showF3Debug && !gameData.isInsideMapView)
+	{
+		auto &r2d = programData.ui.renderer2d;
+		glm::dvec3 p = gameData.entityManager.localPlayer.entity.position;
+		glm::ivec3 bpos = from3DPointToBlock(p);
+		glm::ivec2 chunkPos = { (int)std::floor((float)bpos.x / CHUNK_SIZE), (int)std::floor((float)bpos.z / CHUNK_SIZE)};
+		int facing = gameData.c.getViewDirectionRotation();
+		const char* facingStr = facing==0?"north (-Z)":facing==1?"west (-X)":facing==2?"south (+Z)":"east (+X)";
+		std::string l1 = "ourCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
+		std::string l2 = "XYZ: " + std::to_string(p.x).substr(0,7) + " / " + std::to_string(p.y).substr(0,7) + " / " + std::to_string(p.z).substr(0,7);
+		std::string l3 = "Block: " + std::to_string(bpos.x) + " " + std::to_string(bpos.y) + " " + std::to_string(bpos.z);
+		std::string l4 = "Chunk: " + std::to_string(chunkPos.x) + " " + std::to_string(chunkPos.y) + " [" + std::to_string(bpos.x - chunkPos.x*CHUNK_SIZE) + " " + std::to_string(bpos.z - chunkPos.y*CHUNK_SIZE) + "]";
+		std::string l5 = "Facing: " + std::string(facingStr) + " (" + std::to_string(gameData.c.viewDirection.x).substr(0,5) + ", " + std::to_string(gameData.c.viewDirection.z).substr(0,5) + ")";
+		std::string l6 = "";
+		if(centerChunk){ l6 = "Biome veg: " + std::to_string(centerChunk->data.vegetation).substr(0,5); } else l6 = "Biome: loading";
+		auto blk = gameData.chunkSystem.getBlockSafe(bpos.x,bpos.y,bpos.z);
+		std::string l7 = blk ? ("Light sky:" + std::to_string((int)blk->getSkyLight()) + " block:" + std::to_string((int)blk->getLight())) : "Light: -";
+		size_t entCount = gameData.entityManager.players.size() + gameData.entityManager.zombies.size() + gameData.entityManager.pigs.size() + gameData.entityManager.goblins.size();
+		std::string l8 = "Entities: " + std::to_string(entCount) + " | Mem chunks: " + std::to_string(gameData.chunkSystem.loadedChunks.size());
+		r2d.renderRectangle({5,5, 360, 145}, {0,0,0,0.55});
+		float y = 28;
+		auto drawL = [&](std::string s, float yy){ r2d.renderText({10, yy}, s.c_str(), programData.ui.font, Colors_White, 14); };
+		drawL(l1, y); y+=16;
+		drawL(l2, y); y+=16;
+		drawL(l3, y); y+=16;
+		drawL(l4, y); y+=16;
+		drawL(l5, y); y+=16;
+		drawL(l6, y); y+=16;
+		drawL(l7, y); y+=16;
+		drawL(l8, y);
+	}
+
+	if (gameData.bowCharging && !gameData.isInsideMapView && !gameData.isInsideChat)
+	{
+		auto &r2d = programData.ui.renderer2d;
+		float pct = std::clamp(gameData.bowCharge / 0.9f, 0.f, 1.f);
+		int w = r2d.windowW;
+		int h = r2d.windowH;
+		int barW = 200;
+		int barH = 12;
+		int x = w/2 - barW/2;
+		int y = h/2 + 40;
+		r2d.renderRectangle({x-2, y-2, barW+4, barH+4}, {0,0,0,0.6});
+		r2d.renderRectangle({x, y, barW, barH}, {0.3,0.3,0.3,0.8});
+		glm::vec4 col = {0.2f + pct*0.8f, 0.8f - pct*0.5f, 0.2f, 1.f};
+		r2d.renderRectangle({x, y, (int)(barW * pct), barH}, col);
+	}
 
 #pragma region imgui
 	
@@ -2791,6 +3161,116 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 			}
 
+			//command tab-completion suggestions
+			bool isTypingCommand = gameData.chatBuffer[0] == '/';
+			if (isTypingCommand)
+			{
+				std::string prefix = gameData.chatBuffer + 1;
+
+				if (prefix != gameData.lastRequestedCommandPrefix)
+				{
+					gameData.lastRequestedCommandPrefix = prefix;
+					gameData.chatSuggestionSelected = 0;
+
+					std::string sendPrefix = prefix;
+					sendPrefix += '\0';
+
+					sendPacket(getServer(), headerCommandSuggestions, player.entityId,
+						(void *)sendPrefix.data(), sendPrefix.size(),
+						false, channelHandleConnections);
+				}
+
+				//navigate and autocomplete
+				if (!gameData.commandSuggestions.empty())
+				{
+
+					if (platform::isKeyReleased(platform::Button::Up))
+					{
+						gameData.chatSuggestionSelected--;
+						if (gameData.chatSuggestionSelected < 0)
+						{
+							gameData.chatSuggestionSelected = (int)gameData.commandSuggestions.size() - 1;
+						}
+					}
+
+					if (platform::isKeyReleased(platform::Button::Down))
+					{
+						gameData.chatSuggestionSelected++;
+						if (gameData.chatSuggestionSelected >= (int)gameData.commandSuggestions.size())
+						{
+							gameData.chatSuggestionSelected = 0;
+						}
+					}
+
+					if (platform::isKeyTyped(platform::Button::Tab))
+					{
+						int sel = gameData.chatSuggestionSelected;
+						if (sel < 0 || sel >= (int)gameData.commandSuggestions.size()) { sel = 0; }
+
+						//replace the last word in the command with the suggestion
+						std::string typed = gameData.chatBuffer + 1;
+						size_t space = typed.find_last_of(' ');
+						std::string before = (space == std::string::npos) ? "" : typed.substr(0, space + 1);
+						std::string completed = before + gameData.commandSuggestions[sel];
+
+						//add a trailing space so the next argument can be typed right away
+						if (completed.size() + 1 < sizeof(gameData.chatBuffer))
+						{
+							completed += " ";
+						}
+
+						memset(gameData.chatBuffer, 0, sizeof(gameData.chatBuffer));
+						memcpy(gameData.chatBuffer, completed.c_str(),
+							std::min<size_t>(completed.size(), sizeof(gameData.chatBuffer) - 1));
+						gameData.chatBufferPosition = (int)std::min<size_t>(completed.size(), sizeof(gameData.chatBuffer) - 1);
+					}
+				}
+
+				//draw the suggestion dropdown
+				if (!gameData.commandSuggestions.empty())
+				{
+					const float rowH = 40;
+					int rows = std::min<int>((int)gameData.commandSuggestions.size(), 8);
+
+					//show a window around the selected suggestion
+					int selected = std::clamp(gameData.chatSuggestionSelected, 0, (int)gameData.commandSuggestions.size() - 1);
+					int startRow = std::clamp(selected - rows / 2, 0,
+						std::max(0, (int)gameData.commandSuggestions.size() - rows));
+
+					float panelH = rows * rowH + 10;
+					glm::ivec4 panel = { 0, box.y - (int)panelH, box.z, (int)panelH };
+					float textY = panel.y + 8;
+
+					renderer.renderRectangle(panel, { 0.2,0.2,0.2,0.85 });
+
+					for (int i = 0; i < rows; i++)
+					{
+						int index = startRow + i;
+						if (index >= (int)gameData.commandSuggestions.size()) { break; }
+
+						glm::ivec4 rowRect = { panel.x, (int)textY, panel.z, (int)rowH };
+						if (index == selected)
+						{
+							renderer.renderRectangle(rowRect, { 0.35,0.35,0.35,0.9 });
+						}
+
+						renderer.renderText({ 12, textY + rowH - 10 }, gameData.commandSuggestions[index].c_str(),
+							programData.ui.font, index == selected ? glm::vec4(0.9,0.9,1,1) : glm::vec4(1,1,1,1),
+							40, 4, 0, false);
+
+						textY += rowH;
+					}
+				}
+			}
+			else
+			{
+				gameData.lastRequestedCommandPrefix = "";
+				if (!gameData.commandSuggestions.empty())
+				{
+					gameData.commandSuggestions.clear();
+				}
+			}
+
 			if (platform::isKeyReleased(platform::Button::Enter) && 
 				gameData.chatBufferPosition)
 			{
@@ -3216,9 +3696,9 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 
 
-		programData.ui.menuRenderer.Text("Game Menu", Colors_White);
+		programData.ui.menuRenderer.Text(loc_GameMenu(), Colors_White);
 
-		if (programData.ui.menuRenderer.Button("Back to Game", Colors_Gray, programData.ui.buttonTexture))
+		if (programData.ui.menuRenderer.Button(loc_BackToGame(), Colors_Gray, programData.ui.buttonTexture))
 		{
 			gameData.escapePressed = false;
 		}
@@ -3227,9 +3707,14 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 		displaySkinSelectorMenuButton(programData);
 
-		if (programData.ui.menuRenderer.Button("Exit", Colors_Gray, programData.ui.buttonTexture))
+		if (programData.ui.menuRenderer.Button(loc_Exit(), Colors_Gray, programData.ui.buttonTexture))
 		{
-			terminate = true;
+			gameData.exitGameModal.open(loc_Exit(), loc_AreYouSureExit());
+		}
+
+		if (programData.ui.menuRenderer.Button(loc_BackToMenu(), Colors_Gray, programData.ui.buttonTexture))
+		{
+			gameData.exitWorldModal.open(loc_BackToMenu(), loc_AreYouSureLeave());
 		}
 
 		programData.ui.menuRenderer.End();
@@ -3240,21 +3725,49 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			gameData.escapePressed = false;
 		}
 
+		// Render exit confirmation modal
+		if (gameData.exitGameModal.show)
+		{
+			glm::vec2 screenSize = {programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH};
+			if (gameData.exitGameModal.render(
+				programData.ui.renderer2d, programData.ui.font, screenSize))
+			{
+				if (gameData.exitGameModal.result)
+				{
+					terminate = true;
+				}
+			}
+		}
+
+		// Render exit world confirmation modal
+		if (gameData.exitWorldModal.show)
+		{
+			glm::vec2 screenSize = {programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH};
+			if (gameData.exitWorldModal.render(
+				programData.ui.renderer2d, programData.ui.font, screenSize))
+			{
+				if (gameData.exitWorldModal.result)
+				{
+					terminate = true;
+				}
+			}
+		}
+
 	}
 	else if(gameData.killed)
 	{
 		programData.ui.menuRenderer.Begin(3);
 		programData.ui.menuRenderer.SetAlignModeFixedSizeWidgets({0,150});
 
-		programData.ui.menuRenderer.Text("You died :(", Colors_White);
+		programData.ui.menuRenderer.Text(loc_DeathMessage(), Colors_White);
 
-		if (programData.ui.menuRenderer.Button("Respawn", Colors_Gray, programData.ui.buttonTexture))
+		if (programData.ui.menuRenderer.Button(loc_Respawn(), Colors_Gray, programData.ui.buttonTexture))
 		{
 			sendPacket(getServer(), headerClientWantsToRespawn, player.entityId,
 				0, 0, true, channelChunksAndBlocks);
 		}
 
-		if (programData.ui.menuRenderer.Button("Exit", Colors_Gray, programData.ui.buttonTexture))
+		if (programData.ui.menuRenderer.Button(loc_Exit(), Colors_Gray, programData.ui.buttonTexture))
 		{
 			terminate = true;
 		}

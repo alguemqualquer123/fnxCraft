@@ -31,6 +31,18 @@ constexpr static float BASIC_JUMP_IMPULSE = 9.4;
 constexpr static float OTHERS_PUSHING_YOU_FORCE = 0.7f;
 constexpr static float OTHERS_PUSHING_YOU_BUAS_Y_DOWN = 0.1f;
 
+// Water physics constants
+constexpr static float WATER_BUOYANCY_FORCE = 9.8f * 3.0f;   // Upward buoyancy force
+constexpr static float WATER_DRAG_COEFICIENT = 0.4f;          // Higher drag in water
+constexpr static float MAX_WATER_DRAG = 25.f;
+constexpr static float WATER_VERTICAL_DAMPING = 2.5f;         // Settles vertical bobbing so floating looks calm
+constexpr static float WATER_ITEM_BUOYANCY = 9.8f * 3.5f;     // Items float up in water
+constexpr static float WATER_SWIM_IMPULSE = 7.0f;             // Force when swimming up
+constexpr static float WATER_SWIM_SPEED_MULTIPLIER = 0.6f;    // Slower horizontal movement
+constexpr static float DROWNING_DAMAGE = 2.f;                 // Damage per drowning tick
+constexpr static float DROWNING_TICK_INTERVAL = 1.5f;         // Seconds between drowning ticks
+constexpr static float DROWNING_MAX_TIME = 15.f;              // Seconds before drowning starts
+
 
 
 ChunkData *chunkGetterSignature(glm::ivec2 chunkPos);
@@ -108,3 +120,9 @@ bool lineIntersectBox(glm::dvec3 start, glm::dvec3 dir,
 
 bool lineIntersectBoxMaxDistance(glm::dvec3 start, glm::dvec3 dir,
 	glm::dvec3 box, glm::dvec3 size, float maxDistance, float &outIntersectDist, float delta);
+
+// Water physics helpers
+bool isPositionInWater(glm::dvec3 position, decltype(chunkGetterSignature) *chunkGetter);
+bool isEntityHeadInWater(glm::dvec3 position, float height, decltype(chunkGetterSignature) *chunkGetter);
+void applyWaterPhysics(MotionState &forces, glm::dvec3 &position, float deltaTime,
+	PhysicalSettings &physicalSettings, bool isInWater, float buoyancyForce = WATER_BUOYANCY_FORCE);

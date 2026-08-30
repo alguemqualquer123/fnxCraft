@@ -85,15 +85,22 @@ enum : std::uint32_t
 	headerAttackEntity,
 	headerClientWantsToRespawn,
 	headerRespawnPlayer,
+	headerFly, //from server to players: sets flying on/off
 	headerClientDamageLocally,
 	headerClientDamageLocallyAndDied,
 	headerUpdateEffects,
 	headerClientDroppedChunk,
 	headerClientDroppedAllChunks,
 	headerSendChat, //just the letters for now
+	headerCommandSuggestions, //client -> server: a / command prefix, server -> client: suggestions list
 	headerClientChangeBlockData,
 	headerChangeBlockData,
 	headerTrainingDummyGotAttacked, //from server to players!
+
+	// Custom events (FiveM-style event system)
+	headerClientTriggerServerEvent, //client -> server: custom event
+	headerServerTriggerClientEvent, //server -> client: custom event
+	headerServerTriggerAllClientsEvent, //server -> all clients: broadcast event
 
 };
 
@@ -142,6 +149,11 @@ struct Packet_ClientDamageLocally
 struct Packet_RespawnPlayer
 {
 	glm::dvec3 pos = {};
+};
+
+struct Packet_Fly
+{
+	char fly = 0;
 };
 
 struct Packet_ClientUsedItem
@@ -358,6 +370,14 @@ struct Packet_UpdateEffects
 struct Packet_ClientDroppedChunk
 {
 	glm::ivec2 chunkPos = {};
+};
+
+//request: just a null terminated string (the / command without the leading slash)
+//response (server -> client): this structure
+struct Packet_CommandSuggestions
+{
+	uint16_t count = 0;
+	char entries[32][64] = {};
 };
 
 void *unCompressData(const char *data, size_t compressedSize, size_t &originalSize);

@@ -11,6 +11,7 @@
 #include <audioEngine.h>
 #include <gameplay/blocks/blocksWithData.h>
 #include <lightSystem.h>
+#include "multyPlayer/events/eventSystem.h"
 
 static ConnectionData clientData;
 
@@ -90,7 +91,8 @@ void recieveDataClient(ENetEvent &event,
 	bool &shouldExitBlockInteraction, bool &killedPlayer, bool &respawn,
 	std::deque<std::string> &chat, float &chatTimer,
 	InteractionData &playerInteraction,
-	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData
+	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData,
+	std::vector<std::string> &commandSuggestions
 	)
 {
 	Packet p;
@@ -365,7 +367,9 @@ void recieveDataClient(ENetEvent &event,
 					}
 					else
 					{
-						chunk->blockData.chestBlocks[blockHash] = {};
+						ChestBlock newChest;
+						for (auto &item : newChest.items) { item = Item{}; }
+						chunk->blockData.chestBlocks[blockHash] = newChest;
 					}
 
 
@@ -559,7 +563,7 @@ void recieveDataClient(ENetEvent &event,
 					
 					if (found == entityManager.players.end())
 					{
-						entityManager.players[entity->eid] = {};
+						entityManager.players[entity->eid] = PlayerClient{};
 						found = entityManager.players.find(entity->eid);
 						float restantTimer = computeRestantTimer(entity->timer, serverTimer);
 						found->second.restantTime = restantTimer;
@@ -850,6 +854,28 @@ void recieveDataClient(ENetEvent &event,
 			break;
 		}
 
+		case headerFly:
+		{
+			if (sizeof(Packet_Fly) != size) { break; }
+			Packet_Fly *packetData = (Packet_Fly *)data;
+
+			if (p.cid == entityManager.localPlayer.entityId)
+			{
+				entityManager.localPlayer.entity.fly = packetData->fly != 0;
+				entityManager.localPlayer.entity.forces = {};
+			}
+			else
+			{
+				auto found = entityManager.players.find(p.cid);
+				if (found != entityManager.players.end())
+				{
+					found->second.entityBuffered.fly = packetData->fly != 0;
+				}
+			}
+
+			break;
+		}
+
 		case headerUpdateEffects:
 		{
 			if (sizeof(Packet_UpdateEffects) != size) { break; }
@@ -883,6 +909,104 @@ void recieveDataClient(ENetEvent &event,
 		}
 		break;
 
+		case headerCommandSuggestions:
+		{
+			if (size < sizeof(Packet_CommandSuggestions))
+			{
+				//old/short packet, ignore
+				break;
+			}
+
+			Packet_CommandSuggestions *packetData = (Packet_CommandSuggestions *)data;
+
+			commandSuggestions.clear();
+			commandSuggestions.reserve(packetData->count);
+			for (int i = 0; i < packetData->count && i < 32; i++)
+			{
+				packetData->entries[i][63] = 0;
+				commandSuggestions.push_back(std::string(packetData->entries[i]));
+			}
+		}
+		break;
+
+		case headerServerTriggerClientEvent:
+		{
+			// Custom event from server (FiveM-style)
+			if (size < sizeof(uint32_t)) { break; }
+
+			const char *ptr = data;
+			const char *end = data + size;
+
+			// Read event name length (varint)
+			uint32_t nameLen = 0;
+			int shift = 0;
+			while (ptr < end)
+			{
+				unsigned char b = *ptr++;
+				nameLen |= (uint32_t)(b & 0x7F) << shift;
+				if (!(b & 0x80)) break;
+				shift += 7;
+			}
+
+			if (ptr + nameLen > end) break;
+
+			std::string eventName(ptr, nameLen);
+			ptr += nameLen;
+
+			// Deserialize event args
+			EventData eventData;
+			eventData.eventName = eventName;
+			size_t remaining = end - ptr;
+			if (remaining > 0)
+			{
+				eventData.deserialize(ptr, remaining);
+			}
+
+			// Log the event
+			std::cout << "[Client] Event received from server: " << eventName
+				<< " with " << eventData.args.size() << " args\n";
+
+			break;
+		}
+
+		case headerServerTriggerAllClientsEvent:
+		{
+			// Broadcast event from server
+			// Same handling as single client event
+			if (size < sizeof(uint32_t)) { break; }
+
+			const char *ptr = data;
+			const char *end = data + size;
+
+			uint32_t nameLen = 0;
+			int shift = 0;
+			while (ptr < end)
+			{
+				unsigned char b = *ptr++;
+				nameLen |= (uint32_t)(b & 0x7F) << shift;
+				if (!(b & 0x80)) break;
+				shift += 7;
+			}
+
+			if (ptr + nameLen > end) break;
+
+			std::string eventName(ptr, nameLen);
+			ptr += nameLen;
+
+			EventData eventData;
+			eventData.eventName = eventName;
+			size_t remaining = end - ptr;
+			if (remaining > 0)
+			{
+				eventData.deserialize(ptr, remaining);
+			}
+
+			std::cout << "[Client] Broadcast event from server: " << eventName
+				<< " with " << eventData.args.size() << " args\n";
+
+			break;
+		}
+
 
 		default:
 		break;
@@ -905,7 +1029,8 @@ void clientMessageLoop(EventCounter &validatedEvent, RevisionNumber &invalidateR
 	bool &killedPlayer, bool &respawn,
 	std::deque<std::string> &chat, float &chatTimer,
 	InteractionData &playerInteraction,
-	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData
+	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData,
+	std::vector<std::string> &commandSuggestions
 	)
 {
 	ENetEvent event;
@@ -925,7 +1050,8 @@ void clientMessageLoop(EventCounter &validatedEvent, RevisionNumber &invalidateR
 						playerPosition, squareDistance, entityManager, undoQueue,
 						chunkSystem, lightSystem, serverTimer,
 						revisionNumberBlockInteraction, shouldExitBlockInteraction, killedPlayer,
-						respawn, chat, chatTimer, playerInteraction, playersConnectionData);
+						respawn, chat, chatTimer, playerInteraction, playersConnectionData,
+						commandSuggestions);
 					
 					enet_packet_destroy(event.packet);
 
@@ -1029,6 +1155,14 @@ void closeConnection()
 
 }
 
+static std::string trimStr(const std::string &s)
+{
+	size_t a = s.find_first_not_of(" \t\r\n");
+	if (a == std::string::npos) return "";
+	size_t b = s.find_last_not_of(" \t\r\n");
+	return s.substr(a, b - a + 1);
+}
+
 bool createConnection(Packet_ReceiveCIDAndData &playerData, const char *c)
 {
 	if (clientData.conected) { return false; }
@@ -1036,20 +1170,57 @@ bool createConnection(Packet_ReceiveCIDAndData &playerData, const char *c)
 	clientData = ConnectionData{};
 
 	clientData.client = enet_host_create(nullptr, 1, SERVER_CHANNELS, 0, 0);
+	if (!clientData.client)
+	{
+		reportError("failed to create ENet client host");
+		return false;
+	}
 
 	ENetAddress adress = {};
 	ENetEvent event = {};
-	
-	if (c && c[0] != 0)
+
+	std::string ipStr = c ? trimStr(c) : "";
+	std::string hostPart = ipStr;
+	int port = 7771;
+
+	if (!ipStr.empty())
 	{
-		enet_address_set_host(&adress, c);
-	}
-	else
-	{
-		enet_address_set_host(&adress, "127.0.0.1");
+		size_t colon = ipStr.rfind(':');
+		if (colon != std::string::npos)
+		{
+			std::string portStr = trimStr(ipStr.substr(colon + 1));
+			std::string hostCandidate = trimStr(ipStr.substr(0, colon));
+			bool isPort = !portStr.empty() && portStr.find_first_not_of("0123456789") == std::string::npos;
+			if (isPort && !hostCandidate.empty())
+			{
+				try
+				{
+					int p = std::stoi(portStr);
+					if (p > 0 && p <= 65535)
+					{
+						port = p;
+						hostPart = hostCandidate;
+					}
+				}
+				catch (...) {}
+			}
+		}
 	}
 
-	adress.port = 7771; //todo port stuff
+	if (hostPart.empty())
+	{
+		hostPart = "127.0.0.1";
+	}
+
+	if (enet_address_set_host(&adress, hostPart.c_str()) < 0)
+	{
+		reportError(("Invalid IP/hostname: " + hostPart).c_str());
+		enet_host_destroy(clientData.client);
+		clientData.client = nullptr;
+		return false;
+	}
+
+	adress.port = (enet_uint16)port;
 
 	//client, adress, channels, data to send rightAway
 	clientData.server = enet_host_connect(clientData.client, &adress, SERVER_CHANNELS, 0);
@@ -1124,6 +1295,7 @@ bool createConnection(Packet_ReceiveCIDAndData &playerData, const char *c)
 			enet_packet_destroy(event.packet);
 		};
 
+		clientData.conected = true;
 		return true;
 	}
 	else
@@ -1136,8 +1308,7 @@ bool createConnection(Packet_ReceiveCIDAndData &playerData, const char *c)
 
 	#pragma endregion
 
-	clientData.conected = true;
-	return true;
+	return false;
 }
 
 

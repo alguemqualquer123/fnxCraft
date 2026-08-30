@@ -13,7 +13,9 @@
 #include <shader.h>
 #include <camera.h>
 #include <deque>
+#ifdef _WIN32
 #include <Windows.h>
+#endif
 #include <filesystem>
 #include <stb_image/stb_image_write.h>
 
@@ -87,6 +89,7 @@ GLint u_viewProjection = 0;
 GLint u_modelMatrix = 0;
 GLint u_view = 0;
 
+#ifdef _WIN32
 bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const char *initialDir,
 	const char *filter)
 {
@@ -113,6 +116,13 @@ bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const cha
 	// Show the file open dialog
 	return GetOpenFileNameA(&ofn);
 }
+#else
+bool ShowOpenFileDialog(void *hwnd, char *filePath, int filePathSize, const char *initialDir,
+	const char *filter)
+{
+	return false;
+}
+#endif
 
 
 struct UndoRedo

@@ -46,6 +46,24 @@ GLint createShaderFromData(const char* data, GLenum shaderType)
 
 }
 
+static std::string preprocessShaderSource(std::string content)
+{
+#ifdef __APPLE__
+	size_t pos = 0;
+	while ((pos = content.find("#version 430", pos)) != std::string::npos)
+	{
+		content.replace(pos, 13, "#version 410");
+		pos += 13;
+	}
+	while ((pos = content.find("#version 460", 0)) != std::string::npos)
+	{
+		content.replace(pos, 13, "#version 410");
+		break;
+	}
+#endif
+	return content;
+}
+
 GLint createShaderFromFile(const char* source, GLenum shaderType, const char *extraCode = 0)
 {
 	std::ifstream file;
@@ -64,6 +82,7 @@ GLint createShaderFromFile(const char* source, GLenum shaderType, const char *ex
 		file.seekg(0, std::ios::beg); // Seek back to start
 		std::string content(size, '\0'); // Preallocate string buffer
 		file.read(&content[0], size); // Read directly into string
+		content = preprocessShaderSource(content);
 
 		//search content for the string #version and add the extraCode variable to the string in that point
 		size_t pos = content.find("#version");
@@ -92,14 +111,13 @@ GLint createShaderFromFile(const char* source, GLenum shaderType, const char *ex
 		char *fileContent = new char[size + 1] {};
 
 		file.read(fileContent, size);
-
-
 		file.close();
 
-		auto rez = createShaderFromData(fileContent, shaderType);
-
+		std::string contentStr(fileContent, size);
 		delete[] fileContent;
+		contentStr = preprocessShaderSource(contentStr);
 
+		auto rez = createShaderFromData(contentStr.c_str(), shaderType);
 		return rez;
 	}
 

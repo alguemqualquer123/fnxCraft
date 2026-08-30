@@ -15,6 +15,7 @@
 #include <chunkSystem.h>
 #include <sstream>
 #include <iomanip>
+#include <localization.h>
 
 
 float determineTextSize(gl2d::Renderer2D &renderer, const std::string &str,
@@ -359,7 +360,7 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 	std::optional<Item> currentItemHovered = {};
 	auto mousePos = platform::getRelMousePosition();
 
-	auto renderOneItem = [&](glm::vec4 itemBox, Item &item, float in = 0, float color = 1, gl2d::Texture icon = {})
+	auto renderOneItem = [&](glm::vec4 itemBox, const Item &item, float in = 0, float color = 1, gl2d::Texture icon = {})
 	{
 		if (item.type == 0)
 		{
@@ -1765,4 +1766,87 @@ void Oscilator::reset()
 {
 	currentTimer = 0;
 	currentFaze = 0;
+}
+
+bool ConfirmationModal::render(gl2d::Renderer2D &renderer2d, gl2d::Font &font,
+	glm::vec2 screenSize)
+{
+	if (!show) { return false; }
+
+	resultReady = false;
+
+	// Darken background
+	renderer2d.renderRectangle({0, 0, screenSize.x, screenSize.y},
+		{0, 0, 0, 0.6f});
+
+	// Center panel
+	float panelW = 500;
+	float panelH = 250;
+	float panelX = (screenSize.x - panelW) / 2.f;
+	float panelY = (screenSize.y - panelH) / 2.f;
+
+	// Panel background
+	renderer2d.renderRectangle({panelX, panelY, panelX + panelW, panelY + panelH},
+		{0.15f, 0.15f, 0.18f, 0.95f});
+
+	// Title
+	renderer2d.renderText({panelX + panelW / 2, panelY + 30},
+		title, font, Colors_White, 36.f, -1);
+
+	// Message
+	renderer2d.renderText({panelX + panelW / 2, panelY + 80},
+		message, font, Colors_Gray, 24.f, -1);
+
+	// Yes button
+	float btnW = 180;
+	float btnH = 50;
+	float btnY = panelY + panelH - 80;
+	float yesX = panelX + panelW / 2 - btnW - 15;
+	float noX = panelX + panelW / 2 + 15;
+
+	// Yes button
+	{
+		auto pos = platform::getRelMousePosition();
+		glm::vec2 mousePos = {pos.x, pos.y};
+		bool hover = mousePos.x > yesX && mousePos.x < yesX + btnW
+			&& mousePos.y > btnY && mousePos.y < btnY + btnH;
+		glm::vec4 color = hover ? glm::vec4(0.3f, 0.6f, 0.3f, 1.f)
+			: glm::vec4(0.2f, 0.4f, 0.2f, 1.f);
+
+		renderer2d.renderRectangle({yesX, btnY, yesX + btnW, btnY + btnH}, color);
+		renderer2d.renderText({yesX + btnW / 2, btnY + btnH / 2},
+			loc_Yes(), font, Colors_White, 28.f, -1);
+
+		if (hover && platform::isLMousePressed())
+		{
+			show = false;
+			result = true;
+			resultReady = true;
+			AudioEngine::playSound(AudioEngine::uiButtonPress, UI_SOUND_VOLUME);
+		}
+	}
+
+	// No button
+	{
+		auto pos = platform::getRelMousePosition();
+		glm::vec2 mousePos = {pos.x, pos.y};
+		bool hover = mousePos.x > noX && mousePos.x < noX + btnW
+			&& mousePos.y > btnY && mousePos.y < btnY + btnH;
+		glm::vec4 color = hover ? glm::vec4(0.6f, 0.3f, 0.3f, 1.f)
+			: glm::vec4(0.4f, 0.2f, 0.2f, 1.f);
+
+		renderer2d.renderRectangle({noX, btnY, noX + btnW, btnY + btnH}, color);
+		renderer2d.renderText({noX + btnW / 2, btnY + btnH / 2},
+			loc_No(), font, Colors_White, 28.f, -1);
+
+		if (hover && platform::isLMousePressed())
+		{
+			show = false;
+			result = false;
+			resultReady = true;
+			AudioEngine::playSound(AudioEngine::uiButtonBack, UI_SOUND_VOLUME);
+		}
+	}
+
+	return resultReady;
 }

@@ -32,6 +32,8 @@ void displayVolumeMenu(ProgramData &programData);
 
 void displayVolumeMenuButton(ProgramData &programData);
 
+void displayLanguageMenuButton(ProgramData &programData);
+
 
 std::string getSkinName();
 
@@ -62,7 +64,7 @@ struct ShadingSettings
 
 	float exposure = 0;
 	float fogGradient = 16.f;
-	int bloom = 1;
+	int bloom = 1; // disabled - causes black screen, re-enable after skybox fix
 
 	int SSR = 1;
 

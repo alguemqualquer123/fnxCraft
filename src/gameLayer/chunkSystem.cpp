@@ -1369,7 +1369,7 @@ bool ChunkSystem::placeBlockByClient(glm::ivec3 pos, unsigned char inventorySlot
 				extraData = chunk->getExtraDataForThisPosAndRemoveIt(*b, modBlockToChunk(pos.x), pos.y, modBlockToChunk(pos.z));
 				if (extraData.size())
 				{
-					undoQueue.addDataToLastBlockEvent(std::move(extraData));
+					undoQueue.addDataToLastBlockEvent(extraData);
 				}
 			}
 
@@ -1429,7 +1429,7 @@ bool ChunkSystem::placeBlockByClientForce(glm::ivec3 pos, Block block,
 			extraData = chunk->getExtraDataForThisPosAndRemoveIt(*b, modBlockToChunk(pos.x), pos.y, modBlockToChunk(pos.z));
 			if (extraData.size())
 			{
-				undoQue.addDataToLastBlockEvent(std::move(extraData));
+				undoQue.addDataToLastBlockEvent(extraData);
 			}
 		}
 
@@ -1493,7 +1493,7 @@ bool ChunkSystem::breakBlockByClient(glm::ivec3 pos, UndoQueue &undoQueue,
 				extraData = chunk->getExtraDataForThisPosAndRemoveIt(*b, modBlockToChunk(pos.x), pos.y, modBlockToChunk(pos.z));
 				if (extraData.size())
 				{
-					undoQueue.addDataToLastBlockEvent(std::move(extraData));
+					undoQueue.addDataToLastBlockEvent(extraData);
 				}
 			}
 			

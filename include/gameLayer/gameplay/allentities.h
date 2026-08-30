@@ -7,15 +7,16 @@
 #include <gameplay/goblin.h>
 #include <gameplay/trainingDummy.h>
 #include <gameplay/scareCrow.h>
+#include <gameplay/fish.h>
 #include "repeat.h"
 
 
 //!!!!!!!!!!! DONT FORGET TO ALSO UPDATE THIS ONE
-#define EntitiesTypesCountMACRO 8
+#define EntitiesTypesCountMACRO 9
 constexpr static unsigned int EntitiesTypesCount = EntitiesTypesCountMACRO;
-#define REPEAT_FOR_ALL_ENTITIES(FN) REPEAT_8(FN)
+#define REPEAT_FOR_ALL_ENTITIES(FN) REPEAT_9(FN)
 //!!!!!!!!!!! ^ ALSO THIS ONE            ^^^^^
-#define REPEAT_FOR_ALL_ENTITIES_NO_PLAYERS(FN) REPEAT_NO_0_8(FN)
+#define REPEAT_FOR_ALL_ENTITIES_NO_PLAYERS(FN) REPEAT_NO_0_9(FN)
 //!!!!!!!!!!! ^ ALSO THIS ONE!							^^^^^
 
 //CHECK ALL OF THIS FILE FOR CHANGES
@@ -33,6 +34,7 @@ namespace EntityType
 		goblins,
 		trainingDummy,
 		scareCrow,
+		fish,
 	};
 };
 
@@ -87,6 +89,10 @@ struct EntityGetter
 		{
 			return &baseClass->scareCrows;
 		}
+		else if constexpr (I == 8)
+		{
+			return &baseClass->fish;
+		}
 
 		static_assert(I >= 0 && I <= EntitiesTypesCount);
 	}
@@ -130,6 +136,7 @@ struct EntityData: public EntityGetter<EntityData>
 	std::unordered_map<std::uint64_t, GoblinServer> goblins;
 	std::unordered_map<std::uint64_t, TrainingDummyServer> trainingDummy;
 	std::unordered_map<std::uint64_t, ScareCrowServer> scareCrows;
+	std::unordered_map<std::uint64_t, FishServer> fish;
 
 };
 
@@ -145,6 +152,7 @@ struct EntityDataClient : public EntityGetter<EntityDataClient>
 	std::unordered_map<std::uint64_t, GoblinClient> goblins;
 	std::unordered_map<std::uint64_t, TrainingDummyClient> trainingDummy;
 	std::unordered_map<std::uint64_t, ScareCrowClient> scareCrows;
+	std::unordered_map<std::uint64_t, FishClient> fish;
 
 };
 

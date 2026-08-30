@@ -11,6 +11,23 @@ void DroppedItem::update(float deltaTime, decltype(chunkGetterSignature) *chunkG
 	PhysicalSettings ps;
 	ps.gravityModifier = 0.5f;
 	ps.sideFriction = 1.f;
+
+	// Check if item is in water - items float on water surface
+	// (checked slightly above the feet so the item rides the surface calmly)
+	bool inWater = isPositionInWater(position + glm::dvec3(0, 0.15, 0), chunkGetter);
+
+	if (inWater)
+	{
+		// Items float: apply buoyancy instead of full gravity
+		applyWaterPhysics(forces, position, deltaTime, ps, true, WATER_ITEM_BUOYANCY);
+
+		// Keep items at water surface - apply slight upward force if sinking
+		if (forces.velocity.y < 0)
+		{
+			forces.acceleration.y += WATER_ITEM_BUOYANCY * 1.2f;
+		}
+	}
+
 	updateForces(deltaTime, true, ps);
 	resolveConstrainsAndUpdatePositions(chunkGetter, deltaTime, getMaxColliderSize(), ps);
 
@@ -151,6 +168,23 @@ bool DroppedItemServer::update(float deltaTime, decltype(chunkGetterSignature) *
 	PhysicalSettings ps;
 	ps.gravityModifier = 0.5f;
 	ps.sideFriction = 1.f;
+
+	// Check if item is in water - items float on water surface
+	// (checked slightly above the feet so the item rides the surface calmly)
+	bool inWater = isPositionInWater(entity.position + glm::dvec3(0, 0.15, 0), chunkGetter);
+
+	if (inWater)
+	{
+		// Items float: apply buoyancy instead of full gravity
+		applyWaterPhysics(entity.forces, entity.position, deltaTime, ps, true, WATER_ITEM_BUOYANCY);
+
+		// Keep items at water surface - apply slight upward force if sinking
+		if (entity.forces.velocity.y < 0)
+		{
+			entity.forces.acceleration.y += WATER_ITEM_BUOYANCY * 1.2f;
+		}
+	}
+
 	entity.updateForces(deltaTime, true, ps);
 	entity.resolveConstrainsAndUpdatePositions(chunkGetter, deltaTime, getMaxColliderSize(), ps);
 

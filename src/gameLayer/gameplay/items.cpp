@@ -1,6 +1,7 @@
 #include <gameplay/items.h>
 #include <serializing.h>
 #include <platformTools.h>
+#include <gameLayer/localization.h>
 #include <iostream>
 #include <climits>
 #include <magic_enum.hpp>
@@ -18,7 +19,7 @@ bool Item::isItemThatCanBeUsed()
 {
 	if (type == pigSpawnEgg || type == zombieSpawnEgg 
 		|| type == catSpawnEgg || type == goblinSpawnEgg || type == scareCrowSpawnEgg
-		|| isEatable() || isPaint() 
+		|| isEatable() || isPaint() || isBow() || isSeed() || isBoneMealItem() || isFertilizerItem() || type == wateringCan || type == compost
 		)
 	{
 		return true;
@@ -31,7 +32,7 @@ bool Item::isConsumedAfterUse()
 {
 	if (type == pigSpawnEgg || type == zombieSpawnEgg || type == catSpawnEgg
 		|| type == goblinSpawnEgg || type == scareCrowSpawnEgg
-		|| isEatable() 
+		|| isEatable() || isSeed() || isBoneMealItem() || isFertilizerItem()
 		)
 	{
 		return true;
@@ -55,7 +56,14 @@ bool Item::isEatable()
 		type == strawberry ||
 		type == applePie
 		|| isPotion()
-		
+		// New food items
+		|| type == rawMeat || type == cookedMeat || type == bread
+		|| type == stew || type == bakedPotato || type == roastedCorn
+		|| type == cheese || type == cookedChicken || type == chickenSoup
+		|| type == cookedFish || type == rawFish
+		// Drinks are also consumable
+		|| type == waterBottle || type == juice || type == milk
+		|| type == coffee || type == tea
 		;
 }
 
@@ -204,7 +212,7 @@ unsigned short Item::getStackSize()
 	{
 		return 999;
 	}else if (isTool() || isPaint() || isWeapon() || isArmour() || isPotion()
-		|| isEquipement()
+		|| isEquipement() || isBow()
 		)
 	{
 		return 1;
@@ -433,6 +441,26 @@ bool Item::isEquipement()
 	return (type >= gumBox && type <= vitamins);
 }
 
+bool Item::isBow()
+{
+	return type >= woodenBow && type <= goblinBow;
+}
+
+bool Item::isSeed()
+{
+	return type == seeds || type == wheatSeeds || type == potatoSeeds || type == cornSeeds || type == carrotSeeds;
+}
+
+bool Item::isBoneMealItem()
+{
+	return type == boneMeal;
+}
+
+bool Item::isFertilizerItem()
+{
+	return type == fertilizer;
+}
+
 std::string Item::formatMetaDataToString()
 {
 
@@ -577,7 +605,11 @@ void PlayerInventory::formatIntoData(std::vector<unsigned char> &data)
 
 bool PlayerInventory::readFromData(void *data, size_t size)
 {
-	*this = {};
+	for (auto &item : items) { item = Item{}; }
+	heldInMouse = Item{};
+	headArmour = Item{};
+	chestArmour = Item{};
+	bootsArmour = Item{};
 
 	size_t currentAdvance = 0;
 
@@ -980,6 +1012,45 @@ const char *itemsNamesTextures[] =
 	"equipement/pawKeychain.png",
 	"equipement/vitamins.png",
 
+	"items/fishSpawnEgg.png",
+	"items/cookedFish.png",
+	"items/rawFish.png",
+	"items/fishingRod.png",
+
+	"items/rawMeat.png",
+	"items/cookedMeat.png",
+	"items/bread.png",
+	"items/stew.png",
+	"items/bakedPotato.png",
+	"items/roastedCorn.png",
+	"items/cheese.png",
+	"items/cookedChicken.png",
+	"items/chickenSoup.png",
+
+	"items/waterBottle.png",
+	"items/juice.png",
+	"items/milk.png",
+	"items/coffee.png",
+	"items/tea.png",
+
+	"items/seeds.png",
+	"items/wheatSeeds.png",
+	"items/potatoSeeds.png",
+	"items/cornSeeds.png",
+	"items/carrotSeeds.png",
+	"items/boneMeal.png",
+	"items/fertilizer.png",
+	"items/wateringCan.png",
+	"items/compost.png",
+
+	"bows/bow.png",
+	"bows/copperBow.png",
+	"bows/leadBow.png",
+	"bows/ironBow.png",
+	"bows/silverBow.png",
+	"bows/goldBow.png",
+	"bows/goblinBow.png",
+
 };
 
 
@@ -1137,10 +1208,46 @@ const char *item3DModelName[] =
 	"bandage",
 	"fruitPeeler",
 	"pawKeychain",
-	"vitamins",
+	"vitamins",	"fishSpawnEgg",
+	"cookedFish",
+	"rawFish",
+	"fishingRod",
+
+	"rawMeat",
+	"cookedMeat",
+	"bread",
+	"stew",
+	"bakedPotato",
+	"roastedCorn",
+	"cheese",
+	"cookedChicken",
+	"chickenSoup",
+
+	"waterBottle",
+	"juice",
+	"milk",
+	"coffee",
+	"tea",
+
+	"seeds",
+	"wheatSeeds",
+	"potatoSeeds",
+	"cornSeeds",
+	"carrotSeeds",
+	"boneMeal",
+	"fertilizer",
+	"wateringCan",
+	"compost",
+
+	"woodenBow",
+	"copperBow",
+	"leadBow",
+	"ironBow",
+	"silverBow",
+	"goldBow",
+	"goblinBow",
 
 };
-
 
 const char *itemsNames[] =
 {
@@ -1301,6 +1408,45 @@ const char *itemsNames[] =
 	"Fruit Peeler",
 	"Paw Keychain",
 	"Vitamins",
+
+	"Fish Spawn Egg",
+	"Cooked Fish",
+	"Raw Fish",
+	"Fishing Rod",
+
+	"Raw Meat",
+	"Cooked Meat",
+	"Bread",
+	"Stew",
+	"Baked Potato",
+	"Roasted Corn",
+	"Cheese",
+	"Cooked Chicken",
+	"Chicken Soup",
+
+	"Water Bottle",
+	"Juice",
+	"Milk",
+	"Coffee",
+	"Tea",
+
+	"Seeds",
+	"Wheat Seeds",
+	"Potato Seeds",
+	"Corn Seeds",
+	"Carrot Seeds",
+	"Bone Meal",
+	"Fertilizer",
+	"Watering Can",
+	"Compost",
+
+	"Wooden Bow",
+	"Copper Bow",
+	"Lead Bow",
+	"Iron Bow",
+	"Silver Bow",
+	"Gold Bow",
+	"Goblin Bow",
 };
 
 const char *getItemTextureName(int itemId)
@@ -1672,6 +1818,15 @@ char *blockNames[] = {
 	"Birch Fence",
 	"Hard Birch Fence",
 
+	"Wheat Crop",
+	"Potato Crop",
+	"Corn Crop",
+	"Carrot Crop",
+
+	"Redstone Dust",
+	"Redstone Torch",
+	"Redstone Lamp",
+
 };
 
 std::string Item::getItemName()
@@ -1680,7 +1835,7 @@ std::string Item::getItemName()
 	static_assert(sizeof(blockNames) / sizeof(blockNames[0]) == BlocksCount);
 	if (isItem(type))
 	{
-		return itemsNames[type - ItemsStartPoint];
+		return loc_ItemName(type);
 	}
 	else
 	{

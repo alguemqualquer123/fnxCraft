@@ -109,6 +109,27 @@ struct UiENgine
 };
 
 
+struct ConfirmationModal
+{
+	bool show = false;
+	bool result = false; // true if confirmed
+	bool resultReady = false;
+	char title[128] = {};
+	char message[256] = {};
+
+	void open(const char *t, const char *m)
+	{
+		show = true;
+		result = false;
+		resultReady = false;
+		snprintf(title, sizeof(title), "%s", t);
+		snprintf(message, sizeof(message), "%s", m);
+	}
+
+	bool render(gl2d::Renderer2D &renderer2d, gl2d::Font &font,
+		glm::vec2 screenSize);
+};
+
 struct Oscilator
 {
 

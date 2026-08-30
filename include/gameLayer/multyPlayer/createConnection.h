@@ -98,7 +98,8 @@ void clientMessageLoop(EventCounter &validatedEvent, RevisionNumber &invalidateR
 	bool &killedPlayer, bool &respawn,
 	std::deque<std::string> &chat, float &chatTimer,
 	InteractionData &playerInteraction,
-	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData
+	std::unordered_map<std::uint64_t, PlayerConnectionData> &playersConnectionData,
+	std::vector<std::string> &commandSuggestions
 	);
 
 void attackEntity(std::uint64_t eid, unsigned char inventorySlot, glm::vec3 direction,

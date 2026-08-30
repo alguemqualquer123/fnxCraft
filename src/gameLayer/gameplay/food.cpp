@@ -100,3 +100,51 @@ int getItemHealing(Item &item, PlayerInventory &inventory)
 
 	return std::max(0, rez);
 }
+
+// Returns how much hunger this food restores
+float getItemHungerRestoration(Item &item)
+{
+	auto type = item.type;
+
+	// Raw food: less hunger restored
+	if (type == apple)             { return 20.f; }
+	if (type == applePie)          { return 40.f; }
+	if (type == strawberry)        { return 8.f; }
+	if (type == blackBerrie)       { return 6.f; }
+	if (type == blueBerrie)        { return 6.f; }
+	if (type == cherries)          { return 10.f; }
+	if (type == peach)             { return 10.f; }
+	if (type == pinapple)          { return 12.f; }
+	if (type == grapes)            { return 8.f; }
+	if (type == lime)              { return 6.f; }
+	if (type == cocconut)          { return 10.f; }
+
+	// Cooked food: more hunger restored
+	if (type == bread)             { return 25.f; }
+	if (type == cookedMeat)        { return 35.f; }
+	if (type == rawMeat)           { return 10.f; }
+	if (type == stew)              { return 45.f; }
+	if (type == bakedPotato)       { return 25.f; }
+	if (type == roastedCorn)       { return 20.f; }
+	if (type == cheese)            { return 15.f; }
+	if (type == cookedChicken)     { return 30.f; }
+	if (type == chickenSoup)       { return 40.f; }
+	if (type == cookedFish)        { return 30.f; }
+	if (type == rawFish)           { return 8.f; }
+
+	return 0.f;
+}
+
+// Returns how much thirst this drink restores
+float getItemThirstRestoration(Item &item)
+{
+	auto type = item.type;
+
+	if (type == waterBottle)       { return 40.f; }
+	if (type == juice)             { return 30.f; }
+	if (type == milk)              { return 35.f; }
+	if (type == coffee)            { return 25.f; }
+	if (type == tea)               { return 30.f; }
+
+	return 0.f;
+}

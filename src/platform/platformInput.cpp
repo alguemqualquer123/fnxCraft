@@ -186,3 +186,18 @@ void platform::internal::resetTypedInput()
 {
 	typedInput.clear();
 }
+
+extern GLFWwindow *wind;
+
+std::string platform::getClipboardText()
+{
+	if (!wind) return "";
+	const char *c = glfwGetClipboardString(wind);
+	return c ? std::string(c) : "";
+}
+
+void platform::setClipboardText(const std::string &str)
+{
+	if (!wind) return;
+	glfwSetClipboardString(wind, str.c_str());
+}
