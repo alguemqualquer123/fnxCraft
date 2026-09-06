@@ -1758,11 +1758,12 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 									int stage = raycastBlock->getCropStage();
 									if(stage < 7){
 										int inc = item.isFertilizerItem() ? 3 : item.type==ItemTypes::compost ? 2 : 1;
-										int ns = std::min(7, stage + inc);
-										Block nb = *raycastBlock; nb.setCropStage(ns);
-										gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
-										AudioEngine::playSound(AudioEngine::grass, PLACED_BLOCK_SOUND_VOLUME);
-										if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
+										int ns = std::min(7, stage + inc);												Block nb = *raycastBlock; nb.setCropStage(ns);
+												gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+												AudioEngine::playSound(AudioEngine::grass, PLACED_BLOCK_SOUND_VOLUME);
+												//green growth particles
+												{ glm::vec3 cp = glm::vec3(rayCastPos) + glm::vec3(0.5f, 0.25f, 0.5f); for(int i=0;i<10;i++){ GameData::BreakParticle bp; bp.pos = glm::dvec3(cp); bp.vel = glm::vec3((rand()%100)/100.f-0.5f, 0.4f + (rand()%100)/100.f*0.8f, (rand()%100)/100.f-0.5f)*1.6f; bp.life=0.5f; bp.maxLife=0.5f; bp.color=glm::vec3(0.3f,1.0f,0.25f); gameData.breakParticles.push_back(bp); } }
+												if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
 									}
 									good = false;
 								}
@@ -2921,7 +2922,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		size_t entCount = gameData.entityManager.players.size() + gameData.entityManager.zombies.size() + gameData.entityManager.pigs.size() + gameData.entityManager.goblins.size();
 		std::string l8 = "Entities: " + std::to_string(entCount) + " | Mem chunks: " + std::to_string(gameData.chunkSystem.loadedChunks.size());
 		std::string l9 = "Sim distance: " + std::to_string(getShadingSettings().viewDistance) + " chunks";
-		r2d.renderRectangle({5,5, 360, 162}, {0,0,0,0.55});
+		r2d.renderRectangle({5,5, 360, 178}, {0,0,0,0.55});
 		float y = 28;
 		auto drawL = [&](std::string s, float yy){ r2d.renderText({10, yy}, s.c_str(), programData.ui.font, Colors_White, 14); };
 		drawL(l1, y); y+=16;
@@ -2932,7 +2933,20 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		drawL(l6, y); y+=16;
 		drawL(l7, y); y+=16;
 		drawL(l8, y); y+=16;
-		drawL(l9, y);
+		drawL(l9, y); y+=16;
+		if (raycastBlock && raycastBlock->isCrop())
+		{
+			bool cropWater = false;
+			for(int dx=-4;dx<=4 && !cropWater;dx++) for(int dz=-4;dz<=4 && !cropWater;dz++){
+				auto *wb = gameData.chunkSystem.getBlockSafe(rayCastPos.x+dx, rayCastPos.y-1, rayCastPos.z+dz);
+				if(wb && wb->getType()==BlockTypes::water) cropWater = true;
+			}
+			std::string cropLine = "Crop: stage " + std::to_string((int)raycastBlock->getCropStage()) + "/7"
+				+ " | light sky:" + std::to_string((int)raycastBlock->getSkyLight())
+				+ " block:" + std::to_string((int)raycastBlock->getLight())
+				+ " | water:" + (cropWater ? "yes" : "no");
+			drawL(cropLine, y);
+		}
 	}
 
 	if (gameData.bowCharging && !gameData.isInsideMapView && !gameData.isInsideChat)

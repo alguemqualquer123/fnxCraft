@@ -248,7 +248,8 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 - [ ] Item dropping + survival — rejeitar drop recria inventário (`hardertodos.md`)
 - [x] F3 polish: `chunkSection`, `light level`, `simulationDistance`
 - [ ] F3 polish (resto): `seed` no F3, cor borda por Y
-- [ ] Farming polish: `blockNames` cor por stage, `boneMeal` partícula verde, `F3` mostra `light`/`hasWater`
+- [x] Farming polish: `boneMeal` partícula verde, `F3` mostra `stage`/`light`/`hasWater` da crop no alvo
+- [ ] Farming polish (resto): `blockNames` cor por stage
 - [x] Tocha flicker em `torch/torchWood/goblinTorch/lamp` (via `sin(flick+hash)` em `gamePlayLogic.cpp`)
 - [ ] Skins grid paginado 4×4 preview 32×32
 - [ ] View distance sem resetar chunks (`todo.txt`)
