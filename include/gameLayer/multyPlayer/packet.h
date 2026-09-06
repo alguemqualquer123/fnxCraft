@@ -96,6 +96,7 @@ enum : std::uint32_t
 	headerClientChangeBlockData,
 	headerChangeBlockData,
 	headerTrainingDummyGotAttacked, //from server to players!
+	headerUpdateHungerThirst,
 
 	// Custom events (FiveM-style event system)
 	headerClientTriggerServerEvent, //client -> server: custom event
@@ -365,6 +366,12 @@ struct Packet_UpdateEffects
 {
 	std::uint64_t timer = 0; //tick timer
 	Effects effects = {};
+};
+
+struct Packet_UpdateHungerThirst
+{
+	float hunger = 100.f;
+	float thirst = 100.f;
 };
 
 struct Packet_ClientDroppedChunk

@@ -14,6 +14,8 @@
 #include "gameLayer.h"
 #include <gameLayer/GamePaths.h>
 #include <gameLayer/SplashScreen.h>
+#include <rendering/performance.h>
+#include <rendering/renderSettings.h>
 #include <thread>
 #include <fstream>
 #include <chrono>
@@ -375,8 +377,35 @@ bool HasExtension(const char *name)
 
 int main(int argc, char *argv[])
 {
+	createErrorFile();
+	initCrashHandler();
 	GamePaths::get().init(argc, argv);
 	GamePaths::get().ensureDirectories();
+	std::filesystem::create_directories("logs");
+
+#ifndef PLATFORM_WINDOWS
+	{
+		if(!getenv("OURCRAFT_NO_CONSOLE")){
+			std::string logPath = std::filesystem::absolute("logs/game.log").string();
+			std::string cmd;
+			if(system("which gnome-terminal >/dev/null 2>&1")==0){
+				cmd = "gnome-terminal --title='ourCraft Console - logs/game.log' -- bash -c \"echo '=== ourCraft Console ==='; echo 'Log: "+logPath+"'; echo ''; tail -f '"+logPath+"'\" &";
+			}else if(system("which konsole >/dev/null 2>&1")==0){
+				cmd = "konsole -e bash -c \"tail -f '"+logPath+"'\" &";
+			}else if(system("which xfce4-terminal >/dev/null 2>&1")==0){
+				cmd = "xfce4-terminal -T 'ourCraft Console' -e \"bash -c 'tail -f "+logPath+"'\" &";
+			}else if(system("which xterm >/dev/null 2>&1")==0){
+				cmd = "xterm -T 'ourCraft Console' -e tail -f '"+logPath+"' &";
+			}
+			if(!cmd.empty()){
+				std::cout<<"[Console] Abrindo console externo: "<<cmd<<"\n";
+				int r = system(cmd.c_str()); (void)r;
+			}else{
+				std::cout<<"[Console] Nenhum terminal externo encontrado - logs em logs/game.log (use tail -f)\n";
+			}
+		}
+	}
+#endif
 
 #ifdef PLATFORM_WINDOWS
 	timeBeginPeriod(1);
@@ -410,10 +439,17 @@ int main(int argc, char *argv[])
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 #endif
+	loadShadingSettings();
+	if(getShadingSettings().msaa>0) glfwWindowHint(GLFW_SAMPLES, getShadingSettings().msaa);
 
 	int w = 500;
 	int h = 500;
 	wind = glfwCreateWindow(w, h, "ourCraft", nullptr, nullptr);
+	if(!wind){
+		std::cerr<<"[glfw] Falha ao criar janela - verifique suporte OpenGL 4.6 / driver\n";
+		reportError("Falha ao criar janela GLFW");
+		return 1;
+	}
 	glfwMakeContextCurrent(wind);
 	glfwSwapInterval(1);
 
@@ -437,6 +473,13 @@ int main(int argc, char *argv[])
 	glfwSetScrollCallback(wind, scrollCallback);
 
 	permaAssertComment(gladLoadGL(), "err initializing glad");
+	Performance::init(wind);
+	Performance::applyVSync((Performance::VSyncMode)getShadingSettings().vsyncMode);
+	Performance::applyMSAA(getShadingSettings().msaa==0?Performance::MSAA::Off:getShadingSettings().msaa==2?Performance::MSAA::X2:getShadingSettings().msaa==4?Performance::MSAA::X4:Performance::MSAA::X8);
+	Performance::applyAnisotropy(getShadingSettings().anisotropy);
+	Performance::setFrameGeneration(getShadingSettings().frameGeneration, getShadingSettings().frameGenerationMode);
+	Performance::setNvidiaBoost(getShadingSettings().nvidiaBoost);
+	Performance::setAmdAntiLag(getShadingSettings().amdAntiLag);
 
 	if (!GLAD_GL_ARB_bindless_texture)
 	{
@@ -507,14 +550,35 @@ int main(int argc, char *argv[])
 
 #pragma endregion
 
+#pragma region splash
+	SplashScreen::init(wind);
+	SplashScreen::draw(0.f, "Iniciando ourCraft...", "Preparando janela");
+#pragma endregion
+
 #pragma region initGame
 	{
-		SplashScreen::init(wind);
-		SplashScreen::draw(0.f, "Iniciando ourCraft...", "Preparando janela");
 		bool ok = initGame();
-		SplashScreen::draw(1.f, "Pronto!", "Bem-vindo");
-		std::this_thread::sleep_for(std::chrono::milliseconds(380));
-		if (!ok) return 0;
+		SplashScreen::shutdown();
+		if(!ok){
+			std::string err="ERRO fatal em initGame() - veja logs/game.log e logs/crash.log";
+			std::cerr << err << "\n"; reportError(err.c_str());
+			std::cerr << "Janela permanecera aberta 30s - pressione ESC para sair\n";
+			auto until = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+			while(!glfwWindowShouldClose(wind) && std::chrono::steady_clock::now() < until){
+				if(glfwGetKey(wind, GLFW_KEY_ESCAPE)==GLFW_PRESS) break;
+				glClearColor(0.15f,0.05f,0.05f,1.f); glClear(GL_COLOR_BUFFER_BIT);
+				glfwSwapBuffers(wind);
+				glfwPollEvents();
+				std::this_thread::sleep_for(std::chrono::milliseconds(16));
+			}
+#ifndef _WIN32
+			if(!glfwWindowShouldClose(wind) && ::isatty(STDIN_FILENO)) std::cin.get();
+			else std::this_thread::sleep_for(std::chrono::seconds(3));
+#else
+			system("pause");
+#endif
+			return 1;
+		}
 	}
 #pragma endregion
 
@@ -553,13 +617,20 @@ int main(int argc, char *argv[])
 	#pragma endregion
 
 	#pragma region game logic
-
+		Performance::beginFrame();
 		if (!gameLogic(augmentedDeltaTime))
 		{
 			closeGame();
 			return 0;
 		}
-
+		Performance::endFrame();
+		if(Performance::isFrameGenerationEnabled()){
+			Performance::tickFrameGeneration(augmentedDeltaTime);
+		}
+		if(getShadingSettings().fsr!=0){
+			int sw=platform::getWindowSizeX(), sh=platform::getWindowSizeY();
+			Performance::renderFSR((Performance::FSRMode)getShadingSettings().fsr, sw, sh, sw, sh);
+		}
 	#pragma endregion
 
 

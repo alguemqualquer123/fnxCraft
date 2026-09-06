@@ -180,6 +180,12 @@ struct ModelsManager
 
 	Model scareCrow;
 
+	Model slime;
+
+	Model creeper;
+
+	Model hydra;
+
 
 	enum BlockModels
 	{
@@ -233,21 +239,32 @@ struct ModelsManager
 
 	};
 
-	BlockModel blockModels[BLOCK_MODELS_COUNT];
-
-
-	enum TexturesLoaded
-	{
-		DefaultTexture,
-		SteveTexture,
-		ZombieTexture,
-		PigTexture,
-		CatTexture,
-		GoblinTexture,
-		TrainingDummyTexture,
-		scareCrowTexture,
-		HelmetTestTexture,
-	};
+	BlockModel blockModels[BLOCK_MODELS_COUNT];		enum TexturesLoaded
+		{
+			DefaultTexture,
+			SteveTexture,
+			ZombieTexture,
+			PigTexture,
+			CatTexture,
+			GoblinTexture,
+			TrainingDummyTexture,
+			scareCrowTexture,
+			SlimeTexture,
+			SkeletonTexture,
+			CreeperTexture,
+			HelmetTestTexture,
+			HydraFireTexture,
+			HydraIceTexture,
+			HydraPoisonTexture,
+			// New mob textures
+			SheepTexture,
+			CowTexture,
+			WolfTexture,
+			FoxTexture,
+			ChickenTexture,
+			CrowTexture,
+			TEXTURES_COUNT
+		};
 
 	std::vector<GLuint64> gpuIds;
 	std::vector<GLuint> texturesIds;

@@ -1,3 +1,4 @@
+#include <type_traits>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -181,9 +182,20 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 		loadTexture((path + "goblin.png").c_str(), appendMode, index++);
 		loadTexture((path + "trainingDummy.png").c_str(), appendMode, index++);
 		loadTexture((path + "scarecrow.png").c_str(), appendMode, index++);
-		loadTexture((path+ "helmetTest.png").c_str(), appendMode, index++);
+		loadTexture((path + "slime.png").c_str(), appendMode, index++);
+		loadTexture((path + "skeleton.png").c_str(), appendMode, index++);
+		loadTexture((path + "creeper.png").c_str(), appendMode, index++);		loadTexture((path+ "helmetTest.png").c_str(), appendMode, index++);
+		loadTexture((path+ "hydraFire.png").c_str(), appendMode, index++);
+		loadTexture((path+ "hydraIce.png").c_str(), appendMode, index++);
+		loadTexture((path+ "hydraPoison.png").c_str(), appendMode, index++);
+		// New mob textures
+		loadTexture((path+ "sheep.png").c_str(), appendMode, index++);
+		loadTexture((path+ "cow.png").c_str(), appendMode, index++);
+		loadTexture((path+ "wolf.png").c_str(), appendMode, index++);
+		loadTexture((path+ "fox.png").c_str(), appendMode, index++);
+		loadTexture((path+ "chicken.png").c_str(), appendMode, index++);
+		loadTexture((path+ "crow.png").c_str(), appendMode, index++);
 		
-
 	}
 
 
@@ -490,7 +502,14 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 	if (!scareCrow.vertexCount)
 		loadModel((path + "scareCrow.glb").c_str(), scareCrow);
 
-	
+	if (!slime.vertexCount)
+		loadModel((path + "slime.glb").c_str(), slime);	if (!creeper.vertexCount)
+		loadModel((path + "creeper.glb").c_str(), creeper);
+
+	if (!hydra.vertexCount)
+		loadModel((path + "Goblin.glb").c_str(), hydra); // placeholder - use goblin model until custom hydra model is created
+
+		
 	flags = aiProcess_ImproveCacheLocality 
 		| aiProcess_JoinIdenticalVertices 
 		| aiProcess_GenUVCoords | aiProcess_TransformUVCoords | aiProcess_FindInstances;
@@ -902,6 +921,11 @@ void ModelsManager::clearAllModels()
 
 	trainingDummy.cleanup();
 
+	slime.cleanup();
+	creeper.cleanup();
+	scareCrow.cleanup();
+	hydra.cleanup();
+
 	for (int i = 0; i < BLOCK_MODELS_COUNT; i++)
 	{
 
@@ -1092,7 +1116,7 @@ void Model::cleanup()
 	glDeleteBuffers(1, &geometry);
 	glDeleteVertexArrays(1, &vao);
 
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 }
 
 glm::mat4 BoneTransform::getPoseMatrix()

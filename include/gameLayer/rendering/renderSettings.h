@@ -40,7 +40,7 @@ std::string getSkinName();
 struct ShadingSettings
 {
 
-	int viewDistance = 15;
+	int viewDistance = 10;
 	int tonemapper = 0;
 	int shadows = 0;
 	int waterType = 1;
@@ -51,6 +51,15 @@ struct ShadingSettings
 	int useLights = 1;
 	float lightsStrength = 1.f;
 	bool FXAA = 1;
+
+	int frameGeneration = 0;
+	int frameGenerationMode = 0;
+	int nvidiaBoost = 0;
+	int msaa = 0;
+	int vsyncMode = 1;
+	int fsr = 0;
+	int amdAntiLag = 0;
+	int anisotropy = 4;
 
 	glm::vec3 waterColor = (glm::vec3(6, 42, 52) / 255.f);
 	glm::vec3 underWaterColor = glm::vec3(0, 17, 25) / 255.f;

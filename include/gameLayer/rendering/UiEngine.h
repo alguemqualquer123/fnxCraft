@@ -24,6 +24,8 @@ const int INVENTORY_TAB_CRAFTING = 1;
 const int INVENTORY_TAB_CHEST = 2;
 const int INVENTORY_TAB_BLOCKS = 3;
 const int INVENTORY_TAB_ITEMS = 4;
+const int INVENTORY_TAB_RECIPE_BOOK = 5;
+const int INVENTORY_TAB_COUNT = 6;
 
 
 struct UiENgine
@@ -88,6 +90,10 @@ struct UiENgine
 
 
 
+	char itemSearchBuf[32] = {};
+	bool itemSearchFocused = false;
+	bool isItemSearchFocused() const { return itemSearchFocused; }
+	void setItemSearchFocused(bool f) { itemSearchFocused = f; }
 	//todo simplify
 	//cursorItemIndex returns -1 if outside the menu to throw items, and -2 if it is nowhere 
 	//if inside crafting, supply craftingTableInventory

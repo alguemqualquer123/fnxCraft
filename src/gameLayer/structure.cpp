@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <structure.h>
 #include <safeSave.h>
 #include <filesystem>
@@ -202,5 +203,5 @@ void StructuresManager::clear()
 		delete[] d;
 	}
 
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 }

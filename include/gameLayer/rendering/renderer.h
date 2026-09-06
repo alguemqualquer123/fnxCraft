@@ -7,6 +7,9 @@
 #include "blocks.h"
 #include <unordered_map>
 #include <rendering/model.h>
+#include <rendering/pointLight.h>
+#include <rendering/weatherRenderer.h>
+#include <weather.h>
 
 struct BlocksLoader;
 struct ChunkSystem;
@@ -174,6 +177,7 @@ struct Renderer
 		uniform u_lightPos = -1;
 		uniform u_sunShadowTexture = -1;
 		uniform u_brdf = -1;
+		uniform u_wetness = -1;
 		uniform u_skyTexture = -1;
 		uniform u_ao = -1;
 		uniform u_inverseViewProjMat = -1;
@@ -526,8 +530,13 @@ struct Renderer
 
 	GLuint lightBuffer = 0;
 	size_t lightsBufferCount = 0;
+	PointLightManager pointLights;
+	Shader rainShader;
+	Shader rainParticleShader;
+	WeatherRenderer weatherRenderer;
 	
 	glm::vec3 sunPos = glm::normalize(glm::vec3(-1, 0.84, -1));//todo change
+	float wetness = 0.f; // ground wetness from weather system
 
 	GLuint vao = 0;
 	GLuint vertexBuffer = 0;
@@ -609,7 +618,7 @@ struct PointDebugRenderer
 
 };
 
-constexpr int mergeShortsUnsigned(unsigned short a, unsigned short b)
+inline int mergeShortsUnsigned(unsigned short a, unsigned short b)
 {
 	int rez = 0;
 	((unsigned short *)&rez)[0] = a;
@@ -617,7 +626,7 @@ constexpr int mergeShortsUnsigned(unsigned short a, unsigned short b)
 	return rez;
 }
 
-constexpr int mergeShorts(short a, short b)
+inline int mergeShorts(short a, short b)
 {
 	int rez = 0;
 	((short*)&rez)[0] = a;

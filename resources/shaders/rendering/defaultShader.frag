@@ -1154,18 +1154,31 @@ void main()
 			emissive = materialColor.b;
 		}
 
-		//load albedo
+		//load albedo — UE5 fire scroll for emissive flame blocks (fire/lava)
 		vec4 textureColor;
 		{
-			textureColor = texture(sampler2D(v_textureSampler), finalUV);
+			vec2 fireUV = finalUV;
+			float isEmissiveHint = (emissive > 0.085 ? 1.0 : 0.0);
+			if(isEmissiveHint > 0.5){
+				float t = u_waterMove * 14.0;
+				vec2 scroll = vec2(0.0, t*0.065);
+				vec2 dudvA = texture(u_dudv, getDudvCoords5(t*0.6)).rg;
+				vec2 warp = (dudvA*2.0 - 1.0)*0.04;
+				fireUV += scroll + warp*0.5;
+				float flick = 0.88 + 0.12*sin(t*1.8 + float(v_blockPos.x)*0.7 + float(v_blockPos.z)*0.9) + 0.06*sin(t*3.7);
+				fireUV.x += sin(fireUV.y*7.0 + t*2.2)*0.014*flick;
+			}
+			textureColor = texture(sampler2D(v_textureSampler), isEmissiveHint > 0.5 ? fireUV : finalUV);
 			float textureAlphaOriginal = texture(sampler2D(v_textureSampler), v_uv).a;
 			if(textureAlphaOriginal <= 0){discard;}
-			//gamma correction
 			textureColor.rgb = toLinear(textureColor.rgb);
-
+			if(isEmissiveHint > 0.5){
+				float flick2 = 0.90 + 0.10*sin(u_waterMove*18.0 + float(v_blockPos.x+v_blockPos.z)*0.73);
+				textureColor.rgb *= flick2*1.15;
+				textureColor.rgb = mix(textureColor.rgb, textureColor.rgb*vec3(1.25,1.05,0.85), 0.18);
+			}
 			if(isWater())
 			{
-				//textureColor.rgb = u_waterColor.rgb;
 				textureColor.rgb = u_waterColor.rgb;
 				roughness = 0.09;
 				metallic = 0.0;

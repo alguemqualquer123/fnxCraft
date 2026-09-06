@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <gameplay/blocks/blocksWithData.h>
 #include <chunk.h>
 #include <iostream>
@@ -151,7 +152,7 @@ void BlocksWithDataHolder::loadBlockData(std::vector<unsigned char> &data,
 	int chunkXChunkSpace, int chunkZChunkSpace)
 {
 
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 
 	int pointer = 0;
 

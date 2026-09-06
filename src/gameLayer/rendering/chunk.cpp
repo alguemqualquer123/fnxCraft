@@ -43,32 +43,22 @@ Block *Chunk::safeGet(int x, int y, int z)
 
 void arangeData(std::vector<int> &currentVector)
 {
+	if(currentVector.empty() || currentVector.size() < 8) return;
+	if(currentVector.size() % 4 != 0) return;
+	if(currentVector.size() > 1000000) return;
 	glm::ivec4 *geometryArray = reinterpret_cast<glm::ivec4 *>(currentVector.data());
-	permaAssertComment(currentVector.size() % 4 == 0, "baking vector corrupted...");
+	if(!geometryArray) return;
 	size_t numElements = currentVector.size() / 4;
-
-	// Custom comparator function for sorting
-	auto comparator = [](const glm::ivec4 &a, const glm::ivec4 &b)
-	{
-		int firstPart = ((short *)&a.x)[0];
-		int secondPart = ((short *)&b.x)[0];
-
-		//return firstPart < secondPart;
-
-		if (firstPart != secondPart)
-			return firstPart < secondPart;
-		else
-		{
-			firstPart = ((short *)&a.x)[1];
-			secondPart = ((short *)&b.x)[1];
-			return firstPart < secondPart;
+	if(numElements <= 1 || numElements > 500000) return;
+	try{
+		auto comparator = [](const glm::ivec4 &a, const glm::ivec4 &b)->bool{
+			if(a.x != b.x) return a.x < b.x;
+			if(a.y != b.y) return a.y < b.y;
+			if(a.z != b.z) return a.z < b.z;
+			return a.w < b.w;
 		};
-
-	};
-
-	// Sort the array of glm::ivec4
-	std::sort(geometryArray, geometryArray + numElements, comparator);
-
+		std::sort(geometryArray, geometryArray + numElements, comparator);
+	}catch(...){ return; }
 }
 
 void pushFaceShapeTextureAndColor(std::vector<int> &vect, short shape, short texture, unsigned short color)

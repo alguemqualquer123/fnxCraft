@@ -18,8 +18,9 @@ bool Item::isBlock()
 bool Item::isItemThatCanBeUsed()
 {
 	if (type == pigSpawnEgg || type == zombieSpawnEgg 
-		|| type == catSpawnEgg || type == goblinSpawnEgg || type == scareCrowSpawnEgg
-		|| isEatable() || isPaint() || isBow() || isSeed() || isBoneMealItem() || isFertilizerItem() || type == wateringCan || type == compost
+		|| type == catSpawnEgg || type == goblinSpawnEgg || type == scareCrowSpawnEgg || type == skeletonSpawnEgg || type == enderlingSpawnEgg || type == beeSpawnEgg || type == queenBeeSpawnEgg || type == slimeSpawnEgg || type == creeperSpawnEgg || type == caveSpiderSpawnEgg 	|| type == crystalBatSpawnEgg || type == capybaraChefSpawnEgg || type == riverGuardianSpawnEgg || type == treeEntSpawnEgg || type == nomadTraderSpawnEgg || type == mimicChestSpawnEgg || type == lightFairySpawnEgg || type == armoredBoarSpawnEgg || type == sandSerpentSpawnEgg || type == mistGhostSpawnEgg || type == hermitCrabSpawnEgg || type == honeyBearSpawnEgg || type == lavaSlugSpawnEgg || type == crystalSentinelSpawnEgg || type == blacksmithVillagerSpawnEgg || type == herbalistVillagerSpawnEgg || type == skeletonPirateSpawnEgg || type == juvenileDragonSpawnEgg || type == crystalGolemSpawnEgg || type == hydraSpawnEgg || type == sheepSpawnEgg || type == cowSpawnEgg
+		|| isEatable() || isPaint() || isBow() || isSeed() || isBoneMealItem() || isFertilizerItem() || type == wateringCan || type == compost || type == fishSpawnEgg
+		|| isLighter() || type == flint
 		)
 	{
 		return true;
@@ -31,8 +32,8 @@ bool Item::isItemThatCanBeUsed()
 bool Item::isConsumedAfterUse()
 {
 	if (type == pigSpawnEgg || type == zombieSpawnEgg || type == catSpawnEgg
-		|| type == goblinSpawnEgg || type == scareCrowSpawnEgg
-		|| isEatable() || isSeed() || isBoneMealItem() || isFertilizerItem()
+		|| type == goblinSpawnEgg || type == scareCrowSpawnEgg || type == skeletonSpawnEgg || type == enderlingSpawnEgg || type == beeSpawnEgg || type == queenBeeSpawnEgg || type == slimeSpawnEgg || type == creeperSpawnEgg || type == caveSpiderSpawnEgg || type == crystalBatSpawnEgg || type == capybaraChefSpawnEgg || type == riverGuardianSpawnEgg || type == treeEntSpawnEgg || type == nomadTraderSpawnEgg || type == mimicChestSpawnEgg || type == lightFairySpawnEgg || type == armoredBoarSpawnEgg || type == sandSerpentSpawnEgg || type == mistGhostSpawnEgg || type == hermitCrabSpawnEgg || type == honeyBearSpawnEgg || type == lavaSlugSpawnEgg || type == crystalSentinelSpawnEgg || type == blacksmithVillagerSpawnEgg || type == herbalistVillagerSpawnEgg || type == skeletonPirateSpawnEgg || type == juvenileDragonSpawnEgg || type == crystalGolemSpawnEgg || type == hydraSpawnEgg || type == sheepSpawnEgg || type == cowSpawnEgg
+		|| isEatable() || isSeed() || isBoneMealItem() || isFertilizerItem() || type == fishSpawnEgg
 		)
 	{
 		return true;
@@ -212,7 +213,7 @@ unsigned short Item::getStackSize()
 	{
 		return 999;
 	}else if (isTool() || isPaint() || isWeapon() || isArmour() || isPotion()
-		|| isEquipement() || isBow()
+		|| isEquipement() || isBow() || isLighter()
 		)
 	{
 		return 1;
@@ -461,6 +462,14 @@ bool Item::isFertilizerItem()
 	return type == fertilizer;
 }
 
+bool Item::isFlint(){ return type == flint; }
+bool Item::isLighter(){ return type == lighter; }
+void Item::ensureMetadata(size_t s){ if(metaData.size()<s) metaData.resize(s,0); }
+int Item::getLighterDurability(){ ensureMetadata(2); return metaData[0] | (metaData[1]<<8); }
+void Item::setLighterDurability(int d){ ensureMetadata(2); metaData[0]= d & 0xFF; metaData[1]=(d>>8)&0xFF; }
+int Item::getTorchWetness(){ ensureMetadata(1); return metaData[0]; }
+void Item::setTorchWetness(int w){ ensureMetadata(1); metaData[0]=w; }
+
 std::string Item::formatMetaDataToString()
 {
 
@@ -491,6 +500,11 @@ std::string Item::formatMetaDataToString()
 	if (metaData.size())
 	{
 		rez += "\nHas metadata";
+	}
+	if(isLighter()){
+		int d = getLighterDurability();
+		if(d==0 && metaData.size()>=2) d = getLighterDurability();
+		rez += "\nDurability: " + std::to_string(d) + "/64";
 	}
 
 	rez += getItemStats().formatDataToString();
@@ -574,6 +588,10 @@ Item *PlayerInventory::getItemFromIndex(int index, ChestBlock *chestBlock)
 	{
 		return &bootsArmour;
 	}
+	else if (index == PlayerInventory::OFFHAND_INDEX)
+	{
+		return &offHand;
+	}
 
 	if (index >= CHEST_START_INDEX && (index < CHEST_START_INDEX + CHEST_CAPACITY) && chestBlock)
 	{
@@ -599,6 +617,10 @@ void PlayerInventory::formatIntoData(std::vector<unsigned char> &data)
 	}
 
 	heldInMouse.formatIntoData(data);
+	headArmour.formatIntoData(data);
+	chestArmour.formatIntoData(data);
+	bootsArmour.formatIntoData(data);
+	offHand.formatIntoData(data);
 
 
 }
@@ -610,6 +632,7 @@ bool PlayerInventory::readFromData(void *data, size_t size)
 	headArmour = Item{};
 	chestArmour = Item{};
 	bootsArmour = Item{};
+	offHand = Item{};
 
 	size_t currentAdvance = 0;
 
@@ -641,6 +664,10 @@ bool PlayerInventory::readFromData(void *data, size_t size)
 	}
 
 	if (!readOne(heldInMouse)) { return 0; }
+	if (!readOne(headArmour)) { return 0; }
+	if (!readOne(chestArmour)) { return 0; }
+	if (!readOne(bootsArmour)) { return 0; }
+	if (!readOne(offHand)) { return 0; }
 
 	
 	return true;
@@ -653,6 +680,11 @@ void PlayerInventory::sanitize()
 	{
 		getItemFromIndex(i, nullptr)->sanitize();
 	}
+	offHand.sanitize();
+	heldInMouse.sanitize();
+	headArmour.sanitize();
+	chestArmour.sanitize();
+	bootsArmour.sanitize();
 
 	//for (int i = 0; i < INVENTORY_CAPACITY; i++)
 	//{
@@ -922,11 +954,40 @@ const char *itemsNamesTextures[] =
 	"weapons/goldBattleAxe.png",
 
 
-	"", //eggs
-	"",
-	"",
+	"spawnEggs/zombie.png",
+	"spawnEggs/pig.png",
+	"spawnEggs/cat.png",
 	"spawnEggs/goblin.png",
 	"spawnEggs/scareCrow.png",
+	"spawnEggs/skeleton.png",
+	"spawnEggs/enderling.png",
+	"spawnEggs/bee.png",
+	"spawnEggs/queenBee.png",
+	"spawnEggs/creeper.png",
+	"spawnEggs/slime.png",
+	"spawnEggs/caveSpider.png",
+	"spawnEggs/crystalBat.png",
+	"spawnEggs/capybaraChef.png",
+	"spawnEggs/riverGuardian.png",
+	"spawnEggs/treeEnt.png",
+	"spawnEggs/nomadTrader.png",
+	"spawnEggs/mimicChest.png",
+	"spawnEggs/lightFairy.png",
+	"spawnEggs/armoredBoar.png",
+	"spawnEggs/sandSerpent.png",
+	"spawnEggs/mistGhost.png",
+	"spawnEggs/hermitCrab.png",
+	"spawnEggs/honeyBear.png",
+	"spawnEggs/lavaSlug.png",
+	"spawnEggs/crystalSentinel.png",
+	"spawnEggs/blacksmithVillager.png",
+	"spawnEggs/herbalistVillager.png",
+	"spawnEggs/skeletonPirate.png",
+	"spawnEggs/juvenileDragon.png",
+	"spawnEggs/crystalGolem.png",
+	"spawnEggs/hydra.png",
+	"spawnEggs/sheep.png",
+	"spawnEggs/cow.png",
 
 	"food/apple.png",
 	"food/blackBerrie.png",
@@ -1051,6 +1112,13 @@ const char *itemsNamesTextures[] =
 	"bows/goldBow.png",
 	"bows/goblinBow.png",
 
+	"tinIngot.png",
+	"mithrilIngot.png",
+	"tinBlock.png",
+	"mithrilBlock.png",
+	"flint.png",
+	"lighter.png",
+
 };
 
 
@@ -1120,11 +1188,40 @@ const char *item3DModelName[] =
 	"goldBattleAxe",
 
 
-	"", //eggs
-	"",
-	"",
+	"zombie",
+	"pig",
+	"cat",
 	"goblin",
 	"scareCrow",
+	"skeleton",
+	"enderling",
+	"bee",
+	"queenBee",
+	"creeper",
+	"slime",
+	"caveSpider",
+	"crystalBat",
+	"capybaraChef",
+	"riverGuardian",
+	"treeEnt",
+	"nomadTrader",
+	"mimicChest",
+	"lightFairy",
+	"armoredBoar",
+	"sandSerpent",
+	"mistGhost",
+	"hermitCrab",
+	"honeyBear",
+	"lavaSlug",
+	"crystalSentinel",
+	"blacksmithVillager",
+	"herbalistVillager",
+	"skeletonPirate",
+	"juvenileDragon",
+	"crystalGolem",
+	"hydra",
+	"sheep",
+	"cow",
 
 	"apple",
 	"blackBerrie",
@@ -1247,6 +1344,13 @@ const char *item3DModelName[] =
 	"goldBow",
 	"goblinBow",
 
+	"tinIngot",
+	"mithrilIngot",
+	"tinBlock",
+	"mithrilBlock",
+	"flint",
+	"lighter",
+
 };
 
 const char *itemsNames[] =
@@ -1322,6 +1426,35 @@ const char *itemsNames[] =
 	"cat spawn egg",
 	"goblin spawn egg",
 	"posessed scarecrow spawn egg",
+	"skeleton spawn egg",
+	"enderling spawn egg",
+	"bee spawn egg",
+	"queen bee spawn egg",
+	"creeper spawn egg",
+	"slime spawn egg",
+	"cave spider spawn egg",
+	"crystal bat spawn egg",
+	"capybara chef spawn egg",
+	"river guardian spawn egg",
+	"tree ent spawn egg",
+	"nomad trader spawn egg",
+	"mimic chest spawn egg",
+	"light fairy spawn egg",
+	"armored boar spawn egg",
+	"sand serpent spawn egg",
+	"mist ghost spawn egg",
+	"hermit crab spawn egg",
+	"honey bear spawn egg",
+	"lava slug spawn egg",
+	"crystal sentinel spawn egg",
+	"blacksmith villager spawn egg",
+	"herbalist villager spawn egg",
+	"skeleton pirate spawn egg",
+	"juvenile dragon spawn egg",
+	"crystal golem spawn egg",
+	"hydra spawn egg",
+	"sheep spawn egg",
+	"cow spawn egg",
 
 	"apple",
 	"blackBerrie",
@@ -1447,6 +1580,13 @@ const char *itemsNames[] =
 	"Silver Bow",
 	"Gold Bow",
 	"Goblin Bow",
+
+	"Tin Ingot",
+	"Mithril Ingot",
+	"Tin Block",
+	"Mithril Block",
+	"Flint",
+	"Lighter",
 };
 
 const char *getItemTextureName(int itemId)
@@ -1527,7 +1667,13 @@ Item itemCreator(unsigned short type, unsigned short counter)
 
 	Item ret(type);
 	ret.counter = counter;
-
+	if(type==ItemTypes::lighter){
+		ret.ensureMetadata(2);
+		ret.setLighterDurability(64);
+	}else{
+		ret.ensureMetadata(1);
+		ret.metaData[0]=0;
+	}
 	ret.sanitize();
 
 	return ret;
@@ -1826,6 +1972,93 @@ char *blockNames[] = {
 	"Redstone Dust",
 	"Redstone Torch",
 	"Redstone Lamp",
+
+	"Iron Trapdoor",
+	"Crystal Door",
+	"Vitral Window",
+	"Ceramic Tile",
+	"Iron Bars",
+	"Barbed Wire",
+	"Powder Snow",
+	"Dried Mud",
+	"Cracked Mud",
+	"Polished Basalt",
+	"Basalt Pillar",
+	"End Stone",
+	"End Stone Bricks",
+	"Purpur Block",
+	"Purpur Pillar",
+	"Giant Mushroom",
+	"Flowering Cactus",
+	"Tall Grass",
+	"Fern",
+	"Hanging Roots",
+	"Giant Lily Pad",
+	"Coral Block",
+	"Dead Coral",
+	"Dry Sponge",
+	"Wet Sponge",
+	"Soul Sand",
+	"Soul Soil",
+	"Blue Ice",
+	"Packed Ice",
+	"Blast Furnace",
+	"Smoker",
+	"Stonecutter",
+	"Cartography Table",
+	"Drum Block",
+	"Note Block",
+	"Safe Block",
+	"Crystal Pressure Plate",
+	"Daylight Sensor",
+	"Motion Sensor",
+	"Ghost Block",
+	"Cristal Bruto",
+	"Cristal Lapidado",
+	"Cristal Lapidado Stairs",
+	"Cristal Lapidado Slab",
+	"Cristal Lapidado Wall",
+	"Obsidiana Chorona",
+	"Patinated Copper",
+	"Patinated Copper Aged",
+	"Patinated Copper Oxidized",
+	"Tin Ore",
+	"Tin Block",
+	"Mithril Ore",
+	"Mithril Block",
+	"Bamboo Block",
+	"Bamboo Planks",
+	"Bamboo Fence",
+	"Straw Block",
+	"Straw Slab",
+	"Straw Stairs",
+	"Burnt Clay Bricks",
+	"Tempered Glass",
+	"Colored Vitral",
+	"Slate Block",
+	"Slate Slab",
+	"Mahogany Log",
+	"Mahogany Leaves",
+	"Quicksand",
+	"Jelly Block",
+	"Mushroom Trampoline",
+	"Straw Mattress",
+	"Enchantment Table",
+	"Goblin Anvil",
+	"Cloth Loom",
+	"Composter Block",
+	"Oak Barrel",
+	"Paper Lantern",
+	"Light Post",
+	"Solar Panel",
+	"Wind Turbine",
+	"Water Pipe",
+	"Conveyor Belt",
+	"Rope Elevator",
+	"Drawbridge",
+	"Wet Torch",
+	"Torch Unlit",
+	"Fire",
 
 };
 

@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <blocksLoader.h>
 #include "blocks.h"
 #include <fstream>
@@ -176,6 +177,163 @@ const char *texturesNames[] = {
 	"redstoneTorch",		//152
 	"redstoneLamp",		//153
 
+	"ironTrapdoor",		//154
+	"crystalDoor",		//155
+	"vitralWindow",		//156
+	"ceramicTile",		//157
+	"ironBars",		//158
+	"barbedWire",		//159
+	"powderSnow",		//160
+	"driedMud",		//161
+	"crackedMud",		//162
+	"polishedBasalt",		//163
+	"basaltPillar",		//164
+	"endStone",		//165
+	"endStoneBricks",		//166
+	"purpurBlock",		//167
+	"purpurPillar",		//168
+	"giantMushroom",		//169
+	"floweringCactus",		//170
+	"tallGrassBlock",		//171
+	"fernBlock",		//172
+	"hangingRoots",		//173
+	"giantLilyPad",		//174
+	"coralBlock",		//175
+	"deadCoralBlock",		//176
+	"drySponge",		//177
+	"wetSponge",		//178
+	"soulSand",		//179
+	"soulSoil",		//180
+	"blueIce",		//181
+	"packedIce",		//182
+	"blastFurnace",		//183
+	"smokerBlock",		//184
+	"stonecutterBlock",		//185
+	"cartographyTable",		//186
+	"drumBlock",		//187
+	"noteBlock",		//188
+	"safeBlock",		//189
+	"crystalPressurePlate",		//190
+	"daylightSensor",		//191
+	"motionSensor",		//192
+	"ghostBlock",		//193
+
+	
+	"cristalBruto",
+	"cristalLapidado",
+	"cristalLapidado_stairs",
+	"cristalLapidado_slab",
+	"cristalLapidado_wall",
+	"obsidianaChorona",
+	"patinatedCopper",
+	"patinatedCopperAged",
+	"patinatedCopperOxidized",
+	"tinOre",
+	"tinBlock",
+	"mithrilOre",
+	"mithrilBlock",
+	"bambooBlock",
+	"bambooPlanks",
+	"bambooFence",
+	"strawBlock",
+	"strawSlab",
+	"strawStairs",
+	"burntClayBricks",
+	"temperedGlass",
+	"coloredVitral",
+	"slateBlock",
+	"slateSlab",
+	"mahoganyLog",
+	"mahoganyLeaves",
+	"quicksand",
+	"jellyBlock",
+	"mushroomTrampoline",
+	"strawMattress",
+	"enchantmentTable",
+	"goblinAnvil",
+	"clothLoom",
+	"composterBlock",
+	"oakBarrel",
+	"paperLantern",
+	"lightPost",
+	"solarPanel",
+	"windTurbine",
+	"waterPipe",
+	"conveyorBelt",
+	"ropeElevator",
+	"drawbridge",
+	"wetTorch",
+	"torchUnlit",
+	"fire",
+	"placeholder0",
+	"placeholder1",
+	"placeholder2",
+	"placeholder3",
+	"placeholder4",
+	"placeholder5",
+	"placeholder6",
+	"placeholder7",
+	"placeholder8",
+	"placeholder9",
+	"placeholder10",
+	"placeholder11",
+	"placeholder12",
+	"placeholder13",
+	"placeholder14",
+	"placeholder15",
+	"placeholder16",
+	"placeholder17",
+	"placeholder18",
+	"placeholder19",
+	"placeholder20",
+	"placeholder21",
+	"placeholder22",
+	"placeholder23",
+	"placeholder24",
+	"placeholder25",
+	"placeholder26",
+	"placeholder27",
+	"placeholder28",
+	"placeholder29",
+	"placeholder30",
+	"placeholder31",
+	"placeholder32",
+	"placeholder33",
+	"placeholder34",
+	"placeholder35",
+	"placeholder36",
+	"placeholder37",
+	"placeholder38",
+	"placeholder39",
+	"placeholder40",
+	"placeholder41",
+	"placeholder42",
+	"placeholder43",
+	"placeholder44",
+	"placeholder45",
+	"placeholder46",
+	"placeholder47",
+	"placeholder48",
+	"placeholder49",
+	"placeholder50",
+	"placeholder51",
+	"placeholder52",
+	"placeholder53",
+	"placeholder54",
+	"placeholder55",
+	"placeholder56",
+	"placeholder57",
+	"placeholder58",
+	"placeholder59",
+	"placeholder60",
+	"placeholder61",
+	"placeholder62",
+	"placeholder63",
+	"placeholder64",
+	"placeholder65",
+	"placeholder66",
+	"placeholder67",
+	"placeholder68",
 
 };
 
@@ -677,6 +835,137 @@ uint16_t blocksLookupTable[] = {
 	152,152,152,152,152,152, //redstoneTorch
 	153,153,153,153,153,153, //redstoneLamp
 
+	154,154,154,154,154,154, //ironTrapdoor
+	155,155,155,155,155,155, //crystalDoor
+	156,156,156,156,156,156, //vitralWindow
+	157,157,157,157,157,157, //ceramicTile
+	158,158,158,158,158,158, //ironBars
+	159,159,159,159,159,159, //barbedWire
+	160,160,160,160,160,160, //powderSnow
+	161,161,161,161,161,161, //driedMud
+	162,162,162,162,162,162, //crackedMud
+	163,163,163,163,163,163, //polishedBasalt
+	164,164,164,164,164,164, //basaltPillar
+	165,165,165,165,165,165, //endStone
+	166,166,166,166,166,166, //endStoneBricks
+	167,167,167,167,167,167, //purpurBlock
+	168,168,168,168,168,168, //purpurPillar
+	169,169,169,169,169,169, //giantMushroom
+	170,170,170,170,170,170, //floweringCactus
+	171,171,171,171,171,171, //tallGrassBlock
+	172,172,172,172,172,172, //fernBlock
+	173,173,173,173,173,173, //hangingRoots
+	174,174,174,174,174,174, //giantLilyPad
+	175,175,175,175,175,175, //coralBlock
+	176,176,176,176,176,176, //deadCoralBlock
+	177,177,177,177,177,177, //drySponge
+	178,178,178,178,178,178, //wetSponge
+	179,179,179,179,179,179, //soulSand
+	180,180,180,180,180,180, //soulSoil
+	181,181,181,181,181,181, //blueIce
+	182,182,182,182,182,182, //packedIce
+	183,183,183,183,183,183, //blastFurnace
+	184,184,184,184,184,184, //smokerBlock
+	185,185,185,185,185,185, //stonecutterBlock
+	186,186,186,186,186,186, //cartographyTable
+	187,187,187,187,187,187, //drumBlock
+	188,188,188,188,188,188, //noteBlock
+	189,189,189,189,189,189, //safeBlock
+	190,190,190,190,190,190, //crystalPressurePlate
+	191,191,191,191,191,191, //daylightSensor
+	192,192,192,192,192,192, //motionSensor
+	193,193,193,193,193,193, //ghostBlock
+	194, 194, 194, 194, 194, 194, //cristalBruto
+	195, 195, 195, 195, 195, 195, //cristalLapidado
+
+	//cristalLapidado_stairs
+	196, 196, 196, 196, 196, 196,
+	//cristalLapidado_slab
+	197, 197, 197, 197, 197, 197,
+	//cristalLapidado_wall
+	198, 198, 198, 198, 198, 198,
+	//obsidianaChorona
+	199, 199, 199, 199, 199, 199,
+	//patinatedCopper
+	200, 200, 200, 200, 200, 200,
+	//patinatedCopperAged
+	201, 201, 201, 201, 201, 201,
+	//patinatedCopperOxidized
+	202, 202, 202, 202, 202, 202,
+	//tinOre
+	203, 203, 203, 203, 203, 203,
+	//tinBlock
+	204, 204, 204, 204, 204, 204,
+	//mithrilOre
+	205, 205, 205, 205, 205, 205,
+	//mithrilBlock
+	206, 206, 206, 206, 206, 206,
+	//bambooBlock
+	207, 207, 207, 207, 207, 207,
+	//bambooPlanks
+	208, 208, 208, 208, 208, 208,
+	//bambooFence
+	209, 209, 209, 209, 209, 209,
+	//strawBlock
+	210, 210, 210, 210, 210, 210,
+	//strawSlab
+	211, 211, 211, 211, 211, 211,
+	//strawStairs
+	212, 212, 212, 212, 212, 212,
+	//burntClayBricks
+	213, 213, 213, 213, 213, 213,
+	//temperedGlass
+	214, 214, 214, 214, 214, 214,
+	//coloredVitral
+	215, 215, 215, 215, 215, 215,
+	//slateBlock
+	216, 216, 216, 216, 216, 216,
+	//slateSlab
+	217, 217, 217, 217, 217, 217,
+	//mahoganyLog
+	218, 218, 218, 218, 218, 218,
+	//mahoganyLeaves
+	219, 219, 219, 219, 219, 219,
+	//quicksand
+	220, 220, 220, 220, 220, 220,
+	//jellyBlock
+	221, 221, 221, 221, 221, 221,
+	//mushroomTrampoline
+	222, 222, 222, 222, 222, 222,
+	//strawMattress
+	223, 223, 223, 223, 223, 223,
+	//enchantmentTable
+	224, 224, 224, 224, 224, 224,
+	//goblinAnvil
+	225, 225, 225, 225, 225, 225,
+	//clothLoom
+	226, 226, 226, 226, 226, 226,
+	//composterBlock
+	227, 227, 227, 227, 227, 227,
+	//oakBarrel
+	228, 228, 228, 228, 228, 228,
+	//paperLantern
+	229, 229, 229, 229, 229, 229,
+	//lightPost
+	230, 230, 230, 230, 230, 230,
+	//solarPanel
+	231, 231, 231, 231, 231, 231,
+	//windTurbine
+	232, 232, 232, 232, 232, 232,
+	//waterPipe
+	233, 233, 233, 233, 233, 233,
+	//conveyorBelt
+	234, 234, 234, 234, 234, 234,
+	//ropeElevator
+	235, 235, 235, 235, 235, 235,
+	//drawbridge
+	236, 236, 236, 236, 236, 236,
+	//wetTorch
+	237, 237, 237, 237, 237, 237,
+	//torchUnlit
+	238, 238, 238, 238, 238, 238,
+	//fire
+	239, 239, 239, 239, 239, 239,
 };
 
 static_assert(BlockTypes::BlocksCount == sizeof(blocksLookupTable) / (sizeof(blocksLookupTable[0]) * 6), 
@@ -1368,13 +1657,13 @@ void BlocksLoader::loadAllTextures(std::string filePath, bool reportErrors)
 			{
 				in.y -= 0.1;
 				if (in.y < 0) { in.y = 0; }
-				in.z = std::powf(in.z, 0.25);
+				in.z = std::pow(in.z, 0.25);
 			}
 			else
 			{
 				in.y += 0.1;
 				if (in.y > 1) { in.y = 1; }
-				in.z = std::powf(in.z, 1.2);
+				in.z = std::pow(in.z, 1.2);
 			}
 
 
@@ -1717,6 +2006,8 @@ void BlocksLoader::loadAllTextures(std::string filePath, bool reportErrors)
 			createSpawnEggTexture(pigSpawnEgg, glm::vec3(230, 151, 167) / 255.f, glm::vec3(148, 92, 95) / 255.f);
 			createSpawnEggTexture(catSpawnEgg, glm::vec3(230, 230, 230) / 255.f, glm::vec3(10, 10, 10) / 255.f);
 			//createSpawnEggTexture(goblinSpawnEgg, glm::vec3{105, 87, 69} / 255.f, glm::vec3{100, 161, 80} / 255.f);
+			createSpawnEggTexture(sheepSpawnEgg, glm::vec3(230, 230, 230) / 255.f, glm::vec3(200, 200, 200) / 255.f);
+			createSpawnEggTexture(cowSpawnEgg, glm::vec3(80, 55, 30) / 255.f, glm::vec3(240, 240, 240) / 255.f);
 
 
 		};
@@ -2461,6 +2752,8 @@ void BlocksLoader::clearItemsGeometry()
 
 uint16_t getGpuIdIndexForBlock(short type, int face)
 {
+	if (type < 0 || type >= BlockTypes::BlocksCount) return 0;
+	if (face < 0 || face >= 6) return 0;
 	return blocksLookupTable[type * 6 + face] * 4;
 }
 
@@ -2469,7 +2762,7 @@ void BlocksLoader::ItemGeometry2D::clear()
 {
 	glDeleteBuffers(1, &buffer);
 	glDeleteVertexArrays(1, &vao);
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 }
 
 void BlocksLoader::ItemGeometry3D::clear()
@@ -2481,6 +2774,6 @@ void BlocksLoader::ItemGeometry3D::clear()
 
 	texturesId.cleanup();
 
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 
 }

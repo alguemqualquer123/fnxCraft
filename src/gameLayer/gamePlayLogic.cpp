@@ -12,6 +12,8 @@
 #include <enet/enet.h>
 #include "rendering/UiEngine.h"
 #include "glui/glui.h"
+#include <gameplay/fishing.h>
+#include <limits>
 #include <platformTools.h>
 #include <platform/platformDetection.h>
 #include <localization.h>
@@ -48,6 +50,8 @@
 #include <gameplay/food.h>
 #include <cameraShaker.h>
 #include <blockUpdates.h>
+#include <weather.h>
+#include "scripting/EventBus.h"
 
 struct GameData
 {
@@ -71,13 +75,17 @@ struct GameData
 	bool showChunkBorders = false;
 	float bowCharge = 0;
 	bool bowCharging = false;
+	FishingManager fishingManager;
 	struct BreakParticle { glm::dvec3 pos; glm::vec3 vel; float life=1.f; float maxLife=1.f; glm::vec3 color={1,1,1}; };
 	std::vector<BreakParticle> breakParticles;
 	bool isInsideMapView = 0;
 	bool isInsideChat = 0;
 	char chatBuffer[250] = {};
 	int chatBufferPosition = 0;
+	int chatCursor = 0;
 	std::deque<std::string> chat;
+	std::vector<std::string> chatHistory;
+	int chatHistoryIndex = -1;
 	float chatStayOnTimer = 0;
 	std::vector<std::string> commandSuggestions = {};
 	std::string lastRequestedCommandPrefix = "";
@@ -139,6 +147,8 @@ struct GameData
 	float dropsStrength = 0;
 	bool lastFrameInWater = 0;
 
+	WeatherState weather;
+
 	int craftingSlider = 0;
 	bool showUI = 1;
 
@@ -165,6 +175,36 @@ float globalDayTime = 0.25f;
 void setDayTimeGlobally(float dayTime)
 {
 	globalDayTime = dayTime;
+}
+
+// Global weather state
+static int globalWeatherType = 0; // Weather_Clear
+static float globalWetness = 0.f;
+static WeatherState *globalWeatherStatePtr = nullptr;
+
+void setWeatherGlobally(int type)
+{
+	globalWeatherType = type;
+}
+
+int getWeatherGlobally()
+{
+	return globalWeatherType;
+}
+
+float getWetnessGlobally()
+{
+	return globalWetness;
+}
+
+void setWetnessGlobally(float w)
+{
+	globalWetness = w;
+}
+
+WeatherState *getGlobalWeatherState()
+{
+	return globalWeatherStatePtr;
 }
 
 ThreadPool threadPoolForChunkBaking;
@@ -219,6 +259,7 @@ void loadCurrentSkin()
 }
 
 #ifdef PLATFORM_WINDOWS
+#ifdef _WIN32
 bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const char *initialDir,
 	const char *filter)
 {
@@ -239,9 +280,11 @@ bool ShowOpenFileDialog(HWND hwnd, char *filePath, DWORD filePathSize, const cha
 	ofn.nFilterIndex = 1;
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 
-	// Show the file open dialog
 	return GetOpenFileNameA(&ofn);
 }
+#else
+bool ShowOpenFileDialog(void* hwnd, char *filePath, unsigned long filePathSize, const char *initialDir, const char *filter){ return false; }
+#endif
 #else
 bool ShowOpenFileDialog(void* hwnd, char *filePath, int filePathSize, const char *initialDir,
 	const char *filter)
@@ -296,6 +339,12 @@ bool initGameplay(ProgramData &programData, const char *c) //GAME STUFF!
 
 	AudioEngine::playRandomNightMusic();
 
+	EventBus::instance().trigger("onPlayerJoin");
+	EventBus::instance().trigger("playerSpawn");
+	EventBus::instance().trigger("onWorldJoin");
+	EventBus::instance().trigger("playerJoining");
+	EventBus::instance().trigger("onClientConnected");
+
 	return true;
 }
 
@@ -312,7 +361,7 @@ void dealDamageToLocalPlayer(int damage)
 {
 	if (damage < 0) { return; }
 	if (damage == 0) { AudioEngine::playHurtSound(); return; }
-	damage = std::min(damage, MAXSHORT - 10);
+	damage = std::min(damage, (int)std::numeric_limits<short>::max() - 10);
 
 	auto &p = gameData.entityManager.localPlayer;
 
@@ -704,11 +753,12 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		gameData.showChunkBorders = !gameData.showChunkBorders;
 	}
 
-	if (!stopMainInput || gameData.insideInventoryMenu)
+	if ((!stopMainInput || gameData.insideInventoryMenu) && !programData.ui.isItemSearchFocused())
 		if (platform::isKeyReleased(platform::Button::E))
 		{
 			if (gameData.insideInventoryMenu)
 			{
+				programData.ui.setItemSearchFocused(false);
 				exitInventoryMenu();
 			}
 			else
@@ -806,11 +856,12 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 					|| platform::getControllerButtons().buttons[platform::ControllerButtons::Rthumb].held
 					)
 				{
-					// Check if player is in water for swimming
-					if (player.isInWater)
+					bool inW = player.isInWater || gameData.entityManager.localPlayer.isInWater;
+					if (inW)
 					{
-						// Swimming up in water
-						gameData.entityManager.localPlayer.entity.swimUp(WATER_SWIM_IMPULSE);
+						gameData.entityManager.localPlayer.entity.swimUp(WATER_SWIM_IMPULSE * 1.35f);
+						if(platform::isKeyHeld(platform::Button::Space))
+							gameData.entityManager.localPlayer.entity.forces.velocity.y = glm::max(gameData.entityManager.localPlayer.entity.forces.velocity.y, 2.8f);
 					}
 					else
 					{
@@ -826,6 +877,16 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			moveDir.z += controllerMove.y;
 
 			{
+				auto &ent = gameData.entityManager.localPlayer.entity;
+				bool inWater = player.isInWater;
+				bool wantCrouch = !ent.fly && !inWater && (platform::isKeyHeld(platform::Button::LeftCtrl) || platform::isKeyHeld(platform::Button::C));
+				bool wantProne = !ent.fly && !inWater && platform::isKeyHeld(platform::Button::Z);
+				bool wantSprint = !ent.fly && !inWater && !wantCrouch && !wantProne && platform::isKeyHeld(platform::Button::LeftShift) && glm::length(glm::vec2(moveDir.x,moveDir.z))>0.1f;
+				ent.isCrouching = wantCrouch && !wantProne;
+				ent.isProne = wantProne;
+				ent.isRunning = wantSprint;
+				ent.isSwimmingAnim = inWater;
+				if(ent.isProne){ ent.crouchTransition = glm::mix(ent.crouchTransition,1.f, deltaTime*8.f); } else if(ent.isCrouching){ ent.crouchTransition = glm::mix(ent.crouchTransition, 0.6f, deltaTime*8.f);} else { ent.crouchTransition = glm::mix(ent.crouchTransition, 0.f, deltaTime*8.f);}
 				float l = glm::length(glm::vec2(moveDir.x, moveDir.z));
 				if (l != 0)
 				{
@@ -834,7 +895,25 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 				}
 
 				float speed = moveSpeed;
+				if(ent.isProne) speed *= 0.3f;
+				else if(ent.isCrouching) speed *= 0.55f;
+				else if(ent.isSwimmingAnim) speed *= 0.7f;
+				else if(ent.isRunning) speed *= 1.75f;
+				else if(ent.fly && platform::isKeyHeld(platform::Button::LeftShift)) speed *= 1.9f;
 				moveDir *= speed;
+				float animSpeed = 0;
+				if(glm::length(glm::vec2(moveDir.x,moveDir.z))>0.1f || glm::length(moveDir)>0.1f){
+					if(ent.isSwimmingAnim) animSpeed = 1.1f;
+					else if(ent.isProne) animSpeed = 0.6f;
+					else if(ent.isCrouching) animSpeed = 0.8f;
+					else if(ent.isRunning) animSpeed = 1.9f;
+					else animSpeed = 1.0f;
+				}
+				ent.movementSpeedForLegsAnimations = animSpeed;
+				if(animSpeed>0.1f) ent.animationStateServer.runningTime = 0.6f; else ent.animationStateServer.runningTime = 0;
+				if(inWater) ent.animationStateServer.runningTime = 0.6f;
+				bool wantAttack = !stopMainInput && (platform::isLMouseHeld() || platform::isLMousePressed());
+				ent.animationStateServer.attacked = wantAttack;
 			}
 
 			static float jumpTimer = 0;
@@ -929,6 +1008,41 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 				gameData.bowCharge = 0;
 			}
 		}
+		{
+			auto &heldFish = *player.inventory.getItemFromIndex(gameData.currentItemSelected, nullptr);
+			if(heldFish.type == ItemTypes::fishingRod){
+				if(platform::isRMousePressed() && !stopMainInput){
+					if(!gameData.fishingManager.bobber.active){
+						glm::vec3 dir = glm::normalize(gameData.c.viewDirection);
+						gameData.fishingManager.startCast(player.entity.position + glm::dvec3(0,1.4,0), dir, 1.0f);
+						AudioEngine::playSound(AudioEngine::waterSplash, UI_SOUND_VOLUME);
+					}else if(gameData.fishingManager.canCatch()){
+						gameData.fishingManager.reel(true);
+						Item fish = itemCreator(ItemTypes::rawFish); fish.counter=1;
+						player.inventory.tryPickupItem(fish);
+						AudioEngine::playSound(AudioEngine::uiButtonPress, UI_SOUND_VOLUME);
+					}else{
+						if(gameData.fishingManager.bobber.stateTimer > 0.5f) gameData.fishingManager.reset();
+					}
+				}
+				auto bpos = gameData.fishingManager.bobber.pos;
+				auto ch = gameData.chunkSystem.getChunkSafeFromBlockPos((int)bpos.x, (int)bpos.z);
+				bool inWater = false;
+				if(ch){
+					auto bp = fromBlockPosToBlockPosInChunk(from3DPointToBlock(bpos));
+					auto blk = ch->unsafeGet(bp.x, bp.y, bp.z);
+					inWater = blk.getType() == BlockTypes::water;
+				}
+				gameData.fishingManager.update(deltaTime, player.entity.position, inWater);
+				if(gameData.fishingManager.bobber.active){
+					glm::dvec3 handPos = player.entity.position + glm::dvec3(0,1.3,0) + glm::dvec3(gameData.c.viewDirection)*0.4;
+					programData.gyzmosRenderer.drawLine(handPos, gameData.fishingManager.bobber.pos);
+					programData.gyzmosRenderer.drawCube(from3DPointToBlock(gameData.fishingManager.bobber.pos), glm::vec3(0), glm::vec3(0.25f));
+				}
+			}else{
+				if(gameData.fishingManager.bobber.active) gameData.fishingManager.reset();
+			}
+		}
 
 
 		//keyPad
@@ -984,10 +1098,13 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 		if (platform::isKeyPressedOn(platform::Button::Q))
 		{
+			auto *it = player.inventory.getItemFromIndex(gameData.currentItemSelected,nullptr);
+			bool hadItem = it && it->type;
 			gameData.entityManager.dropItemByClient(
 				gameData.entityManager.localPlayer.entity.position,
 				gameData.currentItemSelected, gameData.undoQueue, gameData.c.viewDirection * 5.f,
 				gameData.serverTimer, player.inventory, !platform::isKeyHeld(platform::Button::LeftCtrl));
+			if(hadItem) AudioEngine::playSound(AudioEngine::grass, 0.6f);
 
 			gameData.currentBlockBreaking = {};
 		}
@@ -1141,8 +1258,15 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		}
 		
 
-		gameData.c.position = gameData.entityManager.localPlayer.entity.position
-			+ glm::dvec3(0,1.5,0);
+		{
+			auto &e = gameData.entityManager.localPlayer.entity;
+			float eyeH = 1.5f;
+			if(e.isProne) eyeH = 0.4f + e.crouchTransition*0.2f;
+			else if(e.isCrouching) eyeH = 1.0f;
+			else if(e.isSwimmingAnim) eyeH = 0.9f;
+			else if(e.fly) eyeH = 1.5f;
+			gameData.c.position = e.position + glm::dvec3(0,eyeH,0);
+		}
 
 		if (gameData.cameraMode != 0)
 		{
@@ -1280,6 +1404,27 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 		raycastBlock = gameData.chunkSystem.rayCast(cameraRayPos, gameData.c.viewDirection,
 			rayCastPos, TARGET_DIST, blockToPlace, raycastDist);
+		{
+			auto *heldWater = player.inventory.getItemFromIndex(gameData.currentItemSelected,nullptr);
+			bool isBucket = heldWater && (heldWater->type==ItemTypes::waterBottle || heldWater->type==ItemTypes::wateringCan || heldWater->type==ItemTypes::lighter);
+			bool inW = player.isInWater;
+			int maxSkip = inW ? 14 : 3;
+			int skip=0;
+			while(raycastBlock && raycastBlock->getType()==BlockTypes::water && !isBucket && skip<maxSkip){
+				glm::dvec3 newStart = glm::dvec3(rayCastPos) + glm::dvec3(gameData.c.viewDirection)*0.6;
+				float used = glm::distance(cameraRayPos, glm::dvec3(rayCastPos)) + 0.6f;
+				float remain = TARGET_DIST - used;
+				if(remain<=0){ raycastBlock=nullptr; blockToPlace=std::nullopt; break; }
+				float newDist=0; std::optional<glm::ivec3> newPlace;
+				auto *secondHit = gameData.chunkSystem.rayCast(newStart, gameData.c.viewDirection, rayCastPos, remain, newPlace, newDist);
+				raycastDist = used + newDist;
+				blockToPlace = newPlace;
+				raycastBlock = secondHit;
+				skip++;
+				if(raycastBlock && raycastBlock->getType()!=BlockTypes::water) break;
+			}
+			if(raycastBlock && raycastBlock->getType()==BlockTypes::water && !isBucket) { raycastBlock=nullptr; blockToPlace=std::nullopt; }
+		}
 
 		if (raycastBlock)
 		{
@@ -1581,6 +1726,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 											else crop.setType(BlockTypes::wheatCrop);
 											crop.setCropStage(0);
 											gameData.chunkSystem.placeBlockNoClient(*blockToPlace, crop, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+											AudioEngine::playSound(AudioEngine::dirt, PLACED_BLOCK_SOUND_VOLUME);
 											if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
 										}
 									}
@@ -1594,6 +1740,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 										int ns = std::min(7, stage + inc);
 										Block nb = *raycastBlock; nb.setCropStage(ns);
 										gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+										AudioEngine::playSound(AudioEngine::grass, PLACED_BLOCK_SOUND_VOLUME);
 										if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ item.counter--; if(item.counter<=0) item={}; }
 									}
 									good = false;
@@ -1605,18 +1752,63 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 										Block nb = *raycastBlock; nb.setCropStage(stage+1);
 										gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
 									}
+									AudioEngine::playSound(AudioEngine::waterSplash, PLACED_BLOCK_SOUND_VOLUME);
 									good = false;
+								}
+								else if (item.isLighter() && raycastBlock && raycastBlock->getType()==BlockTypes::torchUnlit)
+								{
+									Block nb; nb.typeAndFlags = raycastBlock->typeAndFlags; nb.setType(BlockTypes::torch); nb.setLightLevel(15);
+									gameData.chunkSystem.placeBlockNoClient(rayCastPos, nb, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+									AudioEngine::playSound(AudioEngine::metal, PLACED_BLOCK_SOUND_VOLUME);
+									{ glm::vec3 p = glm::vec3(rayCastPos) + glm::vec3(0.5f); for(int i=0;i<6;i++){ GameData::BreakParticle bp; bp.pos = glm::dvec3(p) + glm::dvec3((rand()%100)/100.f-0.5f)*0.4; bp.vel = glm::vec3((rand()%100)/100.f-0.5f, 0.8f+ (rand()%100)/200.f, (rand()%100)/100.f-0.5f)*1.2f; bp.life=0.35f; bp.maxLife=0.35f; bp.color=glm::vec3(1.0f,0.6f,0.15f); gameData.breakParticles.push_back(bp); } }
+									if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ int d = item.getLighterDurability(); d--; item.setLighterDurability(d); if(d<=0) item={}; }
+									data.position = rayCastPos;
+								}
+								else if (item.isLighter() && blockToPlace)
+								{
+									auto at = gameData.chunkSystem.getBlockSafe(blockToPlace->x, blockToPlace->y, blockToPlace->z);
+									auto below = gameData.chunkSystem.getBlockSafe(blockToPlace->x, blockToPlace->y-1, blockToPlace->z);
+									bool canPlaceFire = at && at->getType()==BlockTypes::air;
+									bool hasFuel = false;
+									const int dirs[6][3]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+									for(auto &d: dirs){ auto nb2 = gameData.chunkSystem.getBlockSafe(blockToPlace->x+d[0], blockToPlace->y+d[1], blockToPlace->z+d[2]); if(nb2 && isFlammable(nb2->getType())) hasFuel=true; }
+									float fuelScore = 0.f;
+									for(auto &d: dirs){ auto nb2 = gameData.chunkSystem.getBlockSafe(blockToPlace->x+d[0], blockToPlace->y+d[1], blockToPlace->z+d[2]); if(nb2 && isFlammable(nb2->getType())) fuelScore += getFlammability(nb2->getType()); }
+									if(below && isFlammable(below->getType())) fuelScore += getFlammability(below->getType())*1.2f;
+									float wet = programData.weatherState.wetness;
+									if(wet>0.6f) fuelScore *= (1.f - wet*0.55f);
+									bool canIgnite = canPlaceFire && (fuelScore > 0.12f);
+									if(canIgnite){
+										Block fire; fire.setType(BlockTypes::fire); fire.setLightLevel(13);
+										gameData.chunkSystem.placeBlockNoClient(*blockToPlace, fire, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+										AudioEngine::playSound(AudioEngine::metal, PLACED_BLOCK_SOUND_VOLUME);
+										{ glm::vec3 p = glm::vec3(*blockToPlace) + glm::vec3(0.5f); for(int i=0;i<7;i++){ GameData::BreakParticle bp; bp.pos = glm::dvec3(p) + glm::dvec3((rand()%100)/100.f-0.5f)*0.35; bp.vel = glm::vec3((rand()%100)/100.f-0.5f, 0.9f+ (rand()%100)/180.f, (rand()%100)/100.f-0.5f)*1.4f; bp.life=0.42f; bp.maxLife=0.42f; bp.color=glm::vec3(1.0f,0.55f,0.12f); gameData.breakParticles.push_back(bp); } }
+										if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ int dd = item.getLighterDurability(); dd--; item.setLighterDurability(dd); if(dd<=0) item={}; }
+										data.position = *blockToPlace;
+									} else {
+										if(fuelScore <= 0.12f){ AudioEngine::playSound(AudioEngine::metal, 0.35f); }
+										// tenta acender bloco alvo se for inflamável
+										if(raycastBlock && isFlammable(raycastBlock->getType()) && at && at->getType()==BlockTypes::air){
+											Block fire; fire.setType(BlockTypes::fire); fire.setLightLevel(13);
+											gameData.chunkSystem.placeBlockNoClient(*blockToPlace, fire, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+											AudioEngine::playSound(AudioEngine::metal, PLACED_BLOCK_SOUND_VOLUME);
+											{ glm::vec3 p = glm::vec3(*blockToPlace) + glm::vec3(0.5f); for(int i=0;i<7;i++){ GameData::BreakParticle bp; bp.pos = glm::dvec3(p) + glm::dvec3((rand()%100)/100.f-0.5f)*0.35; bp.vel = glm::vec3((rand()%100)/100.f-0.5f, 0.9f+ (rand()%100)/180.f, (rand()%100)/100.f-0.5f)*1.4f; bp.life=0.42f; bp.maxLife=0.42f; bp.color=glm::vec3(1.0f,0.55f,0.12f); gameData.breakParticles.push_back(bp); } }
+											if(player.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){ int dd = item.getLighterDurability(); dd--; item.setLighterDurability(dd); if(dd<=0) item={}; }
+											data.position = *blockToPlace;
+										}
+									}
 								}
 								else if (item.isPaint())
 								{
 									data.position = rayCastPos;
 								}
-								else if(blockToPlace)
+								else if(item.type == ItemTypes::fishSpawnEgg && blockToPlace)
 								{
 									data.position = *blockToPlace;
 								}
 								else
 								{
+									// No handler matched - don't send packet or consume
 									good = false;
 								}
 
@@ -1627,6 +1819,12 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 									sendPacket(getServer(), headerClientUsedItem, player.entityId,
 										&data, sizeof(data), true, channelChunksAndBlocks);
 
+									// Play sound for equipment items
+									if (item.isEquipement())
+									{
+										AudioEngine::playSound(AudioEngine::wood, UI_SOUND_VOLUME);
+									}
+
 									if (item.isConsumedAfterUse() && player.otherPlayerSettings.gameMode ==
 										OtherPlayerSettings::SURVIVAL)
 									{
@@ -1634,7 +1832,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 										if (item.counter <= 0)
 										{
 											item = {};
-										}
+									}
 									}
 								}
 								
@@ -2019,7 +2217,225 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		}
 	}
 	gameData.gameplayFrameProfiler.endSubProfile("lightsSystem");
-
+	if(!gameData.isInsideMapView){
+		static float fireTick=0; fireTick+=deltaTime;
+		static std::unordered_map<int64_t,float> fireAge;
+		static std::unordered_map<int64_t,float> fuelBurn;
+		auto posKey = [](int x,int y,int z)->int64_t{ return ((int64_t)(x+30000)<<42) | ((int64_t)(y)<<32) | (uint32_t)(z+30000); };
+		const float LIGHTNING_FIRE_CHANCE_STORM = 42.f;
+		const float LIGHTNING_FIRE_CHANCE_RAIN  = 18.f;
+		if(fireTick>0.55f){
+			fireTick=0;
+			bool canSpread = true;
+			float wetness = programData.weatherState.wetness;
+			float rainInt = programData.weatherState.intensity;
+			bool isRaining = programData.weatherState.raining && rainInt>0.22f;
+			glm::vec2 wind(programData.weatherState.windX, programData.weatherState.windZ);
+			float windLen = glm::length(wind);
+			glm::vec2 windN = windLen>0.01f ? glm::normalize(wind) : glm::vec2(0.0f);
+			int pcx = divideChunk(blockPositionPlayer.x);
+			int pcz = divideChunk(blockPositionPlayer.z);
+			std::vector<glm::ivec3> toIgnite;
+			std::vector<glm::ivec3> toExtinguish;
+			std::vector<glm::ivec3> toConsume;
+			toIgnite.reserve(64); toExtinguish.reserve(64); toConsume.reserve(64);
+			for(int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++){
+				auto *ch = gameData.chunkSystem.getChunkSafeFromChunkPos(pcx+dx, pcz+dz);
+				if(!ch) continue;
+				for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=1;y<CHUNK_HEIGHT-1;y++){
+					Block &b = ch->unsafeGet(x,y,z);
+					if(b.getType()!=BlockTypes::fire) continue;
+					int wx = ch->data.x*CHUNK_SIZE+x, wy=y, wz=ch->data.z*CHUNK_SIZE+z;
+					int64_t k = posKey(wx,wy,wz);
+					float age = fireAge[k] + 0.55f; fireAge[k]=age;
+					bool hasWater=false, hasRain=false;
+					for(int ddx=-1;ddx<=1 && !hasWater;ddx++) for(int ddz=-1;ddz<=1 && !hasWater;ddz++) for(int ddy=-1;ddy<=1 && !hasWater;ddy++){
+						auto nb = gameData.chunkSystem.getBlockSafe(wx+ddx, wy+ddy, wz+ddz);
+						if(nb && nb->getType()==BlockTypes::water) hasWater=true;
+					}
+					if(isRaining){
+						auto up = gameData.chunkSystem.getBlockSafe(wx, wy+1, wz);
+						bool openSky = !up || up->air();
+						if(openSky){
+							float rainChance = 35.f + rainInt*25.f + wetness*20.f;
+							if((rand()%100) < (int)rainChance) hasRain=true;
+						}
+						if(wetness>0.6f && (rand()%100)< (int)(wetness*30.f)) hasRain=true;
+					}
+					if(hasWater || hasRain){
+						toExtinguish.push_back({wx,wy,wz});
+						fireAge.erase(k);
+						continue;
+					}
+					const int dirs[6][3]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+					bool hasFuel=false; int fuelCount=0;
+					float maxFlam=0.f;
+					for(auto &d: dirs){
+						auto adj=gameData.chunkSystem.getBlockSafe(wx+d[0], wy+d[1], wz+d[2]);
+						if(adj && isFlammable(adj->getType())){ hasFuel=true; fuelCount++; maxFlam = glm::max(maxFlam, getFlammability(adj->getType())); }
+						if(adj && adj->getType()==BlockTypes::fire) hasFuel=true;
+					}
+					if(!hasFuel){
+						for(int ox=-1;ox<=1 && !hasFuel;ox++) for(int oz=-1;oz<=1 && !hasFuel;oz++) for(int oy=-1;oy<=1 && !hasFuel;oy++){
+							if(ox==0 && oy==0 && oz==0) continue;
+							auto nb2 = gameData.chunkSystem.getBlockSafe(wx+ox, wy+oy, wz+oz);
+							if(nb2 && isFlammable(nb2->getType())){ hasFuel=true; fuelCount++; }
+						}
+					}
+					float baseLife = hasFuel ? 9.0f : 4.2f;
+					if(!hasFuel) baseLife = 3.5f + (rand()%25)/10.f;
+					else baseLife += maxFlam*2.0f;
+					if(age > baseLife){
+						if(!hasFuel || (rand()%100 < 45)){
+							toExtinguish.push_back({wx,wy,wz});
+							fireAge.erase(k);
+							continue;
+						}
+					}
+					if(!canSpread) continue;
+					for(auto &d: dirs){
+						int fx=wx+d[0], fy=wy+d[1], fz=wz+d[2];
+						auto fb = gameData.chunkSystem.getBlockSafe(fx,fy,fz);
+						if(!fb || !isFlammable(fb->getType())) continue;
+						float flam = getFlammability(fb->getType());
+						float windDot = glm::dot(glm::vec2((float)d[0],(float)d[2]), windN);
+						float windFactor = 1.0f + windDot*0.38f*windLen;
+						windFactor = glm::clamp(windFactor, 0.65f, 1.55f);
+						float humidityFactor = 1.0f - wetness*0.68f - rainInt*0.35f;
+						humidityFactor = glm::clamp(humidityFactor, 0.18f, 1.0f);
+						float upFactor = (d[1]==1) ? 1.18f : (d[1]==-1 ? 0.82f : 1.0f);
+						float leafBonus = isAnyLeaves(fb->getType()) ? 1.35f : 1.0f;
+						float chance = flam*42.f * windFactor * humidityFactor * upFactor * leafBonus;
+						chance = glm::clamp(chance, 1.5f, 78.f);
+						int roll = rand()%100;
+						if(roll < (int)chance){
+							int64_t fk = posKey(fx,fy,fz);
+							float bt = getBurnTime(fb->getType());
+							float &prog = fuelBurn[fk];
+							prog += 0.55f;
+							if(prog >= bt*0.55f){
+								toConsume.push_back({fx,fy,fz});
+								fuelBurn.erase(fk);
+							} else if(roll < (int)(chance*0.35f)){
+								toIgnite.push_back({fx,fy,fz});
+							}
+						}
+					}
+					for(auto &d: dirs){
+						int nx=wx+d[0], ny=wy+d[1], nz=wz+d[2];
+						auto nb = gameData.chunkSystem.getBlockSafe(nx,ny,nz);
+						if(!nb || nb->getType()!=BlockTypes::air) continue;
+						bool nearFuel=false; float bestFlam=0.f;
+						for(auto &d2: dirs){
+							auto adj = gameData.chunkSystem.getBlockSafe(nx+d2[0], ny+d2[1], nz+d2[2]);
+							if(adj && isFlammable(adj->getType())){ nearFuel=true; bestFlam = glm::max(bestFlam, getFlammability(adj->getType())); }
+						}
+						if(!nearFuel) continue;
+						float windDot2 = glm::dot(glm::vec2((float)d[0],(float)d[2]), windN);
+						float wf = 1.0f + windDot2*0.42f*windLen;
+						wf = glm::clamp(wf, 0.55f, 1.62f);
+						float humid2 = 1.0f - wetness*0.72f - rainInt*0.40f;
+						humid2 = glm::clamp(humid2, 0.15f, 1.0f);
+						float up2 = (d[1]==1)?1.22f:(d[1]==-1?0.75f:1.0f);
+						float chance2 = bestFlam*36.f * wf * humid2 * up2;
+						chance2 = glm::clamp(chance2, 0.8f, 72.f);
+						if((rand()%100) < (int)chance2){
+							toIgnite.push_back({nx,ny,nz});
+						}
+					}
+				}
+			}
+			for(auto &p: toConsume){
+				Block air; air.setType(BlockTypes::air); air.setLightLevel(0);
+				gameData.chunkSystem.placeBlockNoClient(p, air, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+				fireAge.erase(posKey(p.x,p.y,p.z));
+			}
+			for(auto &p: toIgnite){
+				auto cur = gameData.chunkSystem.getBlockSafe(p.x,p.y,p.z);
+				if(!cur || cur->getType()!=BlockTypes::air) continue;
+				bool stillFuel=false;
+				const int dirs2[6][3]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+				for(auto &d: dirs2){ auto a2=gameData.chunkSystem.getBlockSafe(p.x+d[0],p.y+d[1],p.z+d[2]); if(a2 && (isFlammable(a2->getType()) || a2->getType()==BlockTypes::fire)) stillFuel=true; }
+				if(!stillFuel) continue;
+				Block fire; fire.setType(BlockTypes::fire); fire.setLightLevel(13);
+				gameData.chunkSystem.placeBlockNoClient(p, fire, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+				fireAge[posKey(p.x,p.y,p.z)]=0.f;
+			}
+			for(auto &p: toExtinguish){
+				auto cur = gameData.chunkSystem.getBlockSafe(p.x,p.y,p.z);
+				if(cur && cur->getType()==BlockTypes::fire){
+					Block air; air.setType(BlockTypes::air); air.setLightLevel(0);
+					gameData.chunkSystem.placeBlockNoClient(p, air, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+				}
+			}
+			if(fireAge.size()>2200){
+				auto it = fireAge.begin();
+				for(int i=0;i<200 && it!=fireAge.end(); ++i) it = fireAge.erase(it);
+			}
+		}
+		if(programData.weatherState.ambientFlash>0.11f)
+		{
+			glm::vec3 strikePos;
+			if(programData.weatherState.consumeLightningStrike(strikePos))
+			{
+				float roll = (rand()%100)+ (rand()%100)/100.f;
+				float chance = 0.f;
+				if(programData.weatherState.type==Weather_Storm) chance = LIGHTNING_FIRE_CHANCE_STORM;
+				else if(programData.weatherState.type==Weather_Rain) chance = LIGHTNING_FIRE_CHANCE_RAIN;
+				else chance = 4.f;
+				chance *= (1.0f - programData.weatherState.wetness*0.55f);
+				chance *= (1.0f - programData.weatherState.intensity*0.22f);
+				chance = glm::clamp(chance, 0.f, 92.f);
+				bool ignite = roll < chance;
+				if(ignite){
+					int sx = (int)floor(strikePos.x);
+					int sz = (int)floor(strikePos.z);
+					for(int sy = (int)floor(strikePos.y); sy > 48; sy--)
+					{
+						auto b = gameData.chunkSystem.getBlockSafe(sx, sy, sz);
+						if(!b) continue;
+						if(isFlammable(b->getType()))
+						{
+							Block fire; fire.setType(BlockTypes::fire); fire.setLightLevel(13);
+							gameData.chunkSystem.placeBlockNoClient({sx, sy+1, sz}, fire, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+							fireAge[posKey(sx,sy+1,sz)]=0.f;
+							if((rand()%100)<68){
+								gameData.chunkSystem.placeBlockNoClient({sx, sy, sz}, fire, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+								fireAge[posKey(sx,sy,sz)]=0.f;
+							}
+							for(int dx=-1;dx<=1;dx++) for(int dy=-1;dy<=1;dy++) for(int dz=-1;dz<=1;dz++)
+							{
+								if(dx==0 && dy==0 && dz==0) continue;
+								auto nb = gameData.chunkSystem.getBlockSafe(sx+dx, sy+dy, sz+dz);
+								if(nb && isFlammable(nb->getType()))
+								{
+									float flam = getFlammability(nb->getType());
+									float r = (rand()%100)/100.f;
+									if(r < flam*0.58f){
+										Block f; f.setType(BlockTypes::fire); f.setLightLevel(13);
+										gameData.chunkSystem.placeBlockNoClient({sx+dx, sy+dy, sz+dz}, f, gameData.lightSystem, nullptr, gameData.interaction, gameData.entityManager);
+										fireAge[posKey(sx+dx,sy+dy,sz+dz)]=0.f;
+									}
+								}
+							}
+							break;
+						}
+						if(!b->air() && b->getType()!=BlockTypes::fire) break;
+					}
+				}
+			}
+		}
+	}
+	// dano fogo player
+	{
+		auto p = from3DPointToBlock(player.entity.position + glm::dvec3(0,0.8,0));
+		auto b = gameData.chunkSystem.getBlockSafe(p.x,p.y,p.z);
+		auto b2 = gameData.chunkSystem.getBlockSafe(p.x,p.y-1,p.z);
+		if((b && b->getType()==BlockTypes::fire) || (b2 && b2->getType()==BlockTypes::fire)){
+			static float fireDmg=0; fireDmg+=deltaTime;
+			if(fireDmg>0.6f){ fireDmg=0; dealDamageToLocalPlayer(2); gameData.hitLensDirt=0.6f; }
+		}
+	}
 #pragma endregion
 
 	programData.renderer.entityRenderer.itemEntitiesToRender.push_back({gameData.entityTest});
@@ -2037,6 +2453,62 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 	//dayTime += deltaTime * 0.05f;
 	if (dayTime > 0) { dayTime -= (int)dayTime; }
 	globalDayTime = dayTime;
+
+	// Update weather from global state
+	{
+		int wType = getWeatherGlobally();
+		WeatherType wt = (WeatherType)wType;
+		if (programData.weatherState.type != wt)
+		{
+			programData.weatherState.setWeather(wt);
+		}
+		programData.weatherState.update(deltaTime, glm::vec3(gameData.c.position), gameData.lastFrameInWater);
+		setWetnessGlobally(programData.weatherState.wetness);
+		globalWeatherStatePtr = &programData.weatherState;
+		programData.renderer.wetness = programData.weatherState.wetness;
+
+		// Weather sounds
+		{
+			static float rainSoundTimer = 0.f;
+			static float windSoundTimer = 0.f;
+
+			// Rain ambient: play periodically while raining
+			if (programData.weatherState.raining && programData.weatherState.intensity > 0.3f)
+			{
+				rainSoundTimer += deltaTime;
+				if (rainSoundTimer > 2.5f)
+				{
+					rainSoundTimer = 0.f;
+					AudioEngine::playSound(AudioEngine::rainAmbient, programData.weatherState.intensity * 0.5f);
+				}
+			}
+			else
+			{
+				rainSoundTimer = 2.f; // delay before first play
+			}
+
+			// Thunder: play when lightning flashes
+			if (programData.weatherState.ambientFlash > 0.8f)
+			{
+				AudioEngine::playSound(AudioEngine::thunder, 0.8f);
+			}
+
+			// Wind: play periodically in storms/snow
+			if (programData.weatherState.type == Weather_Storm || programData.weatherState.type == Weather_Snow)
+			{
+				windSoundTimer += deltaTime;
+				if (windSoundTimer > 4.f)
+				{
+					windSoundTimer = 0.f;
+					AudioEngine::playSound(AudioEngine::wind, programData.weatherState.intensity * 0.4f);
+				}
+			}
+			else
+			{
+				windSoundTimer = 3.f;
+			}
+		}
+	}
 
 #pragma endregion
 
@@ -2379,8 +2851,23 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			glm::vec3 fp = glm::vec3(par.pos - glm::dvec3(ip));
 			programData.gyzmosRenderer.drawCube(ip, fp, glm::vec3(0.14f));
 		}
+		if(programData.weatherState.intensity>0.01f){
+			for(auto &p : programData.weatherState.particles){
+				if(p.life<=0) continue;
+				glm::dvec3 s = glm::dvec3(p.position);
+				glm::dvec3 e = glm::dvec3(p.position) + glm::dvec3(p.velocity)*0.045;
+				if(programData.weatherState.type==Weather_Snow) programData.gyzmosRenderer.drawCube(glm::ivec3(s), glm::vec3(0), glm::vec3(0.12f));
+				else programData.gyzmosRenderer.drawLine(s, e);
+			}
+			for(size_t i=1;i<programData.weatherState.currentBolt.points.size();i++){
+				programData.gyzmosRenderer.drawLine(programData.weatherState.currentBolt.points[i-1], programData.weatherState.currentBolt.points[i]);
+			}
+		}
 
 		programData.gyzmosRenderer.render(gameData.c, posInt, posFloat);
+		if(programData.weatherState.ambientFlash>0.01f){
+			programData.ui.renderer2d.renderRectangle({0,0, programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH}, glm::vec4(1,1,1, programData.weatherState.ambientFlash*0.5f));
+		}
 
 		programData.GPUProfiler.endSubProfile("Debug rendering");
 	}
@@ -2436,6 +2923,30 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		r2d.renderRectangle({x, y, barW, barH}, {0.3,0.3,0.3,0.8});
 		glm::vec4 col = {0.2f + pct*0.8f, 0.8f - pct*0.5f, 0.2f, 1.f};
 		r2d.renderRectangle({x, y, (int)(barW * pct), barH}, col);
+	}
+	if (gameData.fishingManager.bobber.active && !gameData.isInsideMapView && !gameData.isInsideChat)
+	{
+		auto &r2d = programData.ui.renderer2d;
+		int w = r2d.windowW;
+		int h = r2d.windowH;
+		std::string stateStr;
+		glm::vec4 col{0.2f,0.6f,0.9f,1.f};
+		float pct=0;
+		switch(gameData.fishingManager.bobber.state){
+			case FishingState::Waiting: stateStr="Esperando peixe..."; pct=gameData.fishingManager.bobber.waterTimer/3.f; col={0.3f,0.5f,0.7f,1.f}; break;
+			case FishingState::Nibbling: stateStr="Peixe se aproximando..."; pct=gameData.fishingManager.bobber.fishApproach; col={0.9f,0.7f,0.2f,1.f}; break;
+			case FishingState::Biting: stateStr="RECOLHA AGORA! [Clique]"; pct=gameData.fishingManager.bobber.progress; col={0.9f,0.2f,0.2f,1.f}; break;
+			default: stateStr="Pescando..."; break;
+		}
+		int barW=220; int barH=14; int x=w/2-barW/2; int y=h/2+70;
+		r2d.renderRectangle({x-2,y-2,barW+4,barH+18}, {0,0,0,0.65});
+		r2d.renderText({w/2, y-10}, stateStr.c_str(), programData.ui.font, Colors_White, 14.f, -1);
+		r2d.renderRectangle({x,y,barW,barH}, {0.25f,0.25f,0.28f,0.9f});
+		r2d.renderRectangle({x,y,(int)(barW*std::clamp(pct,0.f,1.f)),barH}, col);
+		if(gameData.fishingManager.bobber.state==FishingState::Biting){
+			float pulse = (sin(gameData.fishingManager.bobber.stateTimer*12.f)*0.5f+0.5f);
+			r2d.renderRectangle({x-1,y-1,barW+2,barH+2}, {1,1,0.3f,0.3f+ pulse*0.3f});
+		}
 	}
 
 #pragma region imgui
@@ -3081,6 +3592,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		{
 			gameData.isInsideChat = true;
 			gameData.chatBufferPosition = 0;
+			gameData.chatCursor = 0;
 			memset(gameData.chatBuffer, 0, sizeof(gameData.chatBuffer));
 		}
 
@@ -3088,6 +3600,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		{
 			gameData.isInsideChat = true;
 			gameData.chatBufferPosition = 1;
+			gameData.chatCursor = 1;
 			memset(gameData.chatBuffer, 0, sizeof(gameData.chatBuffer));
 			gameData.chatBuffer[0] = '/';
 		}
@@ -3098,31 +3611,64 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			auto typedInput = platform::getTypedInput();
 			for (auto c : typedInput)
 			{
-
 				if (c == '\b')
 				{
-					if (gameData.chatBufferPosition > 0)
+					if (gameData.chatCursor > 0 && gameData.chatBufferPosition>0)
 					{
+						memmove(gameData.chatBuffer + gameData.chatCursor -1, gameData.chatBuffer + gameData.chatCursor, gameData.chatBufferPosition - gameData.chatCursor +1);
+						gameData.chatCursor--;
 						gameData.chatBufferPosition--;
-						gameData.chatBuffer[gameData.chatBufferPosition] = 0;
 					}
-
 				}
-				else
-				if (gameData.chatBufferPosition < sizeof(gameData.chatBuffer) - 1)
+				else if (gameData.chatBufferPosition < (int)sizeof(gameData.chatBuffer) - 1)
 				{
-					if (c != '\n')
+					if (c != '\n' && c!='\r')
 					{
-						gameData.chatBuffer[gameData.chatBufferPosition] = c;
+						memmove(gameData.chatBuffer + gameData.chatCursor +1, gameData.chatBuffer + gameData.chatCursor, gameData.chatBufferPosition - gameData.chatCursor +1);
+						gameData.chatBuffer[gameData.chatCursor] = c;
+						gameData.chatCursor++;
 						gameData.chatBufferPosition++;
 					}
 				}
-				else
-				{
-					
-				}
 			}
 			gameData.chatBuffer[gameData.chatBufferPosition] = 0;
+			{
+				bool ctrl = platform::isKeyHeld(platform::Button::LeftCtrl);
+				if(ctrl && platform::isKeyPressedOn(platform::Button::C) && gameData.chatBufferPosition>0){
+					platform::setClipboardText(std::string(gameData.chatBuffer));
+				}
+				if(ctrl && platform::isKeyPressedOn(platform::Button::V)){
+					auto cb = platform::getClipboardText();
+					for(char ch: cb){ if(gameData.chatBufferPosition < (int)sizeof(gameData.chatBuffer)-1 && ch!='\n'){ gameData.chatBuffer[gameData.chatBufferPosition++]=ch; } }
+					gameData.chatBuffer[gameData.chatBufferPosition]=0;
+				}
+				if(platform::isKeyPressedOn(platform::Button::Tab) && gameData.chatBufferPosition==0){
+					gameData.chatBuffer[0]='/'; gameData.chatBufferPosition=1; gameData.chatBuffer[1]=0;
+				}
+				if(platform::isKeyReleased(platform::Button::Left) && gameData.chatCursor>0) gameData.chatCursor--;
+				if(platform::isKeyReleased(platform::Button::Right) && gameData.chatCursor < gameData.chatBufferPosition) gameData.chatCursor++;
+				if(gameData.chatCursor<0) gameData.chatCursor=0;
+				if(gameData.chatCursor>gameData.chatBufferPosition) gameData.chatCursor=gameData.chatBufferPosition;
+				if(gameData.commandSuggestions.empty()){
+					if(platform::isKeyReleased(platform::Button::Up) && !gameData.chatHistory.empty()){
+						if(gameData.chatHistoryIndex < (int)gameData.chatHistory.size()-1) gameData.chatHistoryIndex++;
+						auto s = gameData.chatHistory[gameData.chatHistory.size()-1 - gameData.chatHistoryIndex];
+						strncpy(gameData.chatBuffer, s.c_str(), sizeof(gameData.chatBuffer)-1);
+						gameData.chatBufferPosition = s.size();
+						gameData.chatCursor = gameData.chatBufferPosition;
+					}
+					if(platform::isKeyReleased(platform::Button::Down)){
+						if(gameData.chatHistoryIndex>0) gameData.chatHistoryIndex--;
+						else if(gameData.chatHistoryIndex==0){ gameData.chatHistoryIndex=-1; gameData.chatBuffer[0]=0; gameData.chatBufferPosition=0; gameData.chatCursor=0; }
+						if(gameData.chatHistoryIndex>=0){
+							auto s = gameData.chatHistory[gameData.chatHistory.size()-1 - gameData.chatHistoryIndex];
+							strncpy(gameData.chatBuffer, s.c_str(), sizeof(gameData.chatBuffer)-1);
+							gameData.chatBufferPosition = s.size();
+							gameData.chatCursor = gameData.chatBufferPosition;
+						}
+					}
+				}
+			}
 
 
 			auto &renderer = programData.ui.renderer2d;
@@ -3274,10 +3820,13 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			if (platform::isKeyReleased(platform::Button::Enter) && 
 				gameData.chatBufferPosition)
 			{
-
+				gameData.chatHistory.push_back(std::string(gameData.chatBuffer));
+				if(gameData.chatHistory.size()>30) gameData.chatHistory.erase(gameData.chatHistory.begin());
+				gameData.chatHistoryIndex=-1;
 				sendPacket(getServer(), headerSendChat, player.entityId,
 					gameData.chatBuffer, gameData.chatBufferPosition+1, true, channelHandleConnections);
 				gameData.chatBufferPosition = 0;
+				gameData.chatCursor=0;
 				memset(gameData.chatBuffer, 0, sizeof(gameData.chatBuffer));
 
 				gameData.isInsideChat = false;
@@ -3622,7 +4171,8 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 	{
 		if (platform::isKeyReleased(platform::Button::Escape))
 		{
-			exitInventoryMenu();
+			if (programData.ui.isItemSearchFocused()) programData.ui.setItemSearchFocused(false);
+			else exitInventoryMenu();
 		}
 	}
 	else if (gameData.isInsideMapView)
@@ -3808,15 +4358,15 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 
 void closeGameLogic()
 {
+	static bool cleaning = false;
+	if (cleaning) return;
+	cleaning = true;
+	threadPoolForChunkBaking.cleanup();
 	gameData.chunkSystem.cleanup(false);
 	gameData.currentSkinTexture.cleanup();
 	gameData.entityManager.cleanup();
-	
 	gameData.mapEngine.close();
-
-	//free all resources
 	gameData.clearData();
-	threadPoolForChunkBaking.cleanup();
 	AudioEngine::stopAllMusicAndSounds();
-
+	cleaning = false;
 }

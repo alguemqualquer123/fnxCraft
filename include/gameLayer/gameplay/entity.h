@@ -50,6 +50,8 @@ namespace Markers
 	{
 		none = 0,
 		droppedItem,
+		bee,
+		queenBee,
 
 
 	};
@@ -869,11 +871,10 @@ struct ClientEntity
 
 
 		#pragma region first normal animation
-
+			if(animationStateClient.currentAnimation >= 0 && animationStateClient.currentAnimation < (int)(sizeof(model.animationsIndex)/sizeof(model.animationsIndex[0])))
+			{
 			int animationIndex = model.animationsIndex[animationStateClient.currentAnimation];
-
-
-			if (animationIndex >= 0)
+			if (animationIndex >= 0 && animationIndex < (int)model.animations.size())
 			{
 				Animation &animation = model.animations[animationIndex];
 
@@ -916,6 +917,7 @@ struct ClientEntity
 				}
 
 
+			}
 			}
 		#pragma endregion
 

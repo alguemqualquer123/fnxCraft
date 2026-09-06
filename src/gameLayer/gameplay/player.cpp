@@ -48,15 +48,21 @@ void Player::moveFPS(glm::vec3 direction, glm::vec3 lookDirection, float deltaTi
 
 glm::vec3 Player::getColliderSize()
 {
+	if(isProne) return glm::vec3(0.8,0.6,0.8);
+	if(isCrouching) return glm::vec3(0.8,1.2,0.8);
 	return getMaxColliderSize();
 }
 
 void Player::update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter)
 {
-	// Check if player is in water (at mid-body height so the player floats stably at the
-	// surface instead of rapidly bobbing between "in water" and "in air" at feet level)
 	glm::dvec3 waterCheck = position + glm::dvec3(0, 0.6, 0);
-	bool inWater = isPositionInWater(waterCheck, chunkGetter);
+	glm::dvec3 footCheck = position + glm::dvec3(0, 0.15, 0);
+	glm::dvec3 headCheck = position + glm::dvec3(0, 1.4, 0);
+	bool midWater = isPositionInWater(waterCheck, chunkGetter);
+	bool footWater = isPositionInWater(footCheck, chunkGetter);
+	bool headWater = isPositionInWater(headCheck, chunkGetter);
+	bool inWater = midWater || footWater;
+	isSwimmingAnim = inWater;
 
 	if (inWater && !fly)
 	{
@@ -64,10 +70,10 @@ void Player::update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter
 		PhysicalSettings ps;
 		ps.gravityModifier = 0.3f;  // Reduced gravity in water
 
-		// Apply water buoyancy and drag
 		applyWaterPhysics(forces, position, deltaTime, ps, true, WATER_BUOYANCY_FORCE);
 
 		updateForces(deltaTime, true, ps);
+		if(headWater) forces.velocity.y = glm::max(forces.velocity.y, -1.2f);
 	}
 	else
 	{
@@ -90,12 +96,57 @@ void PlayerClient::update(float deltaTime, decltype(chunkGetterSignature) *chunk
 	entityBuffered.update(deltaTime, chunkGetter);
 }
 
-void PlayerClient::setEntityMatrix(glm::mat4 *skinningMatrix)
+void PlayerClient::setEntityMatrix(glm::mat4 *m)
 {
-
-	//skinningMatrix[0] = skinningMatrix[0] * glm::toMat4(
-	//	glm::quatLookAt(glm::normalize(entityBuffered.lookDirectionAnimation), glm::vec3(0, 1, 0)));
-
+	auto &e = entityBuffered;
+	float leg = getLegsAngle();
+	if(animationStateClient.isAttacking){
+		float t = animationStateClient.attackTimer;
+		float swing = sin(t*14.f) * 0.9f;
+		float hit = glm::clamp(swing, -0.9f, 0.9f);
+		if(m[4].length()>0) m[4] = m[4] * glm::rotate(hit*1.2f, glm::vec3(1,0,0)) * glm::rotate(hit*0.4f, glm::vec3(0,0,1));
+		if(m[5].length()>0) m[5] = m[5] * glm::rotate(hit*0.2f, glm::vec3(1,0,0));
+		if(m[0].length()>0) m[0] = m[0] * glm::rotate(hit*0.15f, glm::vec3(0,1,0));
+	}
+	if(leg!=0 || e.movementSpeedForLegsAnimations!=0){
+		if(leg==0 && e.movementSpeedForLegsAnimations!=0) leg = sin(e.crouchTransition*8.f)*0.35f;
+		if(m[2].length()>0) m[2] = m[2] * glm::rotate(leg, glm::vec3(1,0,0));
+		if(m[3].length()>0) m[3] = m[3] * glm::rotate(-leg, glm::vec3(1,0,0));
+		float arm = leg*0.5f;
+		if(e.isSwimmingAnim){
+			float s = sin(e.crouchTransition*12 + leg*3) * 0.7f;
+			if(m[4].length()>0) m[4] = m[4] * glm::rotate(s, glm::vec3(1,0,0));
+			if(m[5].length()>0) m[5] = m[5] * glm::rotate(-s, glm::vec3(1,0,0));
+		}else if(!animationStateClient.isAttacking){
+			if(m[4].length()>0) m[4] = m[4] * glm::rotate(-arm, glm::vec3(1,0,0));
+			if(m[5].length()>0) m[5] = m[5] * glm::rotate(arm, glm::vec3(1,0,0));
+		}
+		if(e.isRunning && !e.isCrouching && !e.isProne){
+			float bob = fabs(sin(leg*2.2f))*0.07f;
+			for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = glm::translate(glm::vec3(0,bob,0)) * m[i];
+		}
+	}
+	if(!e.forces.colidesBottom() && !e.isSwimmingAnim){
+		float fallTilt = glm::clamp(e.forces.velocity.y * -0.06f, -0.4f, 0.4f);
+		if(m[0].length()>0) m[0] = m[0] * glm::rotate(fallTilt, glm::vec3(1,0,0));
+	}
+	if(e.isProne){
+		glm::mat4 rot = glm::rotate(glm::radians(85.f), glm::vec3(1,0,0));
+		glm::mat4 tr = glm::translate(glm::vec3(0,-0.7f,0.3f));
+		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * rot * m[i];
+	}else if(e.isSwimmingAnim){
+		glm::mat4 rot = glm::rotate(glm::radians(75.f), glm::vec3(1,0,0));
+		glm::mat4 tr = glm::translate(glm::vec3(0,-0.4f,0));
+		float bob = sin(e.crouchTransition*10)*0.05f;
+		tr = glm::translate(glm::vec3(0,bob,0)) * tr;
+		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * rot * m[i];
+	}else if(e.isCrouching){
+		glm::mat4 tr = glm::translate(glm::vec3(0,-0.25f,0));
+		glm::mat4 sc = glm::scale(glm::vec3(1,0.85f,1));
+		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * sc * m[i];
+		if(m[2].length()>0) m[2] = m[2] * glm::rotate(glm::radians(15.f), glm::vec3(1,0,0));
+		if(m[3].length()>0) m[3] = m[3] * glm::rotate(glm::radians(15.f), glm::vec3(1,0,0));
+	}
 }
 
 int PlayerClient::getTextureIndex()
@@ -143,12 +194,28 @@ float PlayerServer::calculateHealingRegenTime()
 EntityStats getPlayerStats(PlayerInventory &inventory)
 {
 	EntityStats rez;
-
-	//base player stats
 	rez.armour = 0;
 	rez.runningSpeed = 8;
-
-
-
+	auto add = [&](Item &it){ if(it.type){ EntityStats s=it.getItemStats(); rez.add(s); } };
+	add(inventory.headArmour);
+	add(inventory.chestArmour);
+	add(inventory.bootsArmour);
+	for(int i=PlayerInventory::EQUIPEMENT_START_INDEX;i<PlayerInventory::EQUIPEMENT_START_INDEX+PlayerInventory::MAX_EQUIPEMENT_SLOTS;i++){
+		auto *it = inventory.getItemFromIndex(i,nullptr);
+		if(it && it->type){ EntityStats s=it->getItemStats(); rez.add(s); }
+	}
+	auto isLeather = [](Item&a,Item&b,Item&c){return a.type==leatherHelmet&&b.type==leatherChestPlate&&c.type==leatherBoots;};
+	auto isCopper = [](Item&a,Item&b,Item&c){return a.type==copperHelmet&&b.type==copperChestPlate&&c.type==copperBoots;};
+	auto isLead = [](Item&a,Item&b,Item&c){return a.type==leadHelmet&&b.type==leadChestPlate&&c.type==leadBoots;};
+	auto isIron = [](Item&a,Item&b,Item&c){return a.type==ironHelmet&&b.type==ironChestPlate&&c.type==ironBoots;};
+	auto isSilver = [](Item&a,Item&b,Item&c){return a.type==silverHelmet&&b.type==silverChestPlate&&c.type==silverBoots;};
+	auto isGold = [](Item&a,Item&b,Item&c){return a.type==goldHelmet&&b.type==goldChestPlate&&c.type==goldBoots;};
+	if(isLeather(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 1;
+	else if(isCopper(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 2;
+	else if(isLead(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 1;
+	else if(isIron(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 1;
+	else if(isSilver(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 2;
+	else if(isGold(inventory.headArmour,inventory.chestArmour,inventory.bootsArmour)) rez.armour += 2;
+	rez.normalize();
 	return rez;
 }

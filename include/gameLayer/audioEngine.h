@@ -82,6 +82,11 @@ namespace AudioEngine
 		waterSwim,
 		waterExit,
 
+		// Weather sounds
+		rainAmbient,
+		thunder,
+		wind,
+
 		LAST_SOUND
 	};
 

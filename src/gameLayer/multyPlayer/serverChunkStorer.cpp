@@ -1,3 +1,4 @@
+#include <type_traits>
 #include "multyPlayer/serverChunkStorer.h"
 #include <iostream>
 #include <chunkSystem.h>
@@ -1387,7 +1388,7 @@ void ServerChunkStorer::cleanup()
 	{
 		delete c.second;
 	}
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 }
 
 

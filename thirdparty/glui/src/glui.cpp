@@ -1511,13 +1511,21 @@ namespace glui
 					}
 
 					std::string textCopy = text;
-
+					bool isPlaceholder = false;
 					if (j.second.displayText)
 					{
 						textCopy = getString(j.first) + textCopy;
 					}
+					else
+					{
+						if (textCopy.empty())
+						{
+							textCopy = getString(j.first);
+							isPlaceholder = true;
+						}
+					}
 
-					if (enabled)
+					if (enabled && !isPlaceholder)
 					{
 						if ((int)timer % 2)
 						{
@@ -1525,7 +1533,8 @@ namespace glui
 						}
 					}
 
-					renderText(renderer, textCopy, font, transform, Colors_White, true,
+					glm::vec4 txtCol = isPlaceholder ? glm::vec4(0.6f,0.6f,0.65f,0.55f) : Colors_White;
+					renderText(renderer, textCopy, font, transform, txtCol, true,
 						!hovered);
 
 

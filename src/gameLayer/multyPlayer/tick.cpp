@@ -12,6 +12,24 @@
 #include <gameplay/gameplayRules.h>
 #include <gameplay/crafting.h>
 #include <gameplay/food.h>
+#include <multyPlayer/server.h>
+#include <gameplay/slime.h>
+#include <gameplay/skeleton.h>
+#include <gameplay/enderling.h>
+#include <gameplay/creeper.h>
+#include <gameplay/mistGhost.h>
+#include <gameplay/hermitCrab.h>
+#include <gameplay/honeyBear.h>
+#include <gameplay/lavaSlug.h>
+#include <gameplay/crystalSentinel.h>
+#include <gameplay/blacksmithVillager.h>
+#include <gameplay/herbalistVillager.h>
+#include <gameplay/skeletonPirate.h>
+#include <gameplay/juvenileDragon.h>
+#include <gameplay/crystalGolem.h>
+#include <gameLayer/audioEngine.h>
+#include <weather.h>
+#include <gamePlayLogic.h>
 
 template <class T, class E>
 void genericBroadcastEntityUpdateFromServerToPlayer(E &e, bool reliable,
@@ -106,6 +124,7 @@ void entityDeleteFromServerToPlayer(Client &client,
 }
 
 
+extern bool g_mobsFrozen;
 template<class T>
 bool genericCallUpdateForEntity(T &e,
 	float deltaTime, ChunkData *(chunkGetter)(glm::ivec2),
@@ -116,6 +135,10 @@ bool genericCallUpdateForEntity(T &e,
 	std::unordered_map < std::uint64_t, Client *> &allClients
 	)
 {
+	if(g_mobsFrozen){
+		if constexpr (hasForces<decltype(e.second.entity)>) e.second.entity.forces.velocity = {};
+		return true;
+	}
 	float time = deltaTime;
 	if constexpr (hasRestantTimer<decltype(e.second)>)
 	{
@@ -364,9 +387,6 @@ bool spawnCat(
 	Cat cat, WorldSaver &worldSaver,
 	std::minstd_rand &rng)
 {
-	//todo also send packets
-	//todo generic spawn for any entity
-
 	auto chunkPos = determineChunkThatIsEntityIn(cat.position);
 	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
 	if (c)
@@ -374,11 +394,55 @@ bool spawnCat(
 		CatServer e = {};
 		e.entity = cat;
 		e.configureSpawnSettings(rng);
-
 		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::cats);
 		c->entityData.cats.insert({newId, e});
 		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
 
+bool spawnSheep(
+	ServerChunkStorer &chunkManager,
+	Sheep sheep, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(sheep.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		SheepServer e = {};
+		e.entity = sheep;
+		e.configureSpawnSettings(rng);
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::sheeps);
+		c->entityData.sheeps.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+
+bool spawnCow(
+	ServerChunkStorer &chunkManager,
+	Cow cow, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(cow.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		CowServer e = {};
+		e.entity = cow;
+		e.configureSpawnSettings(rng);
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::cows);
+		c->entityData.cows.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
 	}
 	else
 	{
@@ -393,9 +457,6 @@ bool spawnFish(
 	Fish fish, WorldSaver &worldSaver,
 	std::minstd_rand &rng)
 {
-	//todo also send packets
-	//todo generic spawn for any entity
-
 	auto chunkPos = determineChunkThatIsEntityIn(fish.position);
 	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
 	if (c)
@@ -403,11 +464,9 @@ bool spawnFish(
 		FishServer e = {};
 		e.entity = fish;
 		e.entity.fishType = fish.fishType;
-
 		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::fish);
 		c->entityData.fish.insert({newId, e});
 		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
-
 	}
 	else
 	{
@@ -415,6 +474,104 @@ bool spawnFish(
 	}
 	return 1;
 }
+bool spawnSkeleton(
+	ServerChunkStorer &chunkManager,
+	Skeleton skeleton, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(skeleton.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		SkeletonServer e = {};
+		e.entity = skeleton;
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::skeletons);
+		c->entityData.skeletons.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+
+bool spawnEnderling(
+	ServerChunkStorer &chunkManager,
+	Enderling enderling, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(enderling.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if(c){ EnderlingServer e={}; e.entity=enderling; auto newId=getEntityIdAndIncrement(worldSaver, EntityType::enderlings); c->entityData.enderlings.insert({newId,e}); chunkManager.entityChunkPositions[newId]=determineChunkThatIsEntityIn(e.getPosition()); } else return 0; return 1;
+}
+
+bool spawnSlime(
+	ServerChunkStorer &chunkManager,
+	Slime slime, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(slime.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		SlimeServer e = {};
+		e.entity = slime;
+		e.configureSpawnSettings(rng, slime.slimeSize);
+		e.entity.position = slime.position;
+		e.entity.lastPosition = slime.position;
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::slime);
+		c->entityData.slime.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+bool spawnCreeper(
+	ServerChunkStorer &chunkManager,
+	Creeper creeper, WorldSaver &worldSaver,
+	std::minstd_rand &rng)
+{
+	auto chunkPos = determineChunkThatIsEntityIn(creeper.position);
+	auto c = chunkManager.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+	if (c)
+	{
+		CreeperServer e = {};
+		e.entity = creeper;
+		auto newId = getEntityIdAndIncrement(worldSaver, EntityType::creepers);
+		c->entityData.creepers.insert({newId, e});
+		chunkManager.entityChunkPositions[newId] = determineChunkThatIsEntityIn(e.getPosition());
+	}
+	else
+	{
+		return 0;
+	}
+	return 1;
+}
+bool spawnNomadTrader(ServerChunkStorer &chunkManager, NomadTrader v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ NomadTraderServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::nomadTraders); c->entityData.nomadTraders.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnMimicChest(ServerChunkStorer &chunkManager, MimicChest v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ MimicChestServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::mimicChests); c->entityData.mimicChests.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnLightFairy(ServerChunkStorer &chunkManager, LightFairy v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ LightFairyServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::lightFairies); c->entityData.lightFairies.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnArmoredBoar(ServerChunkStorer &chunkManager, ArmoredBoar v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ ArmoredBoarServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::armoredBoars); c->entityData.armoredBoars.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnSandSerpent(ServerChunkStorer &chunkManager, SandSerpent v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ SandSerpentServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::sandSerpents); c->entityData.sandSerpents.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnCaveSpider(ServerChunkStorer &chunkManager, CaveSpider v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CaveSpiderServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::caveSpiders); c->entityData.caveSpiders.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnCrystalBat(ServerChunkStorer &chunkManager, CrystalBat v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CrystalBatServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::crystalBats); c->entityData.crystalBats.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnCapybaraChef(ServerChunkStorer &chunkManager, CapybaraChef v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CapybaraChefServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::capybaraChefs); c->entityData.capybaraChefs.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnRiverGuardian(ServerChunkStorer &chunkManager, RiverGuardian v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ RiverGuardianServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::riverGuardians); c->entityData.riverGuardians.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnTreeEnt(ServerChunkStorer &chunkManager, TreeEnt v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ TreeEntServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::treeEnts); c->entityData.treeEnts.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnMistGhost(ServerChunkStorer &chunkManager, MistGhost v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ MistGhostServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::mistGhosts); c->entityData.mistGhosts.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnHermitCrab(ServerChunkStorer &chunkManager, HermitCrab v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ HermitCrabServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::hermitCrabs); c->entityData.hermitCrabs.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnHoneyBear(ServerChunkStorer &chunkManager, HoneyBear v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ HoneyBearServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::honeyBears); c->entityData.honeyBears.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnLavaSlug(ServerChunkStorer &chunkManager, LavaSlug v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ LavaSlugServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::lavaSlugs); c->entityData.lavaSlugs.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnCrystalSentinel(ServerChunkStorer &chunkManager, CrystalSentinel v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CrystalSentinelServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::crystalSentinels); c->entityData.crystalSentinels.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnBlacksmithVillager(ServerChunkStorer &chunkManager, BlacksmithVillager v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ BlacksmithVillagerServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::blacksmithVillagers); c->entityData.blacksmithVillagers.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnHerbalistVillager(ServerChunkStorer &chunkManager, HerbalistVillager v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ HerbalistVillagerServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::herbalistVillagers); c->entityData.herbalistVillagers.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnSkeletonPirate(ServerChunkStorer &chunkManager, SkeletonPirate v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ SkeletonPirateServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::skeletonPirates); c->entityData.skeletonPirates.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnJuvenileDragon(ServerChunkStorer &chunkManager, JuvenileDragon v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ JuvenileDragonServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::juvenileDragons); c->entityData.juvenileDragons.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnCrystalGolem(ServerChunkStorer &chunkManager, CrystalGolem v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CrystalGolemServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::crystalGolems); c->entityData.crystalGolems.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnHydra(ServerChunkStorer &chunkManager, Hydra v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ HydraServer e={}; e.entity=v; e.variant=v.variant; auto id=getEntityIdAndIncrement(worldSaver, EntityType::hydras); c->entityData.hydras.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
 
 
 void killEntity(WorldSaver &worldSaver, std::uint64_t entity, ServerChunkStorer &chunkCache)
@@ -1487,14 +1644,12 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 
 
 								if (from && !client->playerData.killed)
-								{
-									allowed = true;
+								{									allowed = true;
 
-									
+									// Safety: skip if counter is invalid (prevents null deref)
+									if (from->counter <= 0) { allowed = false; }
 
-									if (from->counter <= 0) { from = {}; }
-
-									if (from->type == i.t.itemType)
+									if (allowed && from->type == i.t.itemType)
 								{
 
 									
@@ -1548,6 +1703,89 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 						f.lastPosition = position;
 						spawnFish(chunkCache, f, worldSaver, rng);
 					}
+					else if (from->type == ItemTypes::slimeSpawnEgg)
+					{
+						Slime s;
+						glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
+						s.position = position;
+						s.lastPosition = position;
+						s.slimeSize = 2;
+						s.life = {Slime::getHealthForSize(2)};
+						spawnSlime(chunkCache, s, worldSaver, rng);
+					}
+					else if (from->type == ItemTypes::skeletonSpawnEgg)
+					{
+						Skeleton s;
+						glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
+						s.position = position;
+						s.lastPosition = position;
+						spawnSkeleton(chunkCache, s, worldSaver, rng);
+					}
+					else if (from->type == ItemTypes::enderlingSpawnEgg)
+					{
+						Enderling e;
+						glm::dvec3 position = glm::dvec3(i.t.pos) + glm::dvec3(0.0, -0.49, 0.0);
+						e.position = position;
+						e.lastPosition = position;
+						spawnEnderling(chunkCache, e, worldSaver, rng);
+					}
+					else if (from->type == ItemTypes::nomadTraderSpawnEgg){ NomadTrader v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnNomadTrader(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::mimicChestSpawnEgg){ MimicChest v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnMimicChest(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::lightFairySpawnEgg){ LightFairy v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnLightFairy(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::armoredBoarSpawnEgg){ ArmoredBoar v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnArmoredBoar(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::sandSerpentSpawnEgg){ SandSerpent v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnSandSerpent(chunkCache,v,worldSaver,rng); }
+					else if (from->isLighter()){
+						Block *tb = chunkCache.getBlockSafe(i.t.pos);
+						if(tb && tb->getType()==BlockTypes::torchUnlit){
+							Block nb; nb.typeAndFlags = tb->typeAndFlags; nb.setType(BlockTypes::torch); nb.setLightLevel(15);
+							*tb = nb;
+							auto sc = chunkCache.getChunkOrGetNull(divideChunk(i.t.pos.x), divideChunk(i.t.pos.z));
+							if(sc) sc->otherData.dirty=true;
+							modifiedBlocks[i.t.pos]=nb;
+							allowed=true;
+							if(client->playerData.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){
+								int dur = from->getLighterDurability(); dur--; from->setLighterDurability(dur); if(dur<=0) *from={};
+							}
+						}else if(tb && tb->getType()==BlockTypes::air){
+							bool hasFuel=false; float score=0.f;
+							const int dirs[6][3]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+							for(auto &d: dirs){ auto nb2=chunkCache.getBlockSafe(i.t.pos + glm::ivec3(d[0],d[1],d[2])); if(nb2 && isFlammable(nb2->getType())){ hasFuel=true; score+=getFlammability(nb2->getType()); } }
+							auto below=chunkCache.getBlockSafe(i.t.pos + glm::ivec3(0,-1,0));
+							if(below && isFlammable(below->getType())){ hasFuel=true; score+=getFlammability(below->getType())*1.2f; }
+							if(hasFuel && score>0.12f){
+								Block fire; fire.setType(BlockTypes::fire); fire.setLightLevel(13);
+								*tb = fire;
+								auto sc = chunkCache.getChunkOrGetNull(divideChunk(i.t.pos.x), divideChunk(i.t.pos.z));
+								if(sc) sc->otherData.dirty=true;
+								modifiedBlocks[i.t.pos]=fire;
+								allowed=true;
+								if(client->playerData.otherPlayerSettings.gameMode==OtherPlayerSettings::SURVIVAL){
+									int dur = from->getLighterDurability(); dur--; from->setLighterDurability(dur); if(dur<=0) *from={};
+								}
+							}else{ allowed=false; }
+						}else{ allowed=false; }
+					}
+					else if (from->type == ItemTypes::beeSpawnEgg){ Bee v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnBee(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::queenBeeSpawnEgg){ QueenBee v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnQueenBee(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::creeperSpawnEgg){ Creeper v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCreeper(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::caveSpiderSpawnEgg){ CaveSpider v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCaveSpider(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::crystalBatSpawnEgg){ CrystalBat v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCrystalBat(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::capybaraChefSpawnEgg){ CapybaraChef v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCapybaraChef(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::riverGuardianSpawnEgg){ RiverGuardian v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnRiverGuardian(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::treeEntSpawnEgg){ TreeEnt v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnTreeEnt(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::mistGhostSpawnEgg){ MistGhost v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnMistGhost(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::hermitCrabSpawnEgg){ HermitCrab v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnHermitCrab(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::honeyBearSpawnEgg){ HoneyBear v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnHoneyBear(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::lavaSlugSpawnEgg){ LavaSlug v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnLavaSlug(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::crystalSentinelSpawnEgg){ CrystalSentinel v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCrystalSentinel(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::blacksmithVillagerSpawnEgg){ BlacksmithVillager v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnBlacksmithVillager(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::herbalistVillagerSpawnEgg){ HerbalistVillager v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnHerbalistVillager(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::skeletonPirateSpawnEgg){ SkeletonPirate v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnSkeletonPirate(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::juvenileDragonSpawnEgg){ JuvenileDragon v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnJuvenileDragon(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::crystalGolemSpawnEgg){ CrystalGolem v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCrystalGolem(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::hydraSpawnEgg){ Hydra v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; v.variant=(HydraVariant)(rng()%3); spawnHydra(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::sheepSpawnEgg){ Sheep v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnSheep(chunkCache,v,worldSaver,rng); }
+					else if (from->type == ItemTypes::cowSpawnEgg){ Cow v; glm::dvec3 p=glm::dvec3(i.t.pos)+glm::dvec3(0,-0.49,0); v.position=p; v.lastPosition=p; spawnCow(chunkCache,v,worldSaver,rng); }
 					else if (from->isEatable())
 									{
 
@@ -1623,6 +1861,118 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 											}
 
 										}
+										else if (from->isSeed() && i.t.pos.y > 0)
+										{
+											// Plant seed on dirt/grass near water
+											Block *at = chunkCache.getBlockSafe(i.t.pos);
+											Block *below = chunkCache.getBlockSafe(i.t.pos + glm::ivec3(0, -1, 0));
+											if (at && at->getType() == BlockTypes::air && below &&
+												(below->getType() == BlockTypes::dirt || below->getType() == BlockTypes::grassBlock
+												 || below->getType() == BlockTypes::coarseDirt))
+											{
+												bool hasWater = false;
+												for (int dx = -4; dx <= 4 && !hasWater; dx++)
+													for (int dz = -4; dz <= 4 && !hasWater; dz++)
+													{
+														Block *wb = chunkCache.getBlockSafe(i.t.pos + glm::ivec3(dx, -1, dz));
+														if (wb && wb->getType() == BlockTypes::water) hasWater = true;
+													}
+												if (hasWater || client->playerData.otherPlayerSettings.gameMode == OtherPlayerSettings::CREATIVE)
+												{
+													Block crop;
+													if (from->type == ItemTypes::potatoSeeds) crop.setType(BlockTypes::potatoCrop);
+													else if (from->type == ItemTypes::cornSeeds) crop.setType(BlockTypes::cornCrop);
+													else if (from->type == ItemTypes::carrotSeeds) crop.setType(BlockTypes::carrotCrop);
+													else crop.setType(BlockTypes::wheatCrop);
+													crop.setCropStage(0);
+													auto sc = chunkCache.getChunkOrGetNull(divideChunk(i.t.pos.x), divideChunk(i.t.pos.z));
+													if (sc)
+													{
+														int lx = modBlockToChunk(i.t.pos.x), lz = modBlockToChunk(i.t.pos.z);
+														auto *cb = sc->chunk.safeGet(lx, i.t.pos.y, lz);
+														if (cb)
+														{
+															*cb = crop;
+															sc->otherData.dirty = true;
+															modifiedBlocks[i.t.pos] = crop;
+														}
+													}
+												}
+											}
+										}
+										else if ((from->isBoneMealItem() || from->isFertilizerItem() || from->type == ItemTypes::compost) && i.t.pos.y > 0)
+										{
+											// Advance crop growth
+											Block *crop = chunkCache.getBlockSafe(i.t.pos);
+											if (crop && crop->isCrop())
+											{
+												int stage = crop->getCropStage();
+												if (stage < 7)
+												{
+													int inc = from->isFertilizerItem() ? 3 : (from->type == ItemTypes::compost ? 2 : 1);
+													int ns = std::min(7, stage + inc);
+													Block nb = *crop;
+													nb.setCropStage(ns);
+													auto sc = chunkCache.getChunkOrGetNull(divideChunk(i.t.pos.x), divideChunk(i.t.pos.z));
+													if (sc)
+													{
+														int lx = modBlockToChunk(i.t.pos.x), lz = modBlockToChunk(i.t.pos.z);
+														auto *cb = sc->chunk.safeGet(lx, i.t.pos.y, lz);
+														if (cb)
+														{
+															*cb = nb;
+															sc->otherData.dirty = true;
+															modifiedBlocks[i.t.pos] = nb;
+														}
+													}
+												}
+											}
+										}
+										else if (from->type == ItemTypes::wateringCan && i.t.pos.y > 0)
+										{
+											// Water crops - 50% chance to advance growth
+											Block *crop = chunkCache.getBlockSafe(i.t.pos);
+											if (crop && crop->isCrop())
+											{
+												int stage = crop->getCropStage();
+												if (stage < 7 && (rng() % 2 == 0))
+												{
+													Block nb = *crop;
+													nb.setCropStage(stage + 1);
+													auto sc = chunkCache.getChunkOrGetNull(divideChunk(i.t.pos.x), divideChunk(i.t.pos.z));
+													if (sc)
+													{
+														int lx = modBlockToChunk(i.t.pos.x), lz = modBlockToChunk(i.t.pos.z);
+														auto *cb = sc->chunk.safeGet(lx, i.t.pos.y, lz);
+														if (cb)
+														{
+															*cb = nb;
+															sc->otherData.dirty = true;
+															modifiedBlocks[i.t.pos] = nb;
+														}
+													}
+												}
+											}
+										}
+										else if (from->isEquipement())
+										{
+											// Equip item to first available equipment slot
+											auto &inv = client->playerData.inventory;
+											bool placed = false;
+											for (int i = PlayerInventory::EQUIPEMENT_START_INDEX;
+												i < PlayerInventory::EQUIPEMENT_START_INDEX + PlayerInventory::MAX_EQUIPEMENT_SLOTS; i++)
+											{
+												auto *slot = inv.getItemFromIndex(i, nullptr);
+												if (slot && slot->type == 0)
+												{
+													*slot = *from;
+													*from = {};
+													placed = true;
+													break;
+												}
+											}
+											if (!placed) allowed = false;
+										}
 										else
 										{
 											allowed = false;
@@ -1631,7 +1981,8 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 									}
 									else
 									{
-										//todo player used an item that "can't be used" hard reset here
+										// Item not handled by any use action - don't consume it
+										allowed = false;
 									}
 
 									if (
@@ -1822,15 +2173,17 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 								//we don't want to hit creative players
 								if (type == EntityType::player)
 								{
-									auto found = allClients.find(entityId);
-
-									if (found == allClients.end()) { doNotHit = true; }
-									else
-									{
-										if (found->second->playerData.otherPlayerSettings.gameMode
-											== OtherPlayerSettings::CREATIVE)
+									if(!getServerSettingsReff().pvpEnabled) doNotHit = true;
+									else {
+										auto found = allClients.find(entityId);
+										if (found == allClients.end()) { doNotHit = true; }
+										else
 										{
-											doNotHit = true;
+											if (found->second->playerData.otherPlayerSettings.gameMode
+												== OtherPlayerSettings::CREATIVE)
+											{
+												doNotHit = true;
+											}
 										}
 									}
 								}
@@ -1979,6 +2332,39 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 											else
 											{
 												std::cout << "ERROR gettint entity position!\n";
+											}
+
+											if(getEntityTypeFromEID(wasKilled)==EntityType::slime)
+											{
+												auto slimePosOpt = chunkCache.getEntityPosition(wasKilled);
+												if(slimePosOpt)
+												{
+													glm::dvec3 sp = *slimePosOpt;
+													// fetch size from entity storage before kill
+													for(auto &cc: chunkCache.savedChunks)
+													{
+														auto f = cc.second->entityData.slime.find(wasKilled);
+														if(f!=cc.second->entityData.slime.end())
+														{
+															unsigned char sz = f->second.entity.slimeSize;
+															if(sz>0)
+															{
+																unsigned char ns = sz-1;
+																for(int i=0;i<2;i++)
+																{
+																	Slime nsLime;
+																	nsLime.slimeSize = ns;
+																	nsLime.life = {Slime::getHealthForSize(ns)};
+																	glm::dvec3 off = glm::dvec3(getRandomNumberFloat(rng,-0.4f,0.4f),0.2,getRandomNumberFloat(rng,-0.4f,0.4f));
+																	nsLime.position = sp + off + glm::dvec3(0,0.3,0);
+																	nsLime.lastPosition = nsLime.position;
+																	spawnSlime(chunkCache, nsLime, worldSaver, rng);
+																}
+															}
+															break;
+														}
+													}
+												}
 											}
 
 											killEntity(worldSaver, wasKilled, chunkCache);
@@ -2273,16 +2659,20 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 
 		if (playerData.killed) { continue; }
 
+		auto &ss = getServerSettingsReff();
 		// Deplete hunger
-		playerData.hunger -= HUNGER_DEPLETION_RATE * deltaTime;
-		playerData.hunger = std::max(playerData.hunger, 0.f);
-
+		if(ss.hungerEnabled){
+			playerData.hunger -= HUNGER_DEPLETION_RATE * deltaTime;
+			playerData.hunger = std::max(playerData.hunger, 0.f);
+		} else { playerData.hunger = HUNGER_MAX; }
 		// Deplete thirst (faster)
-		playerData.thirst -= THIRST_DEPLETION_RATE * deltaTime;
-		playerData.thirst = std::max(playerData.thirst, 0.f);
+		if(ss.thirstEnabled){
+			playerData.thirst -= THIRST_DEPLETION_RATE * deltaTime;
+			playerData.thirst = std::max(playerData.thirst, 0.f);
+		} else { playerData.thirst = THIRST_MAX; }
 
 		// Starvation damage
-		if (playerData.hunger <= 0)
+		if(ss.hungerEnabled && playerData.hunger <= 0)
 		{
 			playerData.hungerDamageTimer += deltaTime;
 			if (playerData.hungerDamageTimer >= 1.f)
@@ -2297,7 +2687,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		}
 
 		// Dehydration damage
-		if (playerData.thirst <= 0)
+		if(ss.thirstEnabled && playerData.thirst <= 0)
 		{
 			playerData.thirstDamageTimer += deltaTime;
 			if (playerData.thirstDamageTimer >= 1.f)
@@ -2316,7 +2706,50 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		if (playerData.survivalTickTimer >= 0.5f)
 		{
 			playerData.survivalTickTimer = 0;
-			// TODO: send hunger/thirst to client for HUD display
+			Packet_UpdateHungerThirst pht; pht.hunger = playerData.hunger; pht.thirst = playerData.thirst;
+			Packet p; p.header = headerUpdateHungerThirst;
+			sendPacket(c.second->peer, p, (char*)&pht, sizeof(pht), true, channelChunksAndBlocks);
+		}
+	}
+#pragma endregion
+
+#pragma region weather damage
+	// Lightning strike damage and freezing in snowstorms
+	{
+		WeatherState *ws = getGlobalWeatherState();
+		if (ws)
+		{
+			// Check for pending lightning strike
+			glm::vec3 strikePos;
+			if (ws->consumeLightningStrike(strikePos))
+			{
+				for (auto &c : allClients)
+				{
+					if (c.second->playerData.killed) { continue; }
+					double dist = glm::distance(c.second->playerData.getPosition(), glm::dvec3(strikePos));
+					if (dist < ws->lightningStrikeRadius)
+					{
+						// Damage scales with proximity (closer = more damage)
+						float dmgMult = 1.f - (float)(dist / ws->lightningStrikeRadius);
+						int damage = (int)(ws->lightningStrikeDamage * dmgMult);
+						if (damage < 1) damage = 1;
+						c.second->playerData.applyDamageOrLife(-damage);
+					}
+				}
+			}
+
+			// Freezing damage in snowstorms
+			if (ws->type == Weather_Snow)
+			{
+				for (auto &c : allClients)
+				{
+					if (c.second->playerData.killed) { continue; }
+					if (ws->consumeFreezingDamage())
+					{
+						c.second->playerData.applyDamageOrLife(-WeatherState::FREEZE_DAMAGE);
+					}
+				}
+			}
 		}
 	}
 #pragma endregion
@@ -2655,6 +3088,51 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 					b = nb;
 					sc->otherData.dirty = true;
 					modifiedBlocks[wpos] = nb;
+				}
+			}
+		}
+		if((farmTick % 20)==0){
+			for(auto &kv : chunkCache.savedChunks){
+				auto *sc = kv.second;
+				if(!sc->otherData.withinSimulationDistance) continue;
+				auto &cd = sc->chunk;
+				const int baseX = kv.first.x * CHUNK_SIZE;
+				const int baseZ = kv.first.y * CHUNK_SIZE;
+				for(int x=0;x<CHUNK_SIZE;x++) for(int z=0;z<CHUNK_SIZE;z++) for(int y=0;y<CHUNK_HEIGHT;y++){
+					Block &b = cd.unsafeGet(x,y,z);
+					auto t = b.getType();
+					if(t==BlockTypes::torch || t==BlockTypes::torchWood || t==BlockTypes::goblinTorch){
+						bool nearWater=false;
+						const glm::ivec3 dirs[6]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+						for(auto &d: dirs){
+							glm::ivec3 np = {baseX+x+d.x, y+d.y, baseZ+z+d.z};
+							Block *nb = chunkCache.getBlockSafe(np);
+							if(nb && nb->getType()==BlockTypes::water){ nearWater=true; break; }
+						}
+						if(nearWater){
+							Block nb; nb.setType(BlockTypes::wetTorch);
+							nb.setLightLevel(0);
+							glm::ivec3 wpos={baseX+x,y,baseZ+z};
+							b=nb;
+							sc->otherData.dirty=true;
+							modifiedBlocks[wpos]=nb;
+						}
+					}else if(t==BlockTypes::wetTorch){
+						bool nearWater=false;
+						const glm::ivec3 dirs[6]={{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+						for(auto &d: dirs){
+							glm::ivec3 np = {baseX+x+d.x, y+d.y, baseZ+z+d.z};
+							Block *nb = chunkCache.getBlockSafe(np);
+							if(nb && nb->getType()==BlockTypes::water){ nearWater=true; break; }
+						}
+						if(!nearWater && (rand()%80==0)){
+							Block nb; nb.setType(BlockTypes::torchUnlit);
+							glm::ivec3 wpos={baseX+x,y,baseZ+z};
+							b=nb;
+							sc->otherData.dirty=true;
+							modifiedBlocks[wpos]=nb;
+						}
+					}
 				}
 			}
 		}

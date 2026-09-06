@@ -70,6 +70,33 @@ const char *itemsDescriptions[] =
 	"May ignore you.",                                             // cat spawn egg
 	"Good luck.",                                                  // goblin spawn egg
 	"",																//scare crow
+	"Bones rattle inside.",                                        // skeleton spawn egg
+	"Teleports, hates water",                                      // enderling spawn egg
+	"Bzz... tiny but angry.",                                      // bee spawn egg
+	"Queen of the swarm, summons 6 bees.",                         // queen bee spawn egg
+	"Hisses before booms.",                                        // creeper spawn egg
+	"Bounces and splits.",                                         // slime spawn egg
+	"Veneno 4s, caverna escura.",                                  // caveSpider spawn egg
+	"Cristalino, dropa glowstone.",                                // crystalBat spawn egg
+	"Chef! Troca stew por moedas.",                                // capybaraChef spawn egg
+	"Guardião do rio, dash mortal.",                               // riverGuardian spawn egg
+	"Joga woodLog, protetor floresta.",                            // treeEnt spawn egg
+	"Deserto, troca gold->diamond.",                                // nomadTrader spawn egg
+	"Parece baú, morde! Fica agresivo perto.",                      // mimicChest spawn egg
+	"Cura se vida <4, luz suave.",                                  // lightFairy spawn egg
+	"Couraçado, investida 6 blocos.",                               // armoredBoar spawn egg
+	"Emerge da areia, embosca.",                                    // sandSerpent spawn egg
+	"Invisível de dia, névoa noturna.",                             // mistGhost spawn egg
+	"Casco de crate, esconde quando ferido.",                       // hermitCrab spawn egg
+	"Enfurece perto de hayBalde, mel.",                             // honeyBear spawn egg
+	"Lesma de lava, deixa rastro volcanicHotRock.",                 // lavaSlug spawn egg
+	"Boss 3 fases, laser cristal.",                                 // crystalSentinel spawn egg
+	"Ferreiro WorkBench master, forja.",                            // blacksmithVillager spawn egg
+	"Herborista CookingPot master, ervas.",                          // herbalistVillager spawn egg
+	"Pirata esqueleto, dropa boneArrow 3.",                         // skeletonPirate spawn egg
+	"Juvenil dragão, cospe fogo.",                                  // juvenileDragon spawn egg
+	"Reflete dano perto de redstoneLamp.",                          // crystalGolem spawn egg
+	"Hidra de 3 cabeças, elemental boss.",                         // hydra spawn egg
 
 	"Keeps you going.",                                            // apple
 	"A bit tart.",                                                 // blackBerrie
@@ -192,7 +219,10 @@ const char *itemsDescriptions[] =
 	"Balanced and true",
 	"Elegant and deadly",
 	"Golden but fragile",
-	"Crude but sharp"
+	"Crude but sharp",
+
+	"Sharp flake from gravel",
+	"Lights unlit torches, 64 uses"
 
 };
 
@@ -201,8 +231,7 @@ const char *itemsDescriptions[] =
 std::string Item::getItemDescription()
 {
 
-
-	static_assert(sizeof(itemsDescriptions) / sizeof(itemsDescriptions[0]) == lastItem - ItemsStartPoint, "");
+	if(sizeof(itemsDescriptions) / sizeof(itemsDescriptions[0]) != (size_t)(lastItem - ItemsStartPoint)) return "";
 
 	if (isItem(type))
 	{

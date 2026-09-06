@@ -574,7 +574,7 @@ void recieveDataClient(ENetEvent &event,
 						auto connection = playersConnectionData.find(entity->eid);
 						if (connection == playersConnectionData.end())
 						{
-							playersConnectionData[entity->eid] = {};
+							playersConnectionData[entity->eid] = PlayerConnectionData{};
 						}
 
 
@@ -744,7 +744,7 @@ void recieveDataClient(ENetEvent &event,
 
 			if (player == playersConnectionData.end())
 			{
-				playersConnectionData[p.cid] = {};
+				playersConnectionData[p.cid] = PlayerConnectionData{};
 				player = playersConnectionData.find(p.cid);
 			}
 
@@ -897,6 +897,14 @@ void recieveDataClient(ENetEvent &event,
 		}
 		break;
 
+		case headerUpdateHungerThirst:
+		{
+			if (size != sizeof(Packet_UpdateHungerThirst)) break;
+			Packet_UpdateHungerThirst *pht = (Packet_UpdateHungerThirst*)data;
+			entityManager.localPlayer.hunger = pht->hunger;
+			entityManager.localPlayer.thirst = pht->thirst;
+		}
+		break;
 		case headerSendChat:
 		{
 
@@ -1123,36 +1131,21 @@ void sendBlockInteractionMessage(std::uint64_t playerID,
 
 void closeConnection()
 {
-
-	if (!clientData.conected) { return; }
-	
-	if (clientData.server)
+	if (!clientData.conected && !clientData.client && !clientData.server) return;
+	if (clientData.server && clientData.client)
 	{
 		enet_peer_disconnect(clientData.server, 0);
-
 		enet_host_flush(clientData.client);
-			
 		ENetEvent event = {};
-
 		while (enet_host_service(clientData.client, &event, 1000) > 0)
 		{
-			if (event.type == ENET_EVENT_TYPE_RECEIVE)
-			{
-				enet_packet_destroy(event.packet);
-			}
-			else if (event.type == ENET_EVENT_TYPE_RECEIVE)
-			{
-				break;
-			}
+			if (event.type == ENET_EVENT_TYPE_RECEIVE) enet_packet_destroy(event.packet);
+			else if (event.type == ENET_EVENT_TYPE_DISCONNECT) break;
 		}
-
 		enet_peer_reset(clientData.server);
 	}
-
-	if (clientData.client)
-	enet_host_destroy(clientData.client);
-	
-
+	if (clientData.client) enet_host_destroy(clientData.client);
+	clientData = {};
 }
 
 static std::string trimStr(const std::string &s)

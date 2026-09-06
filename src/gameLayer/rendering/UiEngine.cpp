@@ -414,6 +414,7 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 	};
 
 
+	if (!insideInventory) itemSearchFocused = false;
 	if (w != 0 && h != 0)
 	{
 
@@ -1145,7 +1146,42 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 					}
 					else if (currentInventoryTab == INVENTORY_TAB_ITEMS)
 					{
-
+						{
+							auto searchArea = glui::Box().xCenter().yTopPerc(0.12).xDimensionPercentage(0.62).yDimensionPixels(26)();
+							glm::vec2 mp{platform::getRelMousePosition().x, platform::getRelMousePosition().y};
+							bool hover = mp.x>=searchArea.x && mp.x<=searchArea.x+searchArea.z && mp.y>=searchArea.y && mp.y<=searchArea.y+searchArea.w;
+							if(hover && platform::isLMousePressed()) itemSearchFocused=true;
+							else if(platform::isLMousePressed() && !hover) itemSearchFocused=false;
+							if(itemSearchFocused){
+								for(char c: std::string(platform::getTypedInput())){
+									if(c==8 && strlen(itemSearchBuf)>0) itemSearchBuf[strlen(itemSearchBuf)-1]=0;
+									else if(c>=32 && c<127 && strlen(itemSearchBuf)<31){ size_t l=strlen(itemSearchBuf); itemSearchBuf[l]=c; itemSearchBuf[l+1]=0; }
+								}
+								if(platform::isKeyPressedOn(platform::Button::Escape)) itemSearchFocused=false;
+								if(platform::isKeyPressedOn(platform::Button::Enter)) itemSearchFocused=false;
+							}
+							glm::vec4 bgCol = itemSearchFocused ? glm::vec4(0.22f,0.24f,0.28f,0.98f) : hover ? glm::vec4(0.20f,0.20f,0.23f,0.95f) : glm::vec4(0.16f,0.16f,0.19f,0.92f);
+							glm::vec4 borderCol = itemSearchFocused ? glm::vec4(0.45f,0.65f,1.f,1.f) : glm::vec4(0.35f,0.35f,0.40f,0.55f);
+							renderer2d.render9Patch(searchArea, 10, bgCol, {}, 0.f, buttonTexture, GL2D_DefaultTextureCoords, {0.2f,0.8f,0.8f,0.2f});
+							renderer2d.renderRectangle(searchArea, borderCol, {}, 1.2f);
+							if(itemSearchFocused) renderer2d.renderRectangle(shrinkRectanglePixels(searchArea, -2, -2), glm::vec4(0.45f,0.65f,1.f,0.12f));
+							float tx = searchArea.x + 10;
+							float ty = searchArea.y + 16;
+							if(itemSearchBuf[0]){
+								renderer2d.renderText({tx, ty}, itemSearchBuf, font, Colors_White, 12.f, -1);
+								float tw = renderer2d.getTextSize(itemSearchBuf, font, 12.f).x;
+								static float blink=0; blink+=deltaTime*2.6f; if(itemSearchFocused && fmod(blink,1.f)<0.5f) renderer2d.renderRectangle({tx+tw+2, searchArea.y+6, tx+tw+3.5f, searchArea.y+searchArea.w-6}, glm::vec4(1,1,1,0.85f));
+								float cx = searchArea.x + searchArea.z - 18;
+								glm::vec4 clearBox{cx, searchArea.y+5, cx+12, searchArea.y+searchArea.w-5};
+								bool cHover = mp.x>=clearBox.x && mp.x<=clearBox.z && mp.y>=clearBox.y && mp.y<=clearBox.w;
+								renderer2d.render9Patch(clearBox, 6, cHover?glm::vec4(0.55f,0.18f,0.18f,0.95f):glm::vec4(0.35f,0.18f,0.18f,0.75f), {}, 0.f, buttonTexture, GL2D_DefaultTextureCoords, {0.2f,0.8f,0.8f,0.2f});
+								renderer2d.renderText({cx+3, ty}, "x", font, Colors_White, 11.f, -1);
+								if(cHover && platform::isLMousePressed()){ itemSearchBuf[0]=0; itemSearchFocused=true; }
+							}else{
+								renderer2d.renderText({tx, ty}, "Buscar item...  (clique para digitar)", font, glm::vec4(0.62f,0.62f,0.68f,0.9f), 11.f, -1);
+							}
+							renderer2d.renderText({searchArea.x-18, ty}, ">", font, itemSearchFocused?glm::vec4(0.5f,0.7f,1.f,1.f):glm::vec4(0.55f,0.55f,0.60f,0.8f), 12.f, -1);
+						}
 						//render items
 						auto renderCreativeItems = [&](int start, glm::ivec4 box)
 						{
@@ -1163,20 +1199,40 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 
 						auto inventoryBars = glui::Box().xCenter().yBottomPerc(-0.17).xDimensionPercentage(0.9).
 							yAspectRatio(itemsBarInventorySize.y / itemsBarInventorySize.x)();
-
+						std::vector<int> filteredItems;
+						for(int _it=ItemsStartPoint; _it<lastItem; _it++){
+							std::string n = Item(_it,1).getItemName();
+							std::string needle = itemSearchBuf;
+							std::transform(n.begin(), n.end(), n.begin(), ::tolower);
+							std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+							if(needle.empty() || n.find(needle)!=std::string::npos) filteredItems.push_back(_it);
+						}
 						static int currentStartRow = 0;
 						currentStartRow += renderSideSlider(inventoryBars);
-						currentStartRow = glm::clamp(currentStartRow, 0,
-							(((int)(lastItem - ItemsStartPoint) / 9) - BARS_COUNT) + 1);
+						int maxRow = std::max(0, (int)((filteredItems.size()+8)/9) - BARS_COUNT);
+						currentStartRow = glm::clamp(currentStartRow, 0, maxRow);
 						if (currentStartRow < 0) { currentStartRow = 0; }
 
 						for (int i = 0; i < BARS_COUNT; i++)
 						{
 							renderer2d.renderRectangle(inventoryBars, itemsBarInventory);
-
-							checkInsideCreativeMenu((6 - i) * 9 + ItemsStartPoint + currentStartRow * 9, inventoryBars);
-							renderCreativeItems((6 - i) * 9 + ItemsStartPoint + currentStartRow * 9, inventoryBars);
-
+							int base = (6 - i) * 9 + currentStartRow * 9;
+							// custom render for filtered
+							auto itemBox = inventoryBars;
+							itemBox.z = itemBox.w;
+							for(int k=0;k<9;k++){
+								int idx = base + k;
+								if(idx >= (int)filteredItems.size()) break;
+								itemBox.x = inventoryBars.x + itemBox.z * k;
+								renderOneItem(itemBox, Item(filteredItems[idx]), 4.f/22.f);
+								// check hover/click
+								glm::vec2 mp{platform::getRelMousePosition().x, platform::getRelMousePosition().y};
+								bool hover = mp.x>=itemBox.x && mp.x<=itemBox.x+itemBox.z && mp.y>=itemBox.y && mp.y<=itemBox.y+itemBox.w;
+								if(hover && platform::isLMousePressed()){
+									Item it = itemCreator(filteredItems[idx]); it.counter = Item(filteredItems[idx],1).getStackSize();
+									if(inventory.canItemFit(it, -1)) inventory.tryPickupItem(it);
+								}
+							}
 							inventoryBars.y -= inventoryBars.w;
 						}
 
@@ -1203,20 +1259,21 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 					//if (isCreative)
 					{
 
-						int slotsCounter = 2;
-						if (isCreative) { slotsCounter = 4; }
+						int slotsCounter = 3;
+						if (isCreative) { slotsCounter = 5; }
 
 						if (interactionType == InteractionTypes::chestInteraction)
 						{
 							slotsCounter++;
 						}
 
-						GLuint textures[5] = {
+						GLuint textures[6] = {
 							blocksLoader.texturesIdsItems[copperAxe - ItemsStartPoint],
 							blocksLoader.texturesIds[getGpuIdIndexForBlock(workBench, 0)], //todo crafting ui button
 							blocksLoader.blockUiTextures[interactingBlock].id,
 							blocksLoader.texturesIds[getGpuIdIndexForBlock(grassBlock, 0)],
 							blocksLoader.texturesIdsItems[stick - ItemsStartPoint],
+							blocksLoader.texturesIdsItems[apple - ItemsStartPoint],
 						};
 
 						int skipped = 0;
@@ -1611,6 +1668,74 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 					}
 
 					heartBox.x += heartBox.z;
+				}
+				{
+					int armour = getPlayerStats(inventory).armour + player.effects.getArmour();
+					armour = std::clamp(armour, 0, 20);
+					if(armour>0){
+						auto aBox = heartBox;
+						aBox.y = heartBox.y - heartBox.w - 3;
+						aBox.x = heartBox.x - (heartBox.z*5 + 4);
+						if(aBox.x < 4) aBox.x = 4;
+						aBox.z = heartBox.w * 0.52f;
+						aBox.w = heartBox.w * 0.52f;
+						int full = armour/2;
+						bool half = armour%2;
+						auto bg = aBox;
+						for(int i=0;i<10;i++){ renderer2d.renderRectangle(bg, programData.armorTexture, Colors_White, {}, 0, programData.armorAtlas.get(0,0)); bg.x += bg.z+1; }
+						auto fg = aBox;
+						for(int i=0;i<10;i++){
+							if(i < full) renderer2d.renderRectangle(fg, programData.armorTexture, Colors_White, {}, 0, programData.armorAtlas.get(4,0));
+							else if(i==full && half) renderer2d.renderRectangle(fg, programData.armorTexture, Colors_White, {}, 0, programData.armorAtlas.get(2,0));
+							fg.x += fg.z+1;
+						}
+					}
+				}
+				{
+					float hunger = std::clamp(player.hunger, 0.f, 100.f);
+					auto hBox = heartBox;
+					hBox.y = heartBox.y + heartBox.w + 4;
+					hBox.z = heartBox.w * 0.58f;
+					hBox.w = heartBox.w * 0.58f;
+					int full = (int)(hunger / 10.f);
+					float rem = hunger - full*10.f;
+					bool half = rem >= 5.f;
+					bool low = hunger <= 20.f;
+					float jitter = low ? sin(deltaTime*18.f + full*1.3f)*0.6f : 0.f;
+					auto bg = hBox; bg.y += jitter;
+					for(int i=0;i<10;i++){
+						renderer2d.renderRectangle(bg, programData.hungerTexture, Colors_White, {}, 0, programData.hungerAtlas.get(0,0));
+						bg.x += bg.z + 1;
+					}
+					auto fg = hBox; fg.y += jitter;
+					for(int i=0;i<10;i++){
+						if(i < full) renderer2d.renderRectangle(fg, programData.hungerTexture, Colors_White, {}, 0, programData.hungerAtlas.get(4,0));
+						else if(i==full && half) renderer2d.renderRectangle(fg, programData.hungerTexture, Colors_White, {}, 0, programData.hungerAtlas.get(2,0));
+						fg.x += fg.z + 1;
+					}
+				}
+				{
+					float thirst = std::clamp(player.thirst, 0.f, 100.f);
+					auto tBox = heartBox;
+					tBox.y = heartBox.y + heartBox.w*0.58f + 8;
+					tBox.z = heartBox.w * 0.58f;
+					tBox.w = heartBox.w * 0.58f;
+					int full = (int)(thirst / 10.f);
+					float rem = thirst - full*10.f;
+					bool half = rem >= 5.f;
+					bool low = thirst <= 20.f;
+					float jitter = low ? sin(deltaTime*16.f + full*1.1f)*0.6f : 0.f;
+					auto bg = tBox; bg.y += jitter;
+					for(int i=0;i<10;i++){
+						renderer2d.renderRectangle(bg, programData.thirstTexture, Colors_White, {}, 0, programData.thirstAtlas.get(0,0));
+						bg.x += bg.z + 1;
+					}
+					auto fg = tBox; fg.y += jitter;
+					for(int i=0;i<10;i++){
+						if(i < full) renderer2d.renderRectangle(fg, programData.thirstTexture, Colors_White, {}, 0, programData.thirstAtlas.get(4,0));
+						else if(i==full && half) renderer2d.renderRectangle(fg, programData.thirstTexture, Colors_White, {}, 0, programData.thirstAtlas.get(2,0));
+						fg.x += fg.z + 1;
+					}
 				}
 
 

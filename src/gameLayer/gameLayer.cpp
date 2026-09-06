@@ -13,6 +13,7 @@
 #include "multyPlayer/server.h"
 #include "multyPlayer/createConnection.h"
 #include <enet/enet.h>
+#include "scripting/EventBus.h"
 #include "rendering/UiEngine.h"
 #include "glui/glui.h"
 #include "gamePlayLogic.h"
@@ -25,7 +26,10 @@
 #include <localization.h>
 
 #include <platformTools.h>
+#include "scripting/ScriptingIntegration.h"
 #include <gameLayer/SplashScreen.h>
+#include <gameLayer/Launcher.h>
+#include <gameLayer/persistence/SaveSystem.h>
 
 #if REMOVE_IMGUI == 0
 #include "imgui.h"
@@ -52,6 +56,12 @@ void clearOtherTextures()
 	programData.waterDirtTexture.cleanup();
 	programData.heartsTexture.cleanup();
 	programData.heartsAtlas = {};
+	programData.hungerTexture.cleanup();
+	programData.hungerAtlas = {};
+	programData.thirstTexture.cleanup();
+	programData.thirstAtlas = {};
+	programData.armorTexture.cleanup();
+	programData.armorAtlas = {};
 
 	for (auto &t : programData.lensFlare)
 	{
@@ -168,6 +178,36 @@ void loadOtherTextures(const char *basePath)
 			9, true, false);
 		auto s = programData.heartsTexture.GetSize();
 		programData.heartsAtlas = gl2d::TextureAtlasPadding(5, 1, s.x, s.y);
+	}
+	if (!programData.hungerTexture.id)
+	{
+		programData.hungerTexture.loadFromFileWithPixelPadding((p + "hunger.png").c_str(), 9, true, false);
+		auto s = programData.hungerTexture.GetSize();
+		programData.hungerAtlas = gl2d::TextureAtlasPadding(5, 1, s.x, s.y);
+		if(!programData.hungerTexture.id){
+			programData.hungerTexture = programData.heartsTexture;
+			programData.hungerAtlas = programData.heartsAtlas;
+		}
+	}
+	if (!programData.thirstTexture.id)
+	{
+		programData.thirstTexture.loadFromFileWithPixelPadding((p + "thirst.png").c_str(), 9, true, false);
+		auto s = programData.thirstTexture.GetSize();
+		programData.thirstAtlas = gl2d::TextureAtlasPadding(5, 1, s.x, s.y);
+		if(!programData.thirstTexture.id){
+			programData.thirstTexture = programData.heartsTexture;
+			programData.thirstAtlas = programData.heartsAtlas;
+		}
+	}
+	if (!programData.armorTexture.id)
+	{
+		programData.armorTexture.loadFromFileWithPixelPadding((p + "armor.png").c_str(), 9, true, false);
+		auto s = programData.armorTexture.GetSize();
+		programData.armorAtlas = gl2d::TextureAtlasPadding(5, 1, s.x, s.y);
+		if(!programData.armorTexture.id){
+			programData.armorTexture = programData.heartsTexture;
+			programData.armorAtlas = programData.heartsAtlas;
+		}
 	}
 
 	if (programData.lensFlare.empty())
@@ -311,6 +351,8 @@ bool initGame() //main server and title screen stuff
 
 	srand(time(0));
 	createErrorFile();
+	ensureAllDataDirectories();
+	SaveSystem::get().init("world");
 
 	std::filesystem::create_directory(RESOURCES_PATH "../playerSettings/");
 
@@ -351,6 +393,8 @@ bool initGame() //main server and title screen stuff
 	programData.pointDebugRenderer.create();
 	programData.skyBoxLoaderAndDrawer.createGpuData();
 	programData.sunRenderer.create();
+	programData.weatherRenderer.init();
+	programData.weatherRenderer.loadShaders();
 	SplashScreen::draw(0.45f, "Texturas...", "Pacotes e blocos");
 
 	loadAllDefaultTexturePacks();
@@ -359,10 +403,16 @@ bool initGame() //main server and title screen stuff
 
 	{
 		int missingBlocks = 0, missingItems = 0;
-		for (int i = 0; i < BlocksCount; i++)
-			if (programData.blocksLoader.texturesIds[i*4] == programData.blocksLoader.texturesIds[0]) missingBlocks++;
-		for (int i = 0; i < (int)(ItemTypes::lastItem - ItemsStartPoint); i++)
-			if (programData.blocksLoader.texturesIdsItems[i] == programData.blocksLoader.texturesIds[0]) missingItems++;
+		if(programData.blocksLoader.texturesIds.size() >= (size_t)BlocksCount*4 && !programData.blocksLoader.texturesIds.empty()){
+			for (int i = 0; i < BlocksCount; i++)
+				if (programData.blocksLoader.texturesIds[i*4] == programData.blocksLoader.texturesIds[0]) missingBlocks++;
+		}else{
+			std::cout<<"[AssetValidator] texturesIds size "<<programData.blocksLoader.texturesIds.size()<<" < "<<BlocksCount*4<<" - skipping check\n";
+		}
+		if(programData.blocksLoader.texturesIdsItems.size() >= (size_t)(ItemTypes::lastItem - ItemsStartPoint) && !programData.blocksLoader.texturesIdsItems.empty()){
+			for (int i = 0; i < (int)(ItemTypes::lastItem - ItemsStartPoint); i++)
+				if (programData.blocksLoader.texturesIdsItems[i] == programData.blocksLoader.texturesIds[0]) missingItems++;
+		}
 		if (missingBlocks > 1 || missingItems > 0)
 			std::cout << "[AssetValidator] Missing textures — blocks: " << missingBlocks << " (incl. air), items: " << missingItems << " (checker fallback)\n";
 	}
@@ -381,6 +431,11 @@ bool initGame() //main server and title screen stuff
 	{
 		reportError("problem starting ENET");
 		return false;
+	}
+
+	SplashScreen::draw(0.92f, "Scripts Lua...", "Carregando resources");
+	if(!Scripting::init()){
+		std::cout<<"[Lua] Aviso: scripting desabilitado\n";
 	}
 	
 	//programData.facesCount = blockData.size() / 4;
@@ -475,6 +530,7 @@ bool initGame() //main server and title screen stuff
 
 static bool gameStarted = 0;
 static std::string lastError = "";
+static ConfirmationModal exitModal;
 bool hostServer(const std::string &path)
 {
 	if (!startServer(path))
@@ -501,6 +557,7 @@ bool hostServer(const std::string &path)
 
 bool gameLogic(float deltaTime)
 {
+	Scripting::update(deltaTime);
 
 #pragma region init stuff
 	int w = 0; int h = 0;
@@ -531,6 +588,17 @@ bool gameLogic(float deltaTime)
 		frameCounter = 0;
 	}
 	frameCounter++;
+	static float autosaveTimer=0;
+	autosaveTimer+=deltaTime;
+	if(autosaveTimer>60.f){
+		autosaveTimer=0;
+		SaveSystem::get().autoSave();
+		auto &ls = getLauncherState();
+		if(ls.loggedIn){
+			PlayerSaveData pd; pd.username=ls.currentUsername; pd.uuid=ls.currentUUID;
+			SaveSystem::get().savePlayer(pd.uuid, pd);
+		}
+	}
 
 #pragma endregion
 	
@@ -591,44 +659,46 @@ bool gameLogic(float deltaTime)
 		
 		//}
 
-		displayWorldSelectorMenuButton(programData);
-
-
-		if (programData.ui.menuRenderer.Button(loc_JoinGame(), Colors_Gray,
-			programData.ui.buttonTexture))
-		{
-			std::string trimmed = ipString;
-			trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
-			trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
-			if (!trimmed.empty() && trimmed.find_first_not_of("0123456789.: \t\r\nabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_") != std::string::npos)
-			{
-				lastError = "IP invalido / Invalid IP";
+		auto &launcher = getLauncherState();
+		if(launcher.showLauncher || !launcher.loggedIn){
+			renderLauncherUI(programData);
+		}else{
+			programData.ui.menuRenderer.Text(("Logado como: "+launcher.currentUsername).c_str(), glm::vec4(0.4f,1,0.7f,1));
+			if(programData.ui.menuRenderer.Button("Trocar conta", Colors_Gray, programData.ui.buttonTexture)){
+				launcher.logout();
 			}
-			else if (initGameplay(programData, ipString))
+			displayWorldSelectorMenuButton(programData);
+			if (programData.ui.menuRenderer.Button(loc_JoinGame(), Colors_Gray,
+				programData.ui.buttonTexture))
 			{
-				gameStarted = true;
-				lastError.clear();
-			}
-			else
-			{
-				if (trimmed.empty())
-					lastError = std::string(loc_CouldntJoinServer()) + " (servidor local nao iniciou / local server failed)";
+				std::string trimmed = ipString;
+				trimmed.erase(0, trimmed.find_first_not_of(" \t\r\n"));
+				trimmed.erase(trimmed.find_last_not_of(" \t\r\n") + 1);
+				if (!trimmed.empty() && trimmed.find_first_not_of("0123456789.: \t\r\nabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_") != std::string::npos)
+				{
+					lastError = "IP invalido / Invalid IP";
+				}
+				else if (initGameplay(programData, ipString))
+				{
+					gameStarted = true;
+					lastError.clear();
+				}
 				else
-					lastError = std::string(loc_CouldntJoinServer()) + " - Verifique IP:porta e firewall UDP 7771 / Check IP:port & UDP 7771 firewall";
+				{
+					if (trimmed.empty())
+						lastError = std::string(loc_CouldntJoinServer()) + " (servidor local nao iniciou / local server failed)";
+					else
+						lastError = std::string(loc_CouldntJoinServer()) + " - Verifique IP:porta e firewall UDP 7771 / Check IP:port & UDP 7771 firewall";
+				}
 			}
+			programData.ui.menuRenderer.InputText(loc_IP(), ipString, sizeof(ipString),
+				Colors_Gray, programData.ui.buttonTexture, false);
+			programData.ui.menuRenderer.Text("Ex: 192.168.1.10  ou  192.168.1.10:7771  ou  203.0.113.5:7771", glm::vec4(0.85f, 0.85f, 0.85f, 0.9f));
+			programData.ui.menuRenderer.Text("Dica: host precisa liberar UDP 7771 no roteador/firewall", glm::vec4(0.7f, 0.7f, 0.9f, 0.9f));
+			displaySettingsMenuButton(programData);
+			displaySkinSelectorMenuButton(programData);
 		}
-		
-		programData.ui.menuRenderer.InputText(loc_IP(), ipString, sizeof(ipString),
-			Colors_Gray, programData.ui.buttonTexture, false);
-		programData.ui.menuRenderer.Text("Ex: 192.168.1.10  ou  192.168.1.10:7771  ou  203.0.113.5:7771", glm::vec4(0.85f, 0.85f, 0.85f, 0.9f));
-		programData.ui.menuRenderer.Text("Dica: host precisa liberar UDP 7771 no roteador/firewall", glm::vec4(0.7f, 0.7f, 0.9f, 0.9f));
 
-
-	displaySettingsMenuButton(programData);
-
-	displaySkinSelectorMenuButton(programData);
-
-	static ConfirmationModal exitModal;
 	if (programData.ui.menuRenderer.Button(loc_Exit(), Colors_Gray, programData.ui.buttonTexture))
 	{
 		exitModal.open(loc_Exit(), loc_AreYouSureExit());
@@ -640,20 +710,6 @@ bool gameLogic(float deltaTime)
 	}
 
 		programData.ui.menuRenderer.End();
-
-		// Render exit confirmation modal
-		if (exitModal.show)
-		{
-			glm::vec2 screenSize = {programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH};
-			if (exitModal.render(
-				programData.ui.renderer2d, programData.ui.font, screenSize))
-			{
-				if (exitModal.result)
-				{
-					return false; // Exit the game
-				}
-			}
-		}
 
 	}
 	else
@@ -684,6 +740,15 @@ bool gameLogic(float deltaTime)
 
 				ImGui::Text("Server Pending count: %d", getServerPendingReliableCount());
 				ImGui::Text("Server Pending size bytes: %d", (int)getServerTotalPendingSize());
+
+				ImGui::Separator();
+				auto &gs = getServerSettingsReff();
+				ImGui::Text("Game Rules:");
+				ImGui::Checkbox("Hunger System", &gs.hungerEnabled);
+				ImGui::Checkbox("Thirst System", &gs.thirstEnabled);
+				ImGui::Checkbox("PvP Enabled", &gs.pvpEnabled);
+				ImGui::Separator();
+				ImGui::Text("Use /gamerule <hunger|thirst|pvp> <on|off> in chat");
 
 				profilerCopy.displayPlot("Server Profiler", 52);
 				ImGui::Separator();
@@ -744,6 +809,10 @@ bool gameLogic(float deltaTime)
 
 		if (!gameplayFrame(deltaTime, w, h, programData))
 		{
+			EventBus::instance().trigger("onWorldLeave");
+			EventBus::instance().trigger("onPlayerLeave");
+			EventBus::instance().trigger("playerDisconnected");
+			EventBus::instance().trigger("client:disconnected");
 			closeGameLogic();
 			closeConnection();
 			closeServer();		//this will do something only if the server is on
@@ -766,10 +835,23 @@ bool gameLogic(float deltaTime)
 	bool anyToggleDetoggeled = 0;
 	bool andSliderDragged = 0;
 
+	bool isModal = exitModal.show;
+	bool mPressed = isModal ? false : platform::isLMousePressed();
+	bool mHeld = isModal ? false : platform::isLMouseHeld();
+	bool mReleased = isModal ? false : platform::isLMouseReleased();
+	bool escReleased = isModal ? false : platform::isKeyReleased(platform::Button::Escape);
 	programData.ui.menuRenderer.renderFrame(programData.ui.renderer2d, programData.ui.font, platform::getRelMousePosition(),
-		platform::isLMousePressed(), platform::isLMouseHeld(), platform::isLMouseReleased(),
-		platform::isKeyReleased(platform::Button::Escape), platform::getTypedInput(), deltaTime, &anyButtonPressed, &backPressed,
+		mPressed, mHeld, mReleased,
+		escReleased, platform::getTypedInput(), deltaTime, &anyButtonPressed, &backPressed,
 		&anyCustomWidgetPressed, &anyToggleToggeled, &anyToggleDetoggeled, &andSliderDragged);
+	if(isModal){
+		if(platform::isKeyReleased(platform::Button::Escape)){
+			exitModal.show=false;
+			exitModal.result=false;
+			exitModal.resultReady=true;
+			AudioEngine::playSound(AudioEngine::uiButtonBack, UI_SOUND_VOLUME);
+		}
+	}
 
 
 	if (anyToggleToggeled)
@@ -793,7 +875,12 @@ bool gameLogic(float deltaTime)
 		AudioEngine::playSound(AudioEngine::uiSlider, UI_SOUND_VOLUME);
 	}
 
-
+	if(exitModal.show){
+		glm::vec2 screenSize = {programData.ui.renderer2d.windowW, programData.ui.renderer2d.windowH};
+		if(exitModal.render(programData.ui.renderer2d, programData.ui.font, screenSize)){
+			if(exitModal.result) return false;
+		}
+	}
 
 	if (shadingSettingsCopy != getShadingSettings())
 	{
@@ -812,8 +899,24 @@ bool gameLogic(float deltaTime)
 
 void closeGame()
 {
+	static bool closed = false;
+	if (closed) return;
+	closed = true;
+	SaveSystem::get().saveWorld("world");
+	auto &launcher = getLauncherState();
+	if(launcher.loggedIn){
+		PlayerSaveData pd;
+		pd.username = launcher.currentUsername;
+		pd.uuid = launcher.currentUUID;
+		SaveSystem::get().savePlayer(pd.uuid, pd);
+	}
+	EventBus::instance().trigger("onGameClose");
+	EventBus::instance().trigger("game:close");
+	EventBus::instance().trigger("onClientExit");
+	EventBus::instance().trigger("onResourceStop");
+	Scripting::shutdown();
 	closeGameLogic();
 	closeConnection();
 	closeServer();
-
+	enet_deinitialize();
 }

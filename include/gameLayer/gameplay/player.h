@@ -7,6 +7,8 @@
 #include <gameplay/gameplayRules.h>
 #include <gameplay/effects.h>
 
+EntityStats getPlayerStats(struct PlayerInventory &inventory);
+
 #define PLAYER_DEFAULT_LIFE Life(100)
 
 // Survival mode constants
@@ -22,7 +24,9 @@ constexpr static float FOOD_SATIATION_BONUS = 15.f;      // Bonus to hunger when
 struct Player : public PhysicalEntity, public CollidesWithPlacedBlocks,
 	public CanPushOthers, public CanBeKilled, public CanBeAttacked,
 	public CanHaveEffects, public HasOrientationAndHeadTurnDirection, 
-	public HasEyesAndPupils<EYE_ANIMATION_TYPE_PLAYER>
+	public HasEyesAndPupils<EYE_ANIMATION_TYPE_PLAYER>,
+	public MovementSpeedForLegsAnimations,
+	public Animatable
 {
 
 	//todo use mem compare
@@ -63,6 +67,11 @@ struct Player : public PhysicalEntity, public CollidesWithPlacedBlocks,
 	static glm::vec3 getMaxColliderSize();
 
 	bool fly = 0;
+	bool isCrouching = 0;
+	bool isProne = 0;
+	bool isRunning = 0;
+	bool isSwimmingAnim = 0;
+	float crouchTransition = 0.f;
 };
 
 //here we store things like gamemode
@@ -188,16 +197,14 @@ struct PlayerServer: public ServerEntity<Player>
 
 	void kill();
 
-	//todo calculate armour based on inventory
 	Armour getArmour() 
 	{
 		Armour rez{};
-
+		EntityStats s = getPlayerStats(inventory);
+		rez.armour = s.armour;
 		rez.armour += effects.getArmour();
 		rez.normalize();
-		
 		return rez;
-	
 	};
 
 	glm::ivec2 lastChunkPositionWhenAnUpdateWasSent = {};

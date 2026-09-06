@@ -65,6 +65,8 @@ Chunk* ChunkSystem::getChunkSafeFromMatrixSpace(int x, int z)
 void ChunkSystem::init(int squareDistance)
 {
 	created = 0;
+	if (squareDistance < 4) squareDistance = 4;
+	if (squareDistance > 64) squareDistance = 64;
 	squareSize = squareDistance;
 	loadedChunks.resize(squareDistance * squareDistance, nullptr);
 	gpuBuffer.create(squareDistance * squareDistance);
@@ -74,8 +76,8 @@ void ChunkSystem::changeRenderDistance(int squareDistance, bool notifyServer)
 {
 
 	if (squareSize == squareDistance) { return; }
-	if (squareDistance > 102) { squareDistance = 102; }
-	if (squareDistance < 2) { squareDistance = 2; }
+	if (squareDistance > 64) { squareDistance = 64; }
+	if (squareDistance < 4) { squareDistance = 4; }
 
 	cleanup(notifyServer);
 
@@ -1360,7 +1362,7 @@ bool ChunkSystem::placeBlockByClient(glm::ivec3 pos, unsigned char inventorySlot
 			undoQueue.addPlaceBlockEvent(pos, *b, block, oldBlockData);
 
 			changeBlockLightStuff(pos, b->getSkyLight(), b->getLight(), b->getType(),
-				block.typeAndFlags, lightSystem);
+				block.getType(), lightSystem);
 
 			
 			//add extra data to undo queue and also that data
@@ -1433,9 +1435,12 @@ bool ChunkSystem::placeBlockByClientForce(glm::ivec3 pos, Block block,
 			}
 		}
 
+		BlockType oldType = b->getType();
+		int oldSky = b->getSkyLight();
+		int oldLight = b->getLight();
 		*b = block;
 		
-		changeBlockLightStuff(pos, b->getSkyLight(), b->getLight(), b->getType(),
+		changeBlockLightStuff(pos, oldSky, oldLight, oldType,
 			block.getType(), lightSystem);
 		
 		if (b->isOpaque() && !b->isLightEmitor()) { b->lightLevel = 0; }
@@ -1569,11 +1574,14 @@ void ChunkSystem::placeBlockNoClient(glm::ivec3 pos, Block block, LightSystem &l
 		chunk->removeBlockDataFromThisPos(*b, posInChunk.x, posInChunk.y, posInChunk.z);
 		clientEntityManager.removeBlockEntity(pos, b->getType());
 
+		BlockType oldType2 = b->getType();
+		int oldSky2 = b->getSkyLight();
+		int oldLight2 = b->getLight();
 		*b = block;
 		clientEntityManager.addBlockEntity(pos, b->getType());
 
 
-		changeBlockLightStuff(pos, b->getSkyLight(), b->getLight(), b->getType(), block.getType(), lightSystem);
+		changeBlockLightStuff(pos, oldSky2, oldLight2, oldType2, block.getType(), lightSystem);
 
 		if (b->isOpaque() && !b->isLightEmitor()) { b->lightLevel = 0; }
 

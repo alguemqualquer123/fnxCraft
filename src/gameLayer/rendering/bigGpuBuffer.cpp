@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <rendering/bigGpuBuffer.h>
 #include <platformTools.h>
 #include <iostream>
@@ -62,7 +63,7 @@ void BigGpuBuffer::cleanup()
 	glDeleteBuffers(1, &opaqueGeometryBuffer);
 	glDeleteBuffers(1, &opaqueGeometryIndex);
 	glDeleteVertexArrays(1, &vao);
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 }
 
 void BigGpuBuffer::addChunk(glm::ivec2 chunkPos, std::vector<int> &data)

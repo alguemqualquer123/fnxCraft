@@ -2,9 +2,8 @@
 #include <glm/vec3.hpp>
 #include <deque>
 
-//donotupdatelightsystem
-//donotoptimizelightsystem
-bool constexpr dontUpdateLightSystem = 1;
+// Light system enabled - tochas, glowstones, etc. now illuminate the map
+bool constexpr dontUpdateLightSystem = 0;
 
 struct ChunkSystem;
 struct Chunk;

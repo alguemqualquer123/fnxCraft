@@ -1407,7 +1407,7 @@ void generateChunk(ChunkData& c, WorldGenerator &wg, StructuresManager &structur
 				int valueToAddToStart = valuesToAddToStart[currentHeightLevel];
 				int valueToAddToEnd = valuesToAddToMax[currentHeightLevel];
 
-				newPeaks = std::powf(newPeaks, peaksPower[currentHeightLevel]);
+				newPeaks = std::pow(newPeaks, peaksPower[currentHeightLevel]);
 				newStartLevel += (newPeaks * valueToAddToStart) - 3;
 				newMaxMountainLevel += (newPeaks * valueToAddToEnd) - 3;
 
@@ -1559,7 +1559,7 @@ void generateChunk(ChunkData& c, WorldGenerator &wg, StructuresManager &structur
 					//heightNormalized = 0.1f;
 
 
-					density = std::powf(density, heightNormalized);
+					density = std::pow(density, heightNormalized);
 					density = glm::clamp(density, 0.f, 1.f);
 						
 					//density = linearRemap(density, 0, 1)
@@ -1855,7 +1855,7 @@ void generateChunk(ChunkData& c, WorldGenerator &wg, StructuresManager &structur
 				auto generateOneFeature = [&](float treeAmount, 
 					VegetationNoiseSettings &veg)
 				{
-					treeAmount = std::powf(treeAmount, vegetationPower);
+					treeAmount = std::pow(treeAmount, vegetationPower);
 					float noiseVal = treeAmount;
 
 					//one distribution element, can be multiple things there tho
@@ -2298,6 +2298,35 @@ void generateChunk(ChunkData& c, WorldGenerator &wg, StructuresManager &structur
 
 	#pragma endregion
 
+	{
+		auto rng = rngFromPosition(c.x, c.z, 0x9e3779b9);
+		if(getRandomChance(rng, 0.015)){
+			int x=c.x*16 + (rng()%16);
+			int z=c.z*16 + (rng()%16);
+			int y= 40 + (rng()%60);
+			int size= 4 + (rng()%6);
+			for(int i=0;i<size;i++){
+				int ox=(int)(getRandomUnitVector3(rng).x* (rng()%3));
+				int oy=(int)(getRandomUnitVector3(rng).y* (rng()%2));
+				int oz=(int)(getRandomUnitVector3(rng).z* (rng()%3));
+				int px=x+ox, py=y+oy, pz=z+oz;
+				if(py>=0 && py<CHUNK_HEIGHT){ auto &b=c.unsafeGet(px - c.x*16, py, pz - c.z*16); if(b.getType()==BlockTypes::stone) b.setType(BlockTypes::tinOre); }
+			}
+		}
+		if(getRandomChance(rng, 0.008)){
+			int x=c.x*16 + (rng()%16);
+			int z=c.z*16 + (rng()%16);
+			int y= 4 + (rng()%13);
+			int size= 3 + (rng()%4);
+			for(int i=0;i<size;i++){
+				int ox=(int)(getRandomUnitVector3(rng).x*2);
+				int oy=(int)(getRandomUnitVector3(rng).y*1);
+				int oz=(int)(getRandomUnitVector3(rng).z*2);
+				int px=x+ox, py=y+oy, pz=z+oz;
+				if(py>=0 && py<CHUNK_HEIGHT){ auto &b=c.unsafeGet(px - c.x*16, py, pz - c.z*16); if(b.getType()==BlockTypes::stone) b.setType(BlockTypes::mithrilOre); }
+			}
+		}
+	}
 
 	//profiler.end();
 	//std::cout << "Time ms: " << profiler.rezult.timeSeconds * 1000 << "\n";

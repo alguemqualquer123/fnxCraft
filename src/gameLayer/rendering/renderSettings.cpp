@@ -1,4 +1,5 @@
 #include <rendering/renderSettings.h>
+#include <rendering/performance.h>
 #include <gamePlayLogic.h>
 #include <filesystem>
 #include <iostream>
@@ -42,7 +43,7 @@ void displayRenderSettingsMenu(ProgramData &programData)
 	programData.ui.menuRenderer.Text(loc_RenderingSettings(), Colors_White);
 
 	programData.ui.menuRenderer.sliderInt(loc_ViewDistance(), &getShadingSettings().viewDistance,
-		1, 50, Colors_White, programData.ui.buttonTexture, Colors_Gray,
+		1, 32, Colors_White, programData.ui.buttonTexture, Colors_Gray,
 		programData.ui.buttonTexture, Colors_White);
 
 	programData.ui.menuRenderer.sliderInt(loc_LodStrength(), &getShadingSettings().lodStrength,
@@ -241,6 +242,47 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 	programData.ui.menuRenderer.ToggleButton("FXAA", Colors_White, &getShadingSettings().FXAA, programData.ui.buttonTexture,
 		Colors_Gray);
 
+	programData.ui.menuRenderer.BeginMenu("Performance", Colors_Gray, programData.ui.buttonTexture);
+	programData.ui.menuRenderer.Text("Frame Generation & VSync", Colors_White);
+	{
+		bool fg = getShadingSettings().frameGeneration;
+		if(programData.ui.menuRenderer.ToggleButton("Frame Generation (2x FPS)", Colors_White, &fg, programData.ui.buttonTexture, Colors_Gray)){
+			getShadingSettings().frameGeneration = fg;
+			Performance::setFrameGeneration(fg, getShadingSettings().frameGenerationMode);
+		}
+		if(getShadingSettings().frameGeneration){
+			programData.ui.menuRenderer.toggleOptions("FG Mode:", "Interp|Motion", &getShadingSettings().frameGenerationMode, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		}
+	}
+	{
+		bool nb = getShadingSettings().nvidiaBoost;
+		if(programData.ui.menuRenderer.ToggleButton("Nvidia Reflex Boost", Colors_White, &nb, programData.ui.buttonTexture, Colors_Gray)){
+			getShadingSettings().nvidiaBoost=nb; Performance::setNvidiaBoost(nb);
+		}
+		bool al = getShadingSettings().amdAntiLag;
+		if(programData.ui.menuRenderer.ToggleButton("AMD Anti-Lag", Colors_White, &al, programData.ui.buttonTexture, Colors_Gray)){
+			getShadingSettings().amdAntiLag=al; Performance::setAmdAntiLag(al);
+		}
+	}
+	programData.ui.menuRenderer.toggleOptions("VSync:", "Off|On|Adaptive (FreeSync/G-Sync)", &getShadingSettings().vsyncMode, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray, "Adaptive = FreeSync/G-Sync, tear-free");
+	if(programData.ui.menuRenderer.Button("Apply VSync", Colors_Gray, programData.ui.buttonTexture)){
+		Performance::applyVSync((Performance::VSyncMode)getShadingSettings().vsyncMode);
+	}
+	programData.ui.menuRenderer.toggleOptions("MSAA:", "Off|2x|4x|8x", &getShadingSettings().msaa, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+	if(programData.ui.menuRenderer.Button("Apply MSAA", Colors_Gray, programData.ui.buttonTexture)){
+		int v=getShadingSettings().msaa; Performance::MSAA m=Performance::MSAA::Off; if(v==2)m=Performance::MSAA::X2; else if(v==4)m=Performance::MSAA::X4; else if(v==8)m=Performance::MSAA::X8; Performance::applyMSAA(m);
+	}
+	programData.ui.menuRenderer.sliderInt("Anisotropy", &getShadingSettings().anisotropy, 1, 16, Colors_White, programData.ui.buttonTexture, Colors_Gray, programData.ui.buttonTexture, Colors_White);
+	if(programData.ui.menuRenderer.Button("Apply Anisotropy", Colors_Gray, programData.ui.buttonTexture)){
+		Performance::applyAnisotropy(getShadingSettings().anisotropy);
+	}
+	programData.ui.menuRenderer.toggleOptions("FSR Upscaling:", "Off|Perf|Balanced|Quality|UltraQ", &getShadingSettings().fsr, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray, "AMD FidelityFX Super Resolution - render low res, upscale");
+	programData.ui.menuRenderer.Text(("GPU: "+Performance::getGpuVendor()).c_str(), glm::vec4(0.6f,0.8f,1.f,1.f));
+	if(programData.ui.menuRenderer.Button("Auto Optimize", Colors_White, programData.ui.buttonTexture)){
+		Performance::autoOptimize();
+	}
+	programData.ui.menuRenderer.Text(Performance::getPerformanceReport().c_str(), glm::vec4(0.7f,0.7f,0.7f,1.f));
+	programData.ui.menuRenderer.EndMenu();
 
 }
 
@@ -778,6 +820,14 @@ void saveShadingSettings()
 	SET_INT(useLights);
 	SET_INT(bloom);
 	SET_FLOAT(lightsStrength);
+	SET_INT(frameGeneration);
+	SET_INT(frameGenerationMode);
+	SET_INT(nvidiaBoost);
+	SET_INT(msaa);
+	SET_INT(vsyncMode);
+	SET_INT(fsr);
+	SET_INT(amdAntiLag);
+	SET_INT(anisotropy);
 
 	SET_VEC3(waterColor);
 	SET_VEC3(underWaterColor);
@@ -838,6 +888,14 @@ void loadShadingSettings()
 		GET_INT(bloom);
 		GET_INT(useLights);
 		GET_FLOAT(lightsStrength);
+		GET_INT(frameGeneration);
+		GET_INT(frameGenerationMode);
+		GET_INT(nvidiaBoost);
+		GET_INT(msaa);
+		GET_INT(vsyncMode);
+		GET_INT(fsr);
+		GET_INT(amdAntiLag);
+		GET_INT(anisotropy);
 
 		GET_FLOAT(toneMapSaturation);
 		GET_FLOAT(toneMapVibrance);
@@ -1250,9 +1308,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 					auto rightButton = glui::Box().xRight().yCenter().xDimensionPercentage(0.5).yDimensionPercentage(1)();
 					if (drawButton(shrinkPercentage(rightButton, {0.1,0.05}), Colors_Gray, loc_Settings()))
 					{
-						
-
-
+						programData.ui.menuRenderer.ExitCurrentMenu();
 					}
 
 
@@ -1547,7 +1603,7 @@ void displayWorldSelectorMenu(ProgramData &programData)
 void ShadingSettings::normalize()
 {
 
-	viewDistance = glm::clamp(viewDistance, 1, 50);
+	viewDistance = glm::clamp(viewDistance, 1, 32);
 	tonemapper = glm::clamp(tonemapper, 0, 4);
 	shadows = glm::clamp(shadows, 0, 2);
 	waterType = glm::clamp(waterType, 0, 1);
@@ -1584,6 +1640,16 @@ void ShadingSettings::normalize()
 	vignette = glm::clamp(vignette, 0.f, 1.f);
 	glm::vec3 toneMapLift = glm::clamp(toneMapLift ,glm::vec3(0.f), glm::vec3(1));
 	glm::vec3 toneMapGain = glm::clamp(toneMapGain, glm::vec3(0.f), glm::vec3(1));
+
+	frameGeneration = glm::clamp(frameGeneration, 0, 1);
+	frameGenerationMode = glm::clamp(frameGenerationMode, 0, 1);
+	nvidiaBoost = glm::clamp(nvidiaBoost, 0, 1);
+	msaa = glm::clamp(msaa, 0, 8);
+	if(msaa!=0 && msaa!=2 && msaa!=4 && msaa!=8) msaa=0;
+	vsyncMode = glm::clamp(vsyncMode, 0, 2);
+	fsr = glm::clamp(fsr, 0, 4);
+	amdAntiLag = glm::clamp(amdAntiLag, 0, 1);
+	anisotropy = glm::clamp(anisotropy, 1, 16);
 
 }
 

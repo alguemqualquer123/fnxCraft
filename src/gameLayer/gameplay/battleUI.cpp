@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <gameplay/battleUI.h>
 #include <platform/platformInput.h>
 #include <glui/glui.h>
@@ -6,7 +7,7 @@
 
 void BattleUI::reset()
 {
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 
 }
 

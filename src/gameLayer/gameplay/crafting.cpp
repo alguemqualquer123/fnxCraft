@@ -198,6 +198,8 @@ static CraftingRecepie recepies[] =
 
 
 	recepie<2>(Item(BlockTypes::torchWood, 4), {Item(BlockTypes::wooden_plank, 1), Item(ItemTypes::cloth, 1)}).setAnyWood(),
+	recepie<1>(Item(ItemTypes::flint, 4), {Item(BlockTypes::gravel, 2)}),
+	recepie<3>(Item(ItemTypes::lighter, 1), {Item(ItemTypes::flint, 1), Item(ItemTypes::ironIngot, 1), Item(ItemTypes::stick, 1)}).setRequiresWorkBench(),
 
 	//arrows
 	recepie<2>(Item(ItemTypes::arrow, 10), {Item(BlockTypes::wooden_plank, 1), Item(BlockTypes::cobblestone, 1)}).setAnyWood(),
@@ -212,6 +214,10 @@ static CraftingRecepie recepies[] =
 	recepie<1>(Item(ItemTypes::ironIngot, 1), {Item(BlockTypes::ironOre, 3)}).setRequiresFurnace(),
 	recepie<1>(Item(ItemTypes::silverIngot, 1), {Item(BlockTypes::silverOre, 3)}).setRequiresFurnace(),
 	recepie<1>(Item(ItemTypes::goldIngot, 1), {Item(BlockTypes::goldOre, 4)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::tinIngot, 1), {Item(BlockTypes::tinOre, 2)}).setRequiresFurnace(),
+	recepie<1>(Item(ItemTypes::mithrilIngot, 1), {Item(BlockTypes::mithrilOre, 3)}).setRequiresFurnace(),
+	recepie<1>(Item(BlockTypes::tinBlock, 1), {Item(ItemTypes::tinIngot, 4)}).setRequiresWorkBench(),
+	recepie<1>(Item(BlockTypes::mithrilBlock, 1), {Item(ItemTypes::mithrilIngot, 4)}).setRequiresWorkBench(),
 
 
 	//tools

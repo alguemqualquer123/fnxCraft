@@ -91,6 +91,10 @@ struct ServerData
 
 }sd;
 
+bool g_flatMobsRequested = false;
+glm::ivec3 g_flatMobsCenter = {};
+bool g_mobsFrozen = false;
+
 int outTicksPerSeccond = 0;
 
 int getServerTicksPerSeccond()
@@ -354,7 +358,58 @@ void serverWorkerUpdate(
 
 	static std::minstd_rand rng(std::random_device{}());
 
-
+	if(g_flatMobsRequested){
+		glm::ivec3 c = g_flatMobsCenter;
+		int platY = 60;
+		int half = 32;
+		for(int dx=-half; dx<=half; dx++) for(int dz=-half; dz<=half; dz++){
+			int wx = c.x + dx;
+			int wz = c.z + dz;
+			for(int y=0; y<=platY+1; y++){
+				SavedChunk *ch = nullptr;
+				auto b = sd.chunkCache.getBlockSafeAndChunk(glm::ivec3(wx,y,wz), ch);
+				if(!b || !ch) continue;
+				Block nb;
+				if(y < platY-4) nb.setType(BlockTypes::stone);
+				else if(y < platY) nb.setType(BlockTypes::dirt);
+				else if(y == platY) nb.setType(BlockTypes::grassBlock);
+				else nb.setType(BlockTypes::air);
+				nb.setLightLevel(0);
+				*b = nb;
+				ch->otherData.dirty = true;
+				ch->otherData.dirtyBlockData = true;
+			}
+		}
+		std::cout << "[FlatMobs] Plataforma gerada em " << c.x << "," << platY << "," << c.z << " half=" << half << std::endl;
+		{
+			int idx=0;
+			auto getPos = [&](int i)->glm::dvec3{
+				int cols = 8;
+				int r = i / cols;
+				int col = i % cols;
+				double x = c.x - 28 + col*7 + 0.5;
+				double z = c.z - 28 + r*7 + 0.5;
+				return glm::dvec3(x, platY+1, z);
+			};
+			auto doSpawn = [&](glm::dvec3 pos, int type, auto creator){
+				auto chunkPos = glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z));
+				auto ch = sd.chunkCache.getChunkOrGetNull(chunkPos.x, chunkPos.y);
+				if(!ch) { std::cout << "[FlatMobs] chunk null at " << chunkPos.x << "," << chunkPos.y << std::endl; return; }
+				creator(ch, pos, chunkPos);
+				std::cout << "[FlatMobs] spawn type " << type << " at " << pos.x << "," << pos.y << "," << pos.z << std::endl;
+			};
+			{ glm::dvec3 pos=getPos(idx++); Pig pig{}; pig.position=pos; pig.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::pigs); PigServer s; s.entity=pig; s.configureSpawnSettings(rng); ch->entityData.pigs.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; std::cout << "[FlatMobs] pig " << nid << std::endl; } }
+			{ glm::dvec3 pos=getPos(idx++); Cow cow{}; cow.position=pos; cow.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::cows); CowServer s; s.entity=cow; s.configureSpawnSettings(rng); ch->entityData.cows.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); Sheep sheep{}; sheep.position=pos; sheep.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::sheeps); SheepServer s; s.entity=sheep; s.configureSpawnSettings(rng); ch->entityData.sheeps.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); Zombie zombie{}; zombie.position=pos; zombie.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::zombies); ZombieServer s; s.entity=zombie; ch->entityData.zombies.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); Cat cat{}; cat.position=pos; cat.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::cats); CatServer s; s.entity=cat; s.configureSpawnSettings(rng); ch->entityData.cats.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); Goblin goblin{}; goblin.position=pos; goblin.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::goblins); GoblinServer s; s.entity=goblin; ch->entityData.goblins.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); Fish fish{}; fish.position=pos; fish.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::fish); FishServer s; s.entity=fish; ch->entityData.fish.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			{ glm::dvec3 pos=getPos(idx++); ScareCrow sc{}; sc.position=pos; sc.lastPosition=pos; auto cp=glm::ivec2(divideChunk((int)pos.x), divideChunk((int)pos.z)); auto ch=sd.chunkCache.getChunkOrGetNull(cp.x, cp.y); if(ch){ uint64_t nid=getEntityIdAndIncrement(worldSaver, EntityType::scareCrow); ScareCrowServer s; s.entity=sc; ch->entityData.scareCrows.insert({nid,s}); sd.chunkCache.entityChunkPositions[nid]=cp; } }
+			std::cout << "[FlatMobs] Spawnados " << idx << " mobs congelados." << std::endl;
+		}
+		g_flatMobsRequested = false;
+	}
 #pragma region send chunks to players
 
 	serverProfiler.startSubProfile("Send Chunks To players");
@@ -464,8 +519,11 @@ void serverWorkerUpdate(
 			auto spawnChunk = sd.chunkCache.getChunkOrGetNull(divideChunk(spawnPos.x),
 				divideChunk(spawnPos.z));
 
-			//only if the chunk is loaded for now
-			if (spawnChunk)
+			if (!spawnChunk)
+			{
+				worldSaver.spawnPosition.y = 70;
+			}
+			else
 			{
 				glm::ivec3 blockPos = spawnPos;
 				blockPos.x = modBlockToChunk(blockPos.x);

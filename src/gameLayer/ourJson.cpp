@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <ourJson.h>
 #include <safeSave/include/safeSave.h>
 #include <platform/platformTools.h>
@@ -22,7 +23,7 @@ bool KeyValuePair::loadElementsFromFile(const char *fileName)
 bool KeyValuePair::loadElementsFromData(const char *data)
 {
 
-	*this = {};
+	*this = std::decay_t<decltype(*this)>{};
 
 	enum
 	{

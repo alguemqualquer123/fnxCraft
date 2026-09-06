@@ -50,6 +50,9 @@ struct ServerSettings
 	bool busyWait = 1;
 	unsigned int randomTickSpeed = 3;
 	int simulationDistanceRadius = 8;
+	bool hungerEnabled = true;
+	bool thirstEnabled = true;
+	bool pvpEnabled = false;
 
 
 };
@@ -86,6 +89,10 @@ std::string executeServerCommand(std::uint64_t cid, const char *command);
 //current world spawn point, used by the /spawn command
 glm::ivec3 getWorldSpawnPosition();
 void setWorldSpawnPosition(const glm::ivec3 &pos);
+
+extern bool g_flatMobsRequested;
+extern glm::ivec3 g_flatMobsCenter;
+extern bool g_mobsFrozen;
 //the seed the world was created with, used by the /seed command
 int getWorldSeed();
 

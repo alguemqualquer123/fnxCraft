@@ -36,17 +36,11 @@ vec2 mapDirectionToUV()
 	float sampleX = max(sunDot,0);
 	sampleX	= remapFunction(sampleX);
 	
-	//todo
-	//vec3 deltaVector = normalize(view - u_sunPos);
-	//vec3 topVector = normalize(cross(deltaVector, view));	
-
 	vec3 view2 = view;
 	float sunDot2 = dot(u_sunPos, view2);
 	float sampleY = max(sunDot2,0);
 	sampleY	= remapFunction(sampleY);
-	//sampleX -= 0.5;	
 	
-	//todo
 	return vec2(sampleX, sampleY);
 }
 
@@ -101,26 +95,14 @@ void main()
 
 	vec3 skyColor = mix(skyColor1, skyColor2, u_blend);
 
-	// Calculate the direction from the fragment to the sun
 	vec3 sunDirection = normalize(u_sunPos - gl_FragCoord.xyz);
 
 	vec2 sunTexCoords = mapDirectionToUV();
 
-	// Sample the sun texture using the corrected texture coordinates
-	//vec3 sunColor = texture(u_sunTexture, sunTexCoords).rgb;
-
-	skyColor.rgb *= 1.2f; //brighten the sky
-	//sunColor.rgb *= 1.0f; //brighten the sky
-
-
-	// Apply screen blend mode
-	//a_outColor.rgb = vec3(1.0) - (vec3(1.0) - skyColor.rgb) * (vec3(1.0) - sunColor); 
+	skyColor.rgb *= 1.45;
 
 	a_outColor.rgb = skyColor.rgb;
 
-	
-
-	// Ensure that the alpha channel is 1.0
 	a_outColor.a = 1.0;
 
 	out_bloom.rgb = vec3(0,0,0);

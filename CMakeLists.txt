@@ -34,7 +34,8 @@ else()
 	# Set the compiler flags for AVX
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
 	# Uncomment the following line for AVX2 instead of AVX
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -fpermissive -Wno-error -Wno-template-body -Wno-invalid-offsetof")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
 endif()
 
 
@@ -82,6 +83,7 @@ add_subdirectory(thirdparty/magic_enum-0.9.3)
 add_subdirectory(thirdparty/safeSave)
 add_subdirectory(thirdparty/profilerLib)
 add_subdirectory(thirdparty/zstd-1.5.5/build/cmake)
+add_subdirectory(thirdparty/lua)
 add_subdirectory(noiseTool)
 add_subdirectory(PBRTool)
 
@@ -128,12 +130,13 @@ target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURC
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/gameLayer/")
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/platform/")
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/")
+target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lua")
 
 
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw glad stb_image stb_truetype 
 	gl2d raudio imgui fastNoiseSIMD FastNoise2 enet glui
 	magic_enum safeSave profilerLib
-	libzstd_static assimp)
+	libzstd_static assimp lua_static)
 
 # Windows: ícone no executável
 if(WIN32)
@@ -148,6 +151,10 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" "${CMAKE_SOURCE_DIR}/game/ourCraft" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/resources/icon.png" "${CMAKE_SOURCE_DIR}/game/icon.png" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/resources/icon.ico" "${CMAKE_SOURCE_DIR}/game/icon.ico" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/game/resources/scripts" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/resources/scripts" "${CMAKE_SOURCE_DIR}/game/resources/scripts" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/config/lua.toml" "${CMAKE_SOURCE_DIR}/game/config/lua.toml" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/game/config" 2>/dev/null || true
 	COMMENT "Gerando pasta game/ com binário e ícone (separado de build)"
 )
 

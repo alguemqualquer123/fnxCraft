@@ -86,8 +86,37 @@ enum ItemTypes : unsigned short
 	catSpawnEgg,
 	goblinSpawnEgg,
 	scareCrowSpawnEgg,
+	skeletonSpawnEgg,
+	enderlingSpawnEgg,
+	beeSpawnEgg,
+	queenBeeSpawnEgg,
+	creeperSpawnEgg,
+	slimeSpawnEgg,
+	caveSpiderSpawnEgg,
+	crystalBatSpawnEgg,
+	capybaraChefSpawnEgg,
+ riverGuardianSpawnEgg,
+ treeEntSpawnEgg,
+ nomadTraderSpawnEgg,
+ mimicChestSpawnEgg,
+ lightFairySpawnEgg,
+ armoredBoarSpawnEgg,
+ sandSerpentSpawnEgg,
+ mistGhostSpawnEgg,
+ hermitCrabSpawnEgg,
+ honeyBearSpawnEgg,
+ lavaSlugSpawnEgg,
+ crystalSentinelSpawnEgg,
+ blacksmithVillagerSpawnEgg,
+ herbalistVillagerSpawnEgg,
+ skeletonPirateSpawnEgg,
+ juvenileDragonSpawnEgg,
+ crystalGolemSpawnEgg,
+ hydraSpawnEgg,
+ sheepSpawnEgg,
+ cowSpawnEgg,
 
-	apple,
+ apple,
 	blackBerrie,
 	blueBerrie,
 	cherries,
@@ -221,6 +250,12 @@ enum ItemTypes : unsigned short
 	silverBow,
 	goldBow,
 	goblinBow,
+	tinIngot,
+	mithrilIngot,
+	tinBlockItem,
+	mithrilBlockItem,
+	flint,
+	lighter,
 
 	lastItem,
 
@@ -305,6 +340,13 @@ struct Item
 	bool isSeed();
 	bool isBoneMealItem();
 	bool isFertilizerItem();
+	bool isFlint();
+	bool isLighter();
+	void ensureMetadata(size_t minSize);
+	int getLighterDurability();
+	void setLighterDurability(int d);
+	int getTorchWetness();
+	void setTorchWetness(int w);
 
 
 	std::string getItemName();
@@ -354,6 +396,7 @@ struct PlayerInventory
 	constexpr static int EQUIPEMENT_START_INDEX = ABILITY_INDEX + 1;
 
 	constexpr static int CHEST_START_INDEX = 100;
+	constexpr static int OFFHAND_INDEX = 250;
 
 	Item items[INVENTORY_CAPACITY] = {};
 	
@@ -362,6 +405,7 @@ struct PlayerInventory
 	Item headArmour = {}; //ARMOUR_START_INDEX 
 	Item chestArmour = {}; //ARMOUR_START_INDEX + 1
 	Item bootsArmour = {}; //ARMOUR_START_INDEX + 2
+	Item offHand = {};
 
 	Item *getItemFromIndex(int index, ChestBlock *chestBlock);
 

@@ -18,14 +18,8 @@ void DroppedItem::update(float deltaTime, decltype(chunkGetterSignature) *chunkG
 
 	if (inWater)
 	{
-		// Items float: apply buoyancy instead of full gravity
 		applyWaterPhysics(forces, position, deltaTime, ps, true, WATER_ITEM_BUOYANCY);
-
-		// Keep items at water surface - apply slight upward force if sinking
-		if (forces.velocity.y < 0)
-		{
-			forces.acceleration.y += WATER_ITEM_BUOYANCY * 1.2f;
-		}
+		forces.velocity.y = glm::clamp(forces.velocity.y, -2.f, 2.f);
 	}
 
 	updateForces(deltaTime, true, ps);
@@ -175,14 +169,8 @@ bool DroppedItemServer::update(float deltaTime, decltype(chunkGetterSignature) *
 
 	if (inWater)
 	{
-		// Items float: apply buoyancy instead of full gravity
 		applyWaterPhysics(entity.forces, entity.position, deltaTime, ps, true, WATER_ITEM_BUOYANCY);
-
-		// Keep items at water surface - apply slight upward force if sinking
-		if (entity.forces.velocity.y < 0)
-		{
-			entity.forces.acceleration.y += WATER_ITEM_BUOYANCY * 1.2f;
-		}
+		entity.forces.velocity.y = glm::clamp(entity.forces.velocity.y, -2.f, 2.f);
 	}
 
 	entity.updateForces(deltaTime, true, ps);

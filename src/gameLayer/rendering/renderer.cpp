@@ -4969,6 +4969,8 @@ void Renderer::renderEntities(
 	}
 	renderAllEntitiesOfOneType(modelsManager.human, entityManager.zombies);
 	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.pigs);
+	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.sheeps);
+	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.cows);
 	renderAllEntitiesOfOneType(modelsManager.cat, entityManager.cats);
 	renderAllEntitiesOfOneType(modelsManager.goblin, entityManager.goblins);
 	renderAllEntitiesOfOneType(modelsManager.trainingDummy, entityManager.trainingDummy);

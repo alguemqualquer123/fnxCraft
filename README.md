@@ -12,11 +12,11 @@ Go check out the videos on [YouTube about it](https://www.youtube.com/watch?v=St
 
 ![image](https://github.com/user-attachments/assets/d02a6717-8b47-4923-880d-1bc8e2574943)
 
-![image](https://github.com/meemknight/ourCraft/assets/36445656/7e57cdc4-6f6c-4cc9-bce5-c8ff9131ab55)
+![image](https://github.com/alguemqualquer123/fnxCraft/assets/36445656/7e57cdc4-6f6c-4cc9-bce5-c8ff9131ab55)
 
-![image](https://github.com/meemknight/ourCraft/assets/36445656/fd5ad17e-1bee-441d-8747-d4df4fdb850c)
+![image](https://github.com/alguemqualquer123/fnxCraft/assets/36445656/fd5ad17e-1bee-441d-8747-d4df4fdb850c)
 
-![image](https://github.com/meemknight/ourCraft/assets/36445656/3f6c8976-8f63-4259-a1de-3305c4c52467)
+![image](https://github.com/alguemqualquer123/fnxCraft/assets/36445656/3f6c8976-8f63-4259-a1de-3305c4c52467)
 
 
 Features and todos:
