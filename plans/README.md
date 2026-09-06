@@ -1,4 +1,4 @@
-# Plans — ourCraft
+# Plans — fnxCraft
 
 > **REGRA:** `plans/` contém **só** o que falta fazer. Cada arquivo `.md` é uma task pendente.
 > Quando concluir, **remova o arquivo de `plans/`** e **adicione em `README.md` na seção ✅ O Que TEM**.
@@ -21,6 +21,11 @@
 | 12 | Fixes fáceis (câmera, UVs, world/settings, etc) | 🟢 Fácil | `12-easy-fixes.md` |
 | 13 | WorldGen rios/continentalness + sprites | 🟡 Médio | `13-worldgen-polish.md` |
 | 14 | 36 entidades stub → implementar `.cpp` | 🔴 Avançado | `14-entities-stub.md` |
+| 15 | Shaders — Bloom/SSR/água/DoF | 🟡 Médio | `15-rendering-shaders.md` |
+| 16 | Texturas — PBR/UVs/sprites | 🟢 Fácil | `16-rendering-textures.md` |
+| 17 | Render otimização + fixes | 🟡 Médio | `17-rendering-optimization.md` |
+| 18 | Persistência JSON (JsonDatabase + Repository) | 🟡 Médio | `18-persistence-json-database.md` |
+| 19 | Sync completo entidades (todas, não só players) | 🟡 Médio | `19-entity-sync-full.md` |
 
 ## Como Usar
 

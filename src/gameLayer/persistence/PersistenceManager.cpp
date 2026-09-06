@@ -13,7 +13,9 @@ void PersistenceManager::init(const std::string &dataRoot, const std::string &ca
 	std::filesystem::path worldPath = dataPath / "worlds" / "default";
 	m_worldStorage = std::make_unique<FileWorldStorage>(worldPath);
 	m_playerStorage = std::make_unique<PlayerStorage>(dataPath / "players");
-	m_database = std::make_unique<NullDatabase>();
+	auto jsonDb = std::make_unique<JsonDatabase>(dataPath / "databases");
+	jsonDb->connect((dataPath / "databases").string());
+	m_database = std::move(jsonDb);
 	m_cache = std::make_unique<CacheManager>(cacheRoot.empty() ? GamePaths::get().cache() : std::filesystem::path(cacheRoot));
 	m_cache->init();
 	m_backup = std::make_unique<BackupManager>(backupRoot.empty() ? GamePaths::get().backups() : std::filesystem::path(backupRoot));

@@ -3443,63 +3443,112 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		{
 			sendEntityTimer = 0.4;
 
-			//todo make a different timer for each player			
-			//todo maybe merge things into one packet
-
-			//no need for mutex because this thread modifies the clients data
-
 			for (auto &c : allClients)
 			{
-
-				// send players
-
 				for (auto &other : allClients)
 				{
 					if (other.first != c.first)
 					{
-
 						auto &loadedChunks = c.second->loadedChunks;
-						
 						glm::ivec2 lastChunkPos = other.second->playerData.lastChunkPositionWhenAnUpdateWasSent;
 						glm::ivec2 currentChunkPos = {};
 						currentChunkPos.x = divideChunk(other.second->playerData.getPosition().x);
 						currentChunkPos.y = divideChunk(other.second->playerData.getPosition().z);
-
-						//todo only players that have entities in the simulated region later
 						if(loadedChunks.find(lastChunkPos) != loadedChunks.end()
-							||
-							loadedChunks.find(currentChunkPos) != loadedChunks.end()
-							)
-						//if (checkIfPlayerShouldGetEntity(
-						//	{c.second.playerData.entity.position.x, c.second.playerData.entity.position.z},
-						//	other.second.playerData.entity.position, c.second.playerData.entity.chunkDistance, 0)
-						//	)
+							|| loadedChunks.find(currentChunkPos) != loadedChunks.end())
 						{
 							Packet_ClientRecieveOtherPlayerPosition sendData;
 							sendData.eid = other.first;
 							sendData.timer = getTimer();
 							sendData.entity = other.second->playerData.entity;
-
 							Packet p;
 							p.cid = 0;
 							p.header = headerClientRecieveOtherPlayerPosition;
-
 							sendPacket(c.second->peer, p, (const char *)&sendData, sizeof(sendData),
 								false, channelPlayerPositions);
 						}
-
 						other.second->playerData.lastChunkPositionWhenAnUpdateWasSent = currentChunkPos;
-
-
 					}
 				}
-
-
 			}
 
 		}
 
-
+		static thread_local float sendAllEntitiesTimer = 0;
+		sendAllEntitiesTimer -= deltaTime;
+		if (sendAllEntitiesTimer < 0)
+		{
+			sendAllEntitiesTimer = 0.5;
+			for (auto &c : allClients)
+			{
+				auto &loadedChunks = c.second->loadedChunks;
+				for (auto &chunkPair : sd.chunkCache.savedChunks)
+				{
+					glm::ivec2 chunkPos = chunkPair.first;
+					if (loadedChunks.find(chunkPos) == loadedChunks.end()) continue;
+					SavedChunk *chunk = chunkPair.second;
+					if (!chunk) continue;
+					auto sendEntityMap = [&](auto &map)
+					{
+						for (auto &e : map)
+						{
+							Packet_UpdateGenericEntity header;
+							header.eid = e.first;
+							header.timer = getTimer();
+							unsigned char buf[sizeof(Packet_UpdateGenericEntity) + 2048] = {};
+							memcpy(buf, &header, sizeof(header));
+							size_t entitySize = sizeof(e.second.entity);
+							if (entitySize > 2048) entitySize = 2048;
+							memcpy(buf + sizeof(header), &e.second.entity, entitySize);
+							Packet p; p.cid = 0; p.header = headerUpdateGenericEntity;
+							sendPacket(c.second->peer, p, (const char*)buf, sizeof(header) + entitySize, false, channelEntityPositions);
+						}
+					};
+					sendEntityMap(chunk->entityData.zombies);
+					sendEntityMap(chunk->entityData.pigs);
+					sendEntityMap(chunk->entityData.cats);
+					sendEntityMap(chunk->entityData.goblins);
+					sendEntityMap(chunk->entityData.fish);
+					sendEntityMap(chunk->entityData.droppedItems);
+					sendEntityMap(chunk->entityData.trainingDummy);
+					sendEntityMap(chunk->entityData.scareCrows);
+					sendEntityMap(chunk->entityData.bees);
+					sendEntityMap(chunk->entityData.queenBees);
+					sendEntityMap(chunk->entityData.slime);
+					sendEntityMap(chunk->entityData.creepers);
+					sendEntityMap(chunk->entityData.enderlings);
+					sendEntityMap(chunk->entityData.skeletons);
+					sendEntityMap(chunk->entityData.stoneGolems);
+					sendEntityMap(chunk->entityData.wolves);
+					sendEntityMap(chunk->entityData.foxes);
+					sendEntityMap(chunk->entityData.crows);
+					sendEntityMap(chunk->entityData.manatees);
+					sendEntityMap(chunk->entityData.caveSpiders);
+					sendEntityMap(chunk->entityData.crystalBats);
+					sendEntityMap(chunk->entityData.capybaraChefs);
+					sendEntityMap(chunk->entityData.riverGuardians);
+					sendEntityMap(chunk->entityData.treeEnts);
+					sendEntityMap(chunk->entityData.nomadTraders);
+					sendEntityMap(chunk->entityData.mimicChests);
+					sendEntityMap(chunk->entityData.lightFairies);
+					sendEntityMap(chunk->entityData.armoredBoars);
+					sendEntityMap(chunk->entityData.sandSerpents);
+					sendEntityMap(chunk->entityData.mistGhosts);
+					sendEntityMap(chunk->entityData.hermitCrabs);
+					sendEntityMap(chunk->entityData.honeyBears);
+					sendEntityMap(chunk->entityData.lavaSlugs);
+					sendEntityMap(chunk->entityData.crystalSentinels);
+					sendEntityMap(chunk->entityData.blacksmithVillagers);
+					sendEntityMap(chunk->entityData.herbalistVillagers);
+					sendEntityMap(chunk->entityData.skeletonPirates);
+					sendEntityMap(chunk->entityData.juvenileDragons);
+					sendEntityMap(chunk->entityData.crystalGolems);
+					sendEntityMap(chunk->entityData.hydras);
+					sendEntityMap(chunk->entityData.sheeps);
+					sendEntityMap(chunk->entityData.cows);
+				}
+			}
+		}
 
 	}
 

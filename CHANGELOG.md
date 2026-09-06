@@ -1,4 +1,4 @@
-# Changelog - ourCraft
+# Changelog - fnxCraft
 
 ## [Unreleased] - 2026-08-30
 ### Adicionado

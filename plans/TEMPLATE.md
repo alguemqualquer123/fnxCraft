@@ -11,7 +11,7 @@ Descrição curta do que fazer.
 - `caminho/arquivo.cpp` — o que mudar
 
 ## Como Testar
-Comando para verificar: `cmake --build build -j4 && ./build/ourCraft`
+Comando para verificar: `cmake --build build -j4 && ./build/fnxCraft`
 
 ## Prioridade
 🟢 Fácil | 🟡 Médio | 🔴 Avançado — motivo

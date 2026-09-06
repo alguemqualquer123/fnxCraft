@@ -57,7 +57,7 @@ void SplashScreen::draw(float progress, const std::string &module, const std::st
 	ImGui::SetCursorPosX(centerX - 170);
 	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.95f, 1.f, 1.f));
 	ImGui::SetWindowFontScale(2.8f);
-	ImGui::Text("ourCraft");
+	ImGui::Text("fnxCraft");
 	ImGui::PopStyleColor();
 	ImGui::SetWindowFontScale(1.0f);
 

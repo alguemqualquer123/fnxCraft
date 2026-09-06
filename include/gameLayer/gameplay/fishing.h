@@ -25,3 +25,5 @@ struct FishingLine
 	float life = 0.f;
 	void update(float dt);
 };
+
+};

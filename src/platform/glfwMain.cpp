@@ -385,17 +385,17 @@ int main(int argc, char *argv[])
 
 #ifndef PLATFORM_WINDOWS
 	{
-		if(!getenv("OURCRAFT_NO_CONSOLE")){
+		if(!getenv("FNXCRAFT_NO_CONSOLE")){
 			std::string logPath = std::filesystem::absolute("logs/game.log").string();
 			std::string cmd;
 			if(system("which gnome-terminal >/dev/null 2>&1")==0){
-				cmd = "gnome-terminal --title='ourCraft Console - logs/game.log' -- bash -c \"echo '=== ourCraft Console ==='; echo 'Log: "+logPath+"'; echo ''; tail -f '"+logPath+"'\" &";
+				cmd = "gnome-terminal --title='fnxCraft Console - logs/game.log' -- bash -c \"echo '=== fnxCraft Console ==='; echo 'Log: "+logPath+"'; echo ''; tail -f '"+logPath+"'\" &";
 			}else if(system("which konsole >/dev/null 2>&1")==0){
 				cmd = "konsole -e bash -c \"tail -f '"+logPath+"'\" &";
 			}else if(system("which xfce4-terminal >/dev/null 2>&1")==0){
-				cmd = "xfce4-terminal -T 'ourCraft Console' -e \"bash -c 'tail -f "+logPath+"'\" &";
+				cmd = "xfce4-terminal -T 'fnxCraft Console' -e \"bash -c 'tail -f "+logPath+"'\" &";
 			}else if(system("which xterm >/dev/null 2>&1")==0){
-				cmd = "xterm -T 'ourCraft Console' -e tail -f '"+logPath+"' &";
+				cmd = "xterm -T 'fnxCraft Console' -e tail -f '"+logPath+"' &";
 			}
 			if(!cmd.empty()){
 				std::cout<<"[Console] Abrindo console externo: "<<cmd<<"\n";
@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
 
 	int w = 500;
 	int h = 500;
-	wind = glfwCreateWindow(w, h, "ourCraft", nullptr, nullptr);
+	wind = glfwCreateWindow(w, h, "fnxCraft", nullptr, nullptr);
 	if(!wind){
 		std::cerr<<"[glfw] Falha ao criar janela - verifique suporte OpenGL 4.6 / driver\n";
 		reportError("Falha ao criar janela GLFW");
@@ -552,7 +552,7 @@ int main(int argc, char *argv[])
 
 #pragma region splash
 	SplashScreen::init(wind);
-	SplashScreen::draw(0.f, "Iniciando ourCraft...", "Preparando janela");
+	SplashScreen::draw(0.f, "Iniciando fnxCraft...", "Preparando janela");
 #pragma endregion
 
 #pragma region initGame

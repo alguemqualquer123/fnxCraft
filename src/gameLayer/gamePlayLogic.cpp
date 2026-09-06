@@ -2908,7 +2908,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		glm::ivec2 chunkPos = { (int)std::floor((float)bpos.x / CHUNK_SIZE), (int)std::floor((float)bpos.z / CHUNK_SIZE)};
 		int facing = gameData.c.getViewDirectionRotation();
 		const char* facingStr = facing==0?"north (-Z)":facing==1?"west (-X)":facing==2?"south (+Z)":"east (+X)";
-		std::string l1 = "ourCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
+		std::string l1 = "fnxCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
 		std::string l2 = "XYZ: " + std::to_string(p.x).substr(0,7) + " / " + std::to_string(p.y).substr(0,7) + " / " + std::to_string(p.z).substr(0,7);
 		std::string l3 = "Block: " + std::to_string(bpos.x) + " " + std::to_string(bpos.y) + " " + std::to_string(bpos.z);
 		std::string l4 = "Chunk: " + std::to_string(chunkPos.x) + " " + std::to_string(chunkPos.y) + " [" + std::to_string(bpos.x - chunkPos.x*CHUNK_SIZE) + " " + std::to_string(bpos.z - chunkPos.y*CHUNK_SIZE) + "]";

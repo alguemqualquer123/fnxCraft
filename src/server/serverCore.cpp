@@ -90,7 +90,7 @@ bool ServerConfig::saveToFile(const std::string &path) const
 	std::ofstream file(path);
 	if (!file.is_open()) return false;
 
-	file << "# ourCraft Server Configuration\n";
+	file << "# fnxCraft Server Configuration\n";
 	file << "server-port=" << port << "\n";
 	file << "server-ip=" << listenAddress << "\n";
 	file << "max-players=" << maxPlayers << "\n";
@@ -135,15 +135,15 @@ bool ServerConfig::loadFromEnv()
 	};
 	bool changed = false;
 	std::string v;
-	if (!(v = env("OURCRAFT_PORT")).empty()) { port = std::stoi(v); changed = true; }
-	if (!(v = env("OURCRAFT_MAX_PLAYERS")).empty()) { maxPlayers = std::stoi(v); changed = true; }
-	if (!(v = env("OURCRAFT_LEVEL_NAME")).empty()) { levelName = v; changed = true; }
-	if (!(v = env("OURCRAFT_DATA_DIR")).empty()) { dataDirectory = v; changed = true; }
-	if (!(v = env("OURCRAFT_WORLD_DIR")).empty()) { worldDirectory = v; changed = true; }
-	if (!(v = env("OURCRAFT_CACHE_DIR")).empty()) { cacheDirectory = v; changed = true; }
-	if (!(v = env("OURCRAFT_BACKUP_DIR")).empty()) { backupDirectory = v; changed = true; }
-	if (!(v = env("OURCRAFT_LOG_DIR")).empty()) { logDirectory = v; changed = true; }
-	if (!(v = env("OURCRAFT_LISTEN_ADDRESS")).empty()) { listenAddress = v; changed = true; }
+	if (!(v = env("FNXCRAFT_PORT")).empty()) { port = std::stoi(v); changed = true; }
+	if (!(v = env("FNXCRAFT_MAX_PLAYERS")).empty()) { maxPlayers = std::stoi(v); changed = true; }
+	if (!(v = env("FNXCRAFT_LEVEL_NAME")).empty()) { levelName = v; changed = true; }
+	if (!(v = env("FNXCRAFT_DATA_DIR")).empty()) { dataDirectory = v; changed = true; }
+	if (!(v = env("FNXCRAFT_WORLD_DIR")).empty()) { worldDirectory = v; changed = true; }
+	if (!(v = env("FNXCRAFT_CACHE_DIR")).empty()) { cacheDirectory = v; changed = true; }
+	if (!(v = env("FNXCRAFT_BACKUP_DIR")).empty()) { backupDirectory = v; changed = true; }
+	if (!(v = env("FNXCRAFT_LOG_DIR")).empty()) { logDirectory = v; changed = true; }
+	if (!(v = env("FNXCRAFT_LISTEN_ADDRESS")).empty()) { listenAddress = v; changed = true; }
 	return changed;
 }
 

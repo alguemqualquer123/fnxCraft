@@ -13,13 +13,13 @@ void GamePaths::init(int argc, char *argv[])
 	if (m_root.empty())
 		m_root = std::filesystem::current_path();
 
-	const char *envRoot = std::getenv("OURCRAFT_ROOT");
+	const char *envRoot = std::getenv("FNXCRAFT_ROOT");
 	if (envRoot && envRoot[0]) m_root = envRoot;
 
-	const char *envData = std::getenv("OURCRAFT_DATA_DIR");
+	const char *envData = std::getenv("FNXCRAFT_DATA_DIR");
 	if (envData && envData[0]) m_dataDir = envData;
 
-	const char *envCache = std::getenv("OURCRAFT_CACHE_DIR");
+	const char *envCache = std::getenv("FNXCRAFT_CACHE_DIR");
 	if (envCache && envCache[0]) m_cacheDir = envCache;
 
 	parseCliArgs(argc, argv);

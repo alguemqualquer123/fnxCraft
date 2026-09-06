@@ -22,8 +22,8 @@ struct ServerConfig
 	bool pvp = true;
 	bool fireSpread = true;
 	int entityLimit = 50;
-	std::string serverName = "ourCraft Server";
-	std::string motd = "Bem-vindo ao ourCraft!";
+	std::string serverName = "fnxCraft Server";
+	std::string motd = "Bem-vindo ao fnxCraft!";
 	bool whiteList = false;
 	bool onlineMode = true;
 	int serverTps = 20;

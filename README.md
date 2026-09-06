@@ -1,4 +1,4 @@
-# ourCraft
+# fnxCraft
 
 É a terceira vez que tento fazer Minecraft do zero. Desta vez com recursos difíceis: blocos transparentes, sombras com luz, e multiplayer!
 
@@ -35,16 +35,16 @@ Vídeos no [YouTube](https://www.youtube.com/watch?v=StNAG_tLEoU&list=PLKUl_fMWL
 
 ```sh
 ./scripts/configure.sh   # cmake -B build -S . -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-./scripts/build.sh       # cmake --build build --target ourCraft -j$(nproc)
+./scripts/build.sh       # cmake --build build --target fnxCraft -j$(nproc)
 ./scripts/build-all.sh   # build client + server
-./scripts/run.sh         # ./build/ourCraft | tee game_runtime.log (+ console externo + splash 380ms)
-./scripts/run-server.sh  # ./build/ourCraftServer
+./scripts/run.sh         # ./build/fnxCraft | tee game_runtime.log (+ console externo + splash 380ms)
+./scripts/run-server.sh  # ./build/fnxCraftServer
 ./scripts/run-console.sh # console dedicado (gnome-terminal)
 ./scripts/clean.sh       # rm -rf build
 ./scripts/dev.sh         # configure + build + run (Debug)
 ```
 
-Binários: `game/ourCraft` + `server/ourCraftServer`. Recursos via `RESOURCES_PATH` (absoluto dev, relativo release). Servidor headless (`OURCRAFT_HEADLESS=1`) cria `data/worlds/players/logs/backups/plugins`.
+Binários: `game/fnxCraft` + `server/fnxCraftServer`. Recursos via `RESOURCES_PATH` (absoluto dev, relativo release). Servidor headless (`FNXCRAFT_HEADLESS=1`) cria `data/worlds/players/logs/backups/plugins`.
 
 ## Estrutura de Pastas (real no disco)
 
@@ -180,7 +180,7 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 
 | Feature | Status | Onde |
 |---------|--------|------|
-| `GamePaths` singleton | ✅ | `--data-dir`, `OURCRAFT_ROOT/DATA_DIR` |
+| `GamePaths` singleton | ✅ | `--data-dir`, `FNXCRAFT_ROOT/DATA_DIR` |
 | `FileWorldStorage` `.bin` + `.tmp` atômico | ✅ | `persistence/FileWorldStorage.cpp` |
 | `PlayerStorage` UUID `.dat` | ✅ | `persistence/PlayerStorage.cpp` |
 | `CacheManager` | ✅ |  |
@@ -269,11 +269,62 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 - [ ] **Render player/zombie** correto + **line drawing** blocos/colisões (`hardertodos.md`)
 - [ ] **Salvar `currentEntityId` + enviar todas entidades ao join** (`hardertodos.md` — hoje só algumas)
 
+### 🎨 Renderização Gráfica — Falta / Melhorar
+
+#### Shaders — faltam ou precisam melhorar (47 existem)
+
+- [ ] **Bloom reativar** — desabilitado (`renderSettings.h: bloom=1 // disabled - causes black screen, re-enable after skybox fix`)
+- [ ] **SSR melhorar** — `ssr.frag` com `//todo check/test`, `F0` metallic, `pow(roughness)` pendente
+- [ ] **HBAO/SSAO polish** — funciona mas sem tuning fino
+- [ ] **Depth of Field** blur distante (`README antigo` — não existe)
+- [ ] **Motion blur** — não existe
+- [ ] **Volumetric fog/lighting** — não existe (só fog linear)
+- [ ] **Parallax occlusion mapping** — PBR tem `metallic/roughness` mas sem parallax
+- [ ] **Luzes em cube maps** — `pointLight.h` existe mas sombras cube map não (`README antigo`)
+- [ ] **SkyBox reflections** — cubemap `overworld_cubemap` existe mas reflexão PBR não (`hardertodos.md: skybox reflections`)
+- [ ] **Shader unificado** — hoje `defaultShader` + `blockEntity` + `itemEntity` + `basicEntity` separados (`README antigo: use same shader for all`)
+- [ ] **Água UVs contínuas** — `defaultShader.frag: //todo water uvs so the texture is continuous on all sides`
+- [ ] **Água light sub-scatter** — `defaultShader.frag: //todo light sub scatter`
+- [ ] **Água darken deep** — `//darken deep stuff, todo reenable and use final depth`
+- [ ] **Water DUDV/normal** — `u_dudv`, `u_dudvNormal`, `u_caustics` existem mas `waterMove` precisa polish
+- [ ] **Decal/crack shader** — `decal.frag` usa `zpass` mas `//todo change, also reuse in decal shader`
+- [ ] **Weather shaders** — `weatherParticles/Lens/Flash` existem mas sem integração chuva/neve densa
+
+#### Texturas — faltam ou precisam melhorar (2126 assets, 1741 blocks, 37 items)
+
+- [ ] **23 itens sem PNG** caem no checker rosa `146,52,235` (`rawMeat`, `compost`, `fertilizer` etc — `blocksLoader.cpp` fallback 16×16)
+- [ ] **PBR `_n/_s` incompleto** — muitos blocos sem normal/specular (`_n.png`/`_s.png` auto-gen mas sem artista)
+- [ ] **Shrink UVs** levemente p/ modelos (`todo.txt: shrink UVs extremely slightly for the models` — evita bleeding)
+- [ ] **Mover sprites restantes** in-game (`todo.txt: move the remaining sprites in game`)
+- [ ] **Texture packs** incompleto — `renderSettings.cpp: //TODO delete unused entries`, `getUsedTexturePacksAndResetFlag` parcial
+- [ ] **Anisotropy/MSAA/FSR/VSync** — settings em `ShadingSettings` (`anisotropy=4`, `msaa=0`, `fsr=0`, `vsyncMode=1`) mas sem implementação total
+- [ ] **BRDF LUT** — `otherTextures/brdf.png` existe mas sem `preFilterSpecular` tuning (`skyBox/preFilterSpecular.frag: //todo obtain resolution in shader`)
+- [ ] **Lens dirt/flare** — 9 `lensFlare/` + `lensDirt.png` existem mas `applyBloomData` `u_waterDropsPower`/`u_hitIntensity` sem polish
+
+#### Renderização — faltam ou precisam melhorar
+
+- [ ] **SkyBox refactor completo** — `hardertodos.md: big refactor for SKYBOX! + fix sun and fog and underwater stuff and day night and skybox reflections` (sun fix, day/night, reflections pendente)
+- [ ] **Fog improve** — `defaultShader.frag` fog existe mas `README antigo: Fog -(todo improve)` + `ShadingSettings.fogGradient=16.f` precisa tuning
+- [ ] **Underwater fog improve** — `defaultShader.frag` underwater existe mas `README antigo: Underwater fog -(todo improve)` + `underwaterDarkenStrength=0.94`
+- [ ] **God rays improve** — `postProcess/radialBlur.frag` existe, `renderer.cpp: fboSunForGodRays` mas sem volumétrico real
+- [ ] **Fake Shadows improve** — existe mas `README antigo: Fake Shadows for all light types (todo improve)`
+- [ ] **Shadows optimize** — `sunShadow.cpp` CSM existe mas `README antigo: Shadows (todo optimize)` + `renderer.cpp: //TODO OPTIMIZE!`
+- [ ] **Transparent geometry** — `chunk.cpp: transparentGeometry` existe mas `hardertodos.md: transparentGeometryCounter cache to skip bake if not necessary` pendente
+- [ ] **Depth peeling água** — `renderer.h: u_depthPeelwaterPass`, `u_hasPeelInformation`, `u_PeelTexture` existem mas incompleto
+- [ ] **Z prepass optimize** — `renderer.h: zprepass=1`, `zpassShader` existe mas `//todo optimize with buffer storage`
+- [ ] **BigGpuBuffer modernizar** — `bigGpuBuffer.cpp: //todo look into a modern function here`, `glBufferData` → `glBufferStorage`
+- [ ] **Texture binding optimize** — `renderer.cpp: //todo optimize texture binding so it is done only once`
+- [ ] **Chunk sorting** — `renderer.h: sortChunks=1` mas `//todo only copy chunks that are close`, `maxLights` sem culling
+- [ ] **Frustum culling polish** — `frustumCulling.cpp` existe mas entidades ainda sem culling por chunk
+- [ ] **Gyzmos line far distance** — `renderer.h: GyzmosRenderer::drawLine //todo not working at far distances rn`
+- [ ] **Player/zombie rendering correto** — `hardertodos.md: propper player and zombie rendering` (hoje `basicEntityShader` + 6 bones mas sem polish)
+- [ ] **Line drawing colisões** — `hardertodos.md: propper line drawing for placing blocks and for drawing collisions` (Gyzmos incompleto)
+- [ ] **Model freeing** — `model.cpp: //todo check if it frees all of them`, `//todo implement` skinning
+- [ ] **Camera rotate** — `camera.cpp: //todo better rotate function`
+- [ ] **Vignette/toneMap polish** — `toneMap.frag` com `saturation/vibrance/gamma/shadowBoost/highlightBoost/vignette/lift/gain` mas sem UI tuning fino
+
 ### 🔴 Avançado — semanas/meses
 
-- [ ] Luzes em **cube maps** (README antigo)
-- [ ] **Depth of field** blur distante (README antigo)
-- [ ] **Shader unificado** — mesmo shader p/ tudo (README antigo)
 - [ ] **Buffering** multiplayer (README antigo)
 - [ ] **Redstone completo** (`plans/future/next-cycle.md` #1) — `Repeater`/`Piston` + BFS `redstoneSimulation.cpp` `power-1`, tocha inverte, delay 2 ticks. Hoje só `Dust/Torch/Lamp` power 0-15 sem simulação
 - [ ] **Montarias** (`next-cycle` #2) — `HorseServer/Client`, `saddle`/`horseArmor`, `WASD` controla cavalo
