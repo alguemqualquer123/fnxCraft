@@ -1,0 +1,3 @@
+Music By H2_AIL: https://linktr.ee/H2_AIL_Platforms (15 tracks: titleScreen 5 + night 10)
+PACK 21 tracks - Generated via generate-lore-music v3 PRO (Sweden B Dorian / Wet Hands A Major, 7th/add9/sus/bVI/borrowed, open voicing drop-2, melody 78% chord tones + passing, predelay 14ms Abbey Road 600/6000, quarter note decay, LUFS -14) - lore Cristal-Mãe/Goblin/Cerrado/Swamp/Ether/Deep - 30 Aug 2026 - resources/music/pack/ (21 Ogg 192k, 1-2min each, total 20M) + ambient/crystal/Crystal_Mother_Pro_v3.ogg
+Pixabay ready alternative: pixabay.com/music/search/ambient%20piano (38k tracks) recommended for release

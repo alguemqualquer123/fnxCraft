@@ -1,0 +1,1284 @@
+#include "blocks.h"
+#include <algorithm>
+#include <iostream>
+#include <platformTools.h>
+#include <string>
+
+int blockReorder[] = {
+	// Basic Blocks
+	air, grassBlock, dirt, stone, stone_stairts, stone_slabs, stone_wall, cobblestone, cobbleStone_stairts, cobbleStone_slabs, cobbleStone_wall, gravel, water,
+
+	// Ores & Resources
+	copperOre, leadOre, ironOre, silverOre, goldOre, gold_block,
+
+	// Natural Blocks
+	sand, sand_stone, sandStone_stairts, sandStone_slabs, sandStone_wall, hardSandStone, hardSandStone_stairs, hardSandStone_slabs, hardSandStone_wall,
+	clay, clayBricks, redClay, redClayBricks, mud,
+	snow_dirt, snow_block, ice, glowstone, pathBlock, coarseDirt,
+	limeStone, smoothLimeStone, smoothLimeStone_stairs, smoothLimeStone_slabs, smoothLimeStone_wall,
+
+	// Wood & Planks
+	woodLog, jungle_log, birch_log, palm_log, spruce_log, strippedOakLog, strippedBirchLog, strippedSpruceLog,
+	wooden_plank, wooden_stairs, wooden_slab, wooden_wall, jungle_planks,
+	birchPlanks, birchPlanks_stairs, birchPlanks_slabs, birchPlanks_wall,
+	sprucePlank, sprucePlank_stairs, sprucePlank_slabs, sprucePlank_wall,
+
+	// Leaves & Plants
+	leaves, jungle_leaves, birch_leaves, palm_leaves, spruce_leaves, spruce_leaves_red,
+	grass, rose, dead_bush, cactus_bud, vines, yellowGrass, hayBalde,
+
+	// Decorative & Special Blocks
+	bricks, bricks_stairs, bricks_slabs, bricks_wall, blueBricks, blueBricks_stairs, blueBricks_slabs, blueBricks_wall,
+	mossyCobblestone,mossyCobblestone_stairs,mossyCobblestone_slab,mossyCobblestone_wall,
+	stoneBrick, stoneBricks_stairts, stoneBricks_slabs, stoneBricks_wall,
+	tiledStoneBricks, tiledStoneBricks_stairs, tiledStoneBricks_slab, tiledStoneBricks_wall,
+	clothBlock, cloth_stairs, cloth_slabs, cloth_wall,
+	terracotta, terracotta_stairs, terracotta_slabs, terracotta_wall,
+	volcanicHotRock, volcanicRock, volcanicRock_stairts, volcanicRock_slabs, volcanicRock_wall,
+	smoothStone, smoothStone_stairts, smoothStone_slabs, smoothStone_wall,
+	marbleBlock, marbleBlock_stairs, marbleBlock_slabs, marbleBlock_wall, smoothMarbleBlock,
+	marbleBricks, marbleBricks_stairs, marbleBricks_slabs, marbleBricks_wall, marblePillar,
+
+	// Walls
+	plankedWallBlock, plankedWallBlock_stairs, plankedWallBlock_wall,
+
+	// Glass Variants
+	glass, glassNotClear, glassNotClear2, glass2,
+	vitral1, vitral2,
+	 magenta_stained_glass, pink_stained_glass,
+
+	// Structures & Functional Blocks
+	workBench, furnace, cookingPot, ladder, trainingDummy, target,
+
+	//fences
+	woodenFence, woodenLogFence, spruceFence, spruceLogFence, birchFence, birchLogFence,
+
+	// Furniture
+	bookShelf,
+	oakChair, oakBigChair, oakLogChair, oakLogBigChair, oakTable, oakLogTable,
+	woddenChest, goblinChest, copperChest, ironChest, silverChest, goldChest,
+	crate, smallCrate,
+
+	// Decorations
+	torch, torchWood, goblinTorch, skull, skullTorch, book, candleHolder, pot, jar, globe, keg, wineBottle, goblet, mug,
+	lamp, 	goblinStitchingPost, goblinWorkBench, goblinChair, goblinTable,
+
+	// Miscellaneous
+	smallRock, oakLogSlab, logWall, craftingItems, chickenCaracas, chickenWingsPlate, fishPlate,
+	cobweb,
+
+	// Dungeon Stuff
+	dungeonBricks, dungeonBricks_stairts, dungeonBricks_slabs, dungeonBricks_wall,
+	dungeonStone, dungeonStone_stairs, dungeonStone_slabs, dungeonStone_wall,
+	dungeonCobblestone, dungeonCobblestone_stairs, dungeonCobblestone_slabs, dungeonCobblestone_wall,
+	dungeonSmoothStone, dungeonSmoothStone_stairs, dungeonSmoothStone_slabs, dungeonSmoothStone_wall,
+	dungeonPillar, dungeonSkullBlock, chiseledDungeonBrick, dungeonGlass,
+
+	// Creative
+	testBlock, control1, control2, control3, control4, structureBase,
+
+	// Crops
+	wheatCrop, potatoCrop, cornCrop, carrotCrop,
+
+	// Redstone
+	redstoneDust, redstoneTorch, redstoneLamp,
+
+	// 041-070
+	cristalBruto, cristalLapidado, cristalLapidado_stairs, cristalLapidado_slab, cristalLapidado_wall,
+	obsidianaChorona, patinatedCopper, patinatedCopperAged, patinatedCopperOxidized,
+	tinOre, tinBlock, mithrilOre, mithrilBlock,
+	bambooBlock, bambooPlanks, bambooFence,
+	strawBlock, strawSlab, strawStairs,
+	burntClayBricks, temperedGlass, coloredVitral,
+	slateBlock, slateSlab, mahoganyLog, mahoganyLeaves,
+	quicksand, jellyBlock, mushroomTrampoline, strawMattress,
+	enchantmentTable, goblinAnvil, clothLoom, composterBlock, oakBarrel,
+	paperLantern, lightPost, solarPanel, windTurbine, waterPipe, conveyorBelt, ropeElevator, drawbridge,
+
+	// 071-100 new blocks
+	ironTrapdoor, crystalDoor, vitralWindow, ceramicTile,
+	ironBars, barbedWire, powderSnow,
+	driedMud, crackedMud, polishedBasalt, basaltPillar,
+	endStone, endStoneBricks, purpurBlock, purpurPillar,
+	giantMushroom, floweringCactus,
+	tallGrassBlock, fernBlock, hangingRoots, giantLilyPad,
+	coralBlock, deadCoralBlock, drySponge, wetSponge,
+	soulSand, soulSoil, blueIce, packedIce,
+	blastFurnace, smokerBlock, stonecutterBlock, cartographyTable,
+	drumBlock, noteBlock, safeBlock,
+	crystalPressurePlate, daylightSensor, motionSensor, ghostBlock,
+	wetTorch, torchUnlit, fire,
+};
+
+
+
+int getBlockReorder(int index)
+{
+	static_assert(sizeof(blockReorder) / sizeof(blockReorder[0]) == BlocksCount);
+
+	return blockReorder[index];
+}
+
+bool isBlockMesh(BlockType type)
+{
+	return !isCrossMesh(type)
+		&& !(type == torch)
+		&& !(type == torchWood)
+		&& !(type == goblinTorch)
+		&& !(type == wetTorch)
+		&& !(type == torchUnlit)
+		&& !(type == lamp)
+		&& !(type == ladder)
+		&& !(type == vines)
+		&& !isStairsMesh(type)
+		&& !isWallMesh(type)
+		&& !isSlabMesh(type)
+		&& !isDecorativeFurniture(type)
+		&& !isFenceMesh(type)
+		
+		;
+}
+
+bool canWallMountedBlocksBePlacedOn(BlockType type)
+{
+	return isBlockMesh(type) ||
+		isStairsMesh(type) ||
+		isWallMesh(type);
+}
+
+bool isStairsMesh(BlockType type)
+{
+	return 
+		type == wooden_stairs ||
+		type == bricks_stairs ||
+		type == stone_stairts ||
+		type == birchPlanks_stairs ||
+		type == cobbleStone_stairts ||
+		type == stoneBricks_stairts ||
+		type == hardSandStone_stairs ||
+		type == sandStone_stairts ||
+		type == dungeonBricks_stairts ||
+		type == dungeonStone_stairs ||
+		type == dungeonCobblestone_stairs ||
+		type == dungeonSmoothStone_stairs ||
+		type == volcanicRock_stairts ||
+		type == smoothStone_stairts ||
+		type == smoothLimeStone_stairs ||
+		type == sprucePlank_stairs ||
+		type == marbleBlock_stairs ||
+		type == marbleBricks_stairs ||
+		type == mossyCobblestone_stairs ||
+		type == cloth_stairs ||
+		type == terracotta_stairs ||
+		type == plankedWallBlock_stairs ||
+		type == blueBricks_stairs ||
+		type == tiledStoneBricks_stairs ||
+		type == cristalLapidado_stairs ||
+		type == strawStairs
+		;
+}
+
+bool isSlabMesh(BlockType type)
+{
+	return type == wooden_slab ||
+		type == bricks_slabs ||
+		type == stone_slabs ||
+		type == cobbleStone_slabs ||
+		type == stoneBricks_slabs ||
+		type == hardSandStone_slabs ||
+		type == birchPlanks_slabs ||
+		type == sandStone_slabs ||
+		type == terracotta_slabs ||
+		type == dungeonBricks_slabs ||
+		type == dungeonStone_slabs ||
+		type == dungeonCobblestone_slabs ||
+		type == dungeonSmoothStone_slabs ||
+		type == volcanicRock_slabs ||
+		type == smoothStone_slabs ||
+		type == smoothLimeStone_slabs ||
+		type == cloth_slabs ||
+		type == marbleBlock_slabs ||
+		type == sprucePlank_slabs ||
+		type == marbleBricks_slabs ||
+		type == blueBricks_slabs ||
+		type == oakLogSlab ||
+		type == mossyCobblestone_slab ||
+		type == tiledStoneBricks_slab ||
+		type == cristalLapidado_slab ||
+		type == strawSlab ||
+		type == slateSlab;
+}
+
+bool isWallMesh(BlockType type)
+{
+	return type == wooden_wall ||
+		type == bricks_wall ||
+		type == stone_wall ||
+		type == cobbleStone_wall ||
+		type == birchPlanks_wall ||
+		type == stoneBricks_wall ||
+		type == terracotta_wall ||
+		type == hardSandStone_wall ||
+		type == sandStone_wall ||
+		type == dungeonBricks_wall ||
+		type == dungeonStone_wall ||
+		type == dungeonCobblestone_wall ||
+		type == dungeonSmoothStone_wall ||
+		type == volcanicRock_wall ||
+		type == smoothStone_wall ||
+		type == sprucePlank_wall ||
+		type == plankedWallBlock_wall ||
+		type == smoothLimeStone_wall ||
+		type == marbleBlock_wall ||
+		type == cloth_wall ||
+		type == marbleBricks_wall ||
+		type == logWall ||
+		type == blueBricks_wall ||
+		type == mossyCobblestone_wall ||
+		type == tiledStoneBricks_wall ||
+		type == cristalLapidado_wall;
+
+}
+
+bool isCrossMesh(BlockType type)
+{
+	return isGrassMesh(type) || type == cobweb;
+}
+
+bool isControlBlock(BlockType type)
+{
+	return 
+		type == BlockTypes::control1 || 
+		type == BlockTypes::control2 || 
+		type == BlockTypes::control3 || 
+		type == BlockTypes::control4;
+}
+
+bool isWallMountedBlock(BlockType type)
+{
+	return type == BlockTypes::ladder || type == BlockTypes::vines;
+}
+
+bool isWallMountedOrStangingBlock(BlockType type)
+{
+	return type == BlockTypes::torch
+		|| type == BlockTypes::torchWood
+		|| type == BlockTypes::goblinTorch
+		|| type == BlockTypes::wetTorch
+		|| type == BlockTypes::torchUnlit
+		|| type == BlockTypes::lamp
+		;
+
+}
+
+bool isOpaque(BlockType type)
+{
+	type = type & 0b0111'1111'1111;
+	return
+		type != BlockTypes::air
+		&& type != BlockTypes::torch
+		&& type != BlockTypes::torchWood
+		&& type != BlockTypes::goblinTorch
+		&& type != BlockTypes::wetTorch
+		&& type != BlockTypes::torchUnlit
+		&& type != BlockTypes::lamp
+		&& type != BlockTypes::redstoneDust
+		&& type != BlockTypes::redstoneTorch
+		&& type != BlockTypes::cobweb
+		&& !isWallMountedBlock(type)
+		&& !isDecorativeFurniture(type)
+		&& !(isStairsMesh(type))
+		&& !(isSlabMesh(type))
+		&& !(isWallMesh(type))
+		&& !(isFenceMesh(type))
+		&& !(isAnyLeaves(type))
+		&& !(isTransparentGeometry(type))
+		&& !(isGrassMesh(type));
+}
+
+bool isDecorativeFurniture(BlockType type)
+{
+	return type == mug || isChairMesh(type) || isGobletMesh(type) || type == wineBottle ||
+		type == skull ||
+		type == skullTorch ||
+		type == book ||
+		type == candleHolder ||
+		type == pot ||
+		type == jar ||
+		type == keg ||
+		type == cookingPot ||
+		type == chickenCaracas ||
+		type == chickenWingsPlate ||
+		type == fishPlate ||
+		type == workBench ||
+		type == oakTable ||
+		type == craftingItems ||
+		type == oakLogTable ||
+		type == oakBigChair ||
+		type == oakLogBigChair ||
+		type == smallRock ||
+		type == woddenChest ||
+		type == goblinChest ||
+		type == copperChest ||
+		type == ironChest ||
+		type == silverChest ||
+		type == goldChest ||
+		type == smallCrate ||
+		type == lamp ||
+		type == torch ||
+		type == torchWood ||
+		type == goblinTorch ||
+		type == trainingDummy ||
+		type == target ||
+		type == furnace ||
+		type == goblinWorkBench ||
+		type == goblinChair ||
+		type == goblinTable ||
+		type == goblinStitchingPost ||
+		type == globe
+		
+		;
+}
+
+bool isLightEmitor(BlockType type)
+{
+	type = type & 0b0111'1111'1111;
+	return type == BlockTypes::glowstone
+		|| type == BlockTypes::torch
+		|| type == BlockTypes::torchWood
+		|| type == BlockTypes::goblinTorch
+		|| type == BlockTypes::lamp
+		|| type == BlockTypes::redstoneTorch
+		|| type == BlockTypes::redstoneLamp
+		|| type == BlockTypes::candleHolder
+		|| type == BlockTypes::skullTorch
+		|| type == BlockTypes::cristalBruto
+		|| type == BlockTypes::paperLantern
+		|| type == BlockTypes::lightPost
+		|| type == BlockTypes::fire
+		|| type == BlockTypes::enchantmentTable;
+}
+
+bool isTransparentGeometry(BlockType type)
+{
+	return type == BlockTypes::ice || type == BlockTypes::water ||
+		type == BlockTypes::blueIce || type == BlockTypes::packedIce ||
+		type == BlockTypes::powderSnow || type == BlockTypes::ghostBlock ||
+		type == BlockTypes::ironBars ||
+		type == BlockTypes::fire ||
+		type == BlockTypes::jellyBlock || type == BlockTypes::quicksand ||
+		::isAnyGlass(type);
+}
+
+bool isCrop(BlockType type)
+{
+	return type == BlockTypes::wheatCrop || type == BlockTypes::potatoCrop
+		|| type == BlockTypes::cornCrop || type == BlockTypes::carrotCrop;
+}
+
+bool isRedstone(BlockType type)
+{
+	return type == BlockTypes::redstoneDust || type == BlockTypes::redstoneTorch || type == BlockTypes::redstoneLamp || type == BlockTypes::solarPanel;
+}
+bool isRedstoneDust(BlockType type){ return type == BlockTypes::redstoneDust; }
+
+bool isGrassMesh(BlockType type)
+{
+	return type == BlockTypes::grass
+		|| type == BlockTypes::rose
+		|| type == BlockTypes::cactus_bud
+		|| type == BlockTypes::dead_bush
+		|| type == BlockTypes::tallGrassBlock
+		|| type == BlockTypes::fernBlock
+		|| type == BlockTypes::hangingRoots
+		|| type == BlockTypes::giantLilyPad
+		|| isCrop(type)
+		;
+}
+
+bool isColidable(BlockType type)
+{
+	return
+		type != BlockTypes::air &&
+		!isGrassMesh(type) &&
+		type != BlockTypes::torch &&
+		type != BlockTypes::lamp &&
+		type != BlockTypes::fire &&
+		type != BlockTypes::torchWood &&
+		type != BlockTypes::goblinTorch &&
+		type != BlockTypes::wetTorch &&
+		type != BlockTypes::torchUnlit &&
+		type != BlockTypes::redstoneDust &&
+		type != BlockTypes::redstoneTorch &&
+		type != BlockTypes::water &&
+		type != BlockTypes::jar &&
+		type != BlockTypes::globe &&
+		type != BlockTypes::skull &&
+		type != BlockTypes::skullTorch &&
+		type != BlockTypes::book &&
+		type != BlockTypes::candleHolder &&
+		type != BlockTypes::goblet &&
+		type != BlockTypes::wineBottle &&
+		type != BlockTypes::chickenWingsPlate &&
+		type != BlockTypes::chickenCaracas &&
+		type != BlockTypes::fishPlate &&
+		type != BlockTypes::ladder &&
+		type != BlockTypes::vines &&
+		type != BlockTypes::smallRock &&
+		type != BlockTypes::cobweb &&
+		type != BlockTypes::trainingDummy &&
+		type != BlockTypes::craftingItems &&
+		type != BlockTypes::target &&
+		type != BlockTypes::ghostBlock &&
+		type != BlockTypes::powderSnow &&
+		type != BlockTypes::mug;
+}
+
+bool isWoodPlank(BlockType type)
+{
+	return type == BlockTypes::wooden_plank ||
+		type == BlockTypes::jungle_planks ||
+		type == BlockTypes::sprucePlank ||
+		type == BlockTypes::birchPlanks;
+}
+
+bool isChairMesh(BlockType type)
+{
+	return type == oakChair || type == oakLogChair;
+}
+
+bool isGobletMesh(BlockType type)
+{
+	return type == BlockTypes::goblet;
+}
+
+
+//used for breaking related things
+bool isAnyWoddenBlock(BlockType type)
+{
+	return isWoodPlank(type) ||
+		type == woodLog ||
+		type == sprucePlank_stairs ||
+		type == sprucePlank_slabs ||
+		type == sprucePlank_wall ||
+		type == bookShelf ||
+		type == birch_log ||
+		type == jungle_log ||
+		type == palm_log ||
+		type == wooden_stairs ||
+		type == wooden_wall ||
+		type == oakLogSlab ||
+		type == ladder ||
+		type == oakTable ||
+		type == oakLogTable ||
+		type == wooden_slab ||
+		type == birchPlanks ||
+		type == birchPlanks_slabs ||
+		type == birchPlanks_stairs ||
+		type == birchPlanks_wall ||
+		type == spruce_log ||
+		type == oakChair ||
+		type == crate || 
+		type == oakLogChair ||
+		type == strippedOakLog ||
+		type == strippedBirchLog ||
+		type == strippedSpruceLog ||
+		type == woodenFence ||
+
+		type == woodenLogFence ||
+		type == spruceFence ||
+		type == spruceLogFence ||
+		type == birchFence ||
+		type == birchLogFence ||
+
+		type == cartographyTable ||
+		type == drumBlock ||
+		type == noteBlock ||
+
+		type == logWall ||
+		type == bambooBlock || type == bambooPlanks || type == bambooFence || type == mahoganyLog || type == strawBlock || type == strawSlab || type == strawStairs || type == oakBarrel;
+		
+}
+
+bool isBricksSound(BlockType type)
+{
+	return type == bricks ||
+		type == tiledStoneBricks ||
+		type == bricks_stairs ||
+		type == bricks_slabs ||
+		type == marbleBricks ||
+		type == marbleBricks_stairs ||
+		type == marbleBricks_slabs ||
+		type == marbleBricks_wall ||
+		type == blueBricks ||
+		type == blueBricks_stairs ||
+		type == blueBricks_wall ||
+		type == blueBricks_slabs ||
+		type == bricks_wall;
+}
+
+bool isVolcanicActiveSound(BlockType type)
+{
+	return type == volcanicHotRock;
+}
+
+bool isVolcanicInActiveSound(BlockType type)
+{
+	return type == volcanicRock ||
+		type == volcanicRock_stairts ||
+		type == volcanicRock_slabs ||
+		type == volcanicRock_wall;
+}
+
+
+bool isAnyWoddenLOG(BlockType type)
+{
+	return
+		type == woodLog ||
+		type == birch_log ||
+		type == jungle_log ||
+		type == palm_log ||
+		type == strippedOakLog ||
+		type == strippedBirchLog  ||
+		type == strippedSpruceLog ||
+		type == spruce_log ||
+		type == mahoganyLog || type == bambooBlock;
+}
+
+bool isAnyWool(BlockType type)
+{
+	return type == clothBlock || type == cloth_stairs || type == cloth_slabs || type == cloth_wall
+		|| type == drySponge || type == wetSponge;
+}
+
+bool isAnyDirtBlock(BlockType type)
+{
+	return
+		type == grassBlock ||
+		type == dirt ||
+		type == pathBlock || 
+		type == snow_dirt ||
+		type == coarseDirt ||
+		type == yellowGrass ||
+		type == mud ||
+		type == driedMud ||
+		type == crackedMud ||
+		type == soulSoil;
+}
+
+bool isAnyClayBlock(BlockType type)
+{
+	return
+		type == clay ||
+		type == redClay;
+		
+}
+
+bool isAnySandyBlock(BlockType type)
+{
+	return
+		type == sand ||
+		type == gravel ||
+		type == soulSand ||
+		type == powderSnow;
+}
+
+bool isAnySemiHardBlock(BlockType type)
+{
+	return type == clayBricks ||
+		type == redClayBricks ||
+		type == sand_stone ||
+		type == sandStone_wall ||
+		type == sandStone_slabs ||
+		type == sandStone_stairts||
+		type == terracotta ||
+		type == terracotta_wall ||
+		type == terracotta_slabs ||
+		type == terracotta_stairs
+		;
+
+
+}
+
+//used for breaking
+bool isAnyStone(BlockType type)
+{
+	return type == stone ||
+		type == cobblestone ||
+		type == bricks ||
+		type == blueBricks ||
+		type == blueBricks_stairs ||
+		type == plankedWallBlock_stairs ||
+		type == plankedWallBlock_wall ||
+		type == blueBricks_wall ||
+		type == blueBricks_slabs ||
+		type == stoneBrick ||
+		type == copperOre ||
+		type == leadOre ||
+		type == ironOre ||
+		type == silverOre ||
+		type == goldOre ||
+		type == plankedWallBlock ||
+		type == tiledStoneBricks ||
+		type == gold_block ||
+		type == limeStone ||
+		type == smoothLimeStone ||
+		type == smoothLimeStone_wall ||
+		type == smoothLimeStone_stairs ||
+		type == smoothLimeStone_slabs ||
+		type == mossyCobblestone ||
+		type == mossyCobblestone_stairs ||
+		type == mossyCobblestone_slab ||
+		type == mossyCobblestone_wall ||
+
+		type == marbleBlock ||
+		type == marbleBlock_stairs ||
+		type == marbleBlock_slabs ||
+		type == marbleBlock_wall ||
+		type == smoothMarbleBlock ||
+		type == marbleBricks ||
+		type == marbleBricks_stairs ||
+		type == marbleBricks_slabs ||
+		type == marbleBricks_wall ||
+		type == marblePillar ||
+
+		type == stone_stairts ||
+		type == stone_slabs ||
+		type == stone_wall ||
+		type == cobbleStone_stairts ||
+		type == cobbleStone_slabs ||
+		type == cobbleStone_wall ||
+		type == tiledStoneBricks_stairs ||
+		type == tiledStoneBricks_slab ||
+		type == tiledStoneBricks_wall ||
+		type == bricks_stairs ||
+		type == bricks_slabs ||
+		type == bricks_wall ||
+
+		type == volcanicHotRock ||
+		type == volcanicRock ||
+		type == volcanicRock_slabs ||
+		type == volcanicRock_stairts ||
+		type == volcanicRock_wall ||
+
+		type == hardSandStone ||
+		type == hardSandStone_slabs ||
+		type == hardSandStone_stairs ||
+		type == hardSandStone_wall ||
+
+
+
+		type == smoothStone ||
+		type == smoothStone_stairts ||
+		type == smoothStone_slabs ||
+		type == smoothStone_wall ||
+
+		type == stoneBricks_stairts ||
+		type == stoneBricks_slabs ||
+		type == stoneBricks_wall ||
+
+		type == ceramicTile ||
+		type == polishedBasalt ||
+		type == basaltPillar ||
+		type == endStone ||
+		type == endStoneBricks ||
+		type == purpurBlock ||
+		type == purpurPillar ||
+		type == coralBlock ||
+		type == deadCoralBlock ||
+		type == blastFurnace ||
+		type == smokerBlock ||
+		type == stonecutterBlock ||
+		type == safeBlock ||
+		type == crystalPressurePlate ||
+		type == daylightSensor ||
+		type == motionSensor ||
+		type == ironTrapdoor ||
+		type == ironBars ||
+		type == barbedWire;
+}
+
+bool isDungeonBrick(BlockType type)
+{
+	
+	return
+		type == dungeonBricks ||
+		type == dungeonBricks_slabs ||
+		type == dungeonBricks_stairts ||
+		type == dungeonBricks_wall ||
+		type == dungeonStone ||
+		type == dungeonStone_stairs ||
+		type == dungeonStone_slabs ||
+		type == dungeonStone_wall ||
+		type == dungeonCobblestone ||
+		type == dungeonCobblestone_stairs ||
+		type == dungeonCobblestone_slabs ||
+		type == dungeonCobblestone_wall ||
+		type == dungeonSmoothStone ||
+		type == dungeonSmoothStone_stairs ||
+		type == dungeonSmoothStone_slabs ||
+		type == dungeonSmoothStone_wall ||
+		type == dungeonPillar ||
+		type == chiseledDungeonBrick ||
+		type == dungeonGlass ||
+		type == dungeonSkullBlock;
+}
+
+bool isAnyPlant(BlockType type)
+{
+	return type == grass ||
+		type == rose ||
+		type == dead_bush ||
+		type == vines ||
+		type == cactus_bud ||
+		type == tallGrassBlock ||
+		type == fernBlock ||
+		type == hangingRoots ||
+		type == giantLilyPad ||
+		type == floweringCactus ||
+		type == giantMushroom || isCrop(type);
+}
+
+bool isAnyGlass(BlockType type)
+{
+	return isStainedGlass(type) || type == glass || type == glass2 ||
+		type == glassNotClear || type == vitral1 || type == vitral2 || type == glassNotClear2 
+		 || type == dungeonGlass || type == crystalDoor || type == vitralWindow
+		 || type == blueIce || type == packedIce || type == ghostBlock;
+}
+
+bool isChest(BlockType type)
+{
+	return
+		type == woddenChest ||
+		type == goblinChest ||
+		type == copperChest ||
+		type == ironChest ||
+		type == silverChest ||
+		type == goldChest;
+}
+
+bool canHaveDecals(BlockType type)
+{
+	return type != 0 && isBlockMesh(type) && !isTransparentGeometry(type);
+}
+
+bool isTriviallyBreakable(BlockType type)
+{
+	return type == torch || type == torchWood || type == lamp || type == goblinTorch
+		|| type == wetTorch || type == torchUnlit || type == fire
+		|| type == ghostBlock;
+}
+
+bool isAnyUnbreakable(BlockType type)
+{
+	//todo make sure this can't get to the client or just make them breakable
+	return isControlBlock(type);
+}
+
+bool isAnyHotSoundingBlock(BlockType type)
+{
+	return type == volcanicHotRock;
+}
+
+bool isAnyLeaves(BlockType type)
+{
+	return type == leaves ||
+		type == palm_leaves ||
+		type == spruce_leaves ||
+		type == spruce_leaves_red ||
+		type == jungle_leaves ||
+		type == birch_leaves ||
+		type == mahoganyLeaves;
+
+}
+
+bool isStainedGlass(BlockType type)
+{
+	return (type >= magenta_stained_glass && type <= pink_stained_glass) || type == coloredVitral;
+}
+
+bool isFlammable(BlockType type)
+{
+	type = type & 0b0111'1111'1111;
+	return isAnyWoddenBlock(type) || isAnyLeaves(type) || type==BlockTypes::clothBlock
+		|| type==BlockTypes::hayBalde || type==BlockTypes::strawBlock
+		|| type==BlockTypes::bambooBlock || type==BlockTypes::bambooPlanks
+		|| isAnyWool(type) || isAnyPlant(type) || type==BlockTypes::bookShelf
+		|| type==BlockTypes::vines || type==BlockTypes::cactus_bud
+		|| type==BlockTypes::jungle_leaves || type==BlockTypes::birch_leaves
+		|| type==BlockTypes::palm_leaves || type==BlockTypes::spruce_leaves || type==BlockTypes::spruce_leaves_red;
+}
+
+float getFlammability(BlockType type)
+{
+	type = type & 0b0111'1111'1111;
+	if(isAnyLeaves(type) || type==BlockTypes::vines) return 0.72f;
+	if(type==BlockTypes::hayBalde || type==BlockTypes::strawBlock || type==BlockTypes::clothBlock) return 0.85f;
+	if(isAnyWool(type)) return 0.58f;
+	if(isAnyWoddenBlock(type)){
+		if(type==BlockTypes::woodLog || type==BlockTypes::jungle_log || type==BlockTypes::birch_log || type==BlockTypes::palm_log || type==BlockTypes::spruce_log) return 0.38f;
+		return 0.48f;
+	}
+	if(type==BlockTypes::bookShelf) return 0.32f;
+	if(isAnyPlant(type) || type==BlockTypes::bambooBlock) return 0.65f;
+	return 0.28f;
+}
+
+float getBurnTime(BlockType type)
+{
+	type = type & 0b0111'1111'1111;
+	if(isAnyLeaves(type) || type==BlockTypes::vines) return 3.5f;
+	if(type==BlockTypes::hayBalde || type==BlockTypes::strawBlock) return 2.2f;
+	if(type==BlockTypes::clothBlock || isAnyWool(type)) return 4.0f;
+	if(isAnyWoddenBlock(type)){
+		if(type==BlockTypes::woodLog || type==BlockTypes::jungle_log || type==BlockTypes::birch_log || type==BlockTypes::palm_log || type==BlockTypes::spruce_log) return 11.0f;
+		return 7.5f;
+	}
+	if(type==BlockTypes::bookShelf) return 9.0f;
+	if(isAnyPlant(type)) return 2.0f;
+	return 5.0f;
+}
+
+unsigned char isInteractable(BlockType type)
+{
+	int craftingStation = isCraftingStation(type);
+
+	if (craftingStation)
+	{
+		return craftingStation;
+	}else if (type == BlockTypes::structureBase)
+	{
+		return InteractionTypes::structureBaseBlock;
+	}
+	else if (isChest(type))
+	{
+		return InteractionTypes::chestInteraction;
+	}
+
+	return InteractionTypes::none;
+}
+
+bool isBlock(std::uint16_t type) //todo == 0 ???????????????????/
+{
+	return type > 0 && type < BlocksCount;
+}
+
+bool noRotationForFurniture(std::uint16_t type)
+{
+	return isFenceMesh(type);
+}
+
+bool isFenceMesh(std::uint16_t type)
+{
+	return type == BlockTypes::woodenFence
+		|| type == BlockTypes::woodenLogFence
+		|| type == BlockTypes::spruceFence
+		|| type == BlockTypes::spruceLogFence
+		|| type == BlockTypes::birchFence
+		|| type == BlockTypes::birchLogFence
+		|| type == BlockTypes::bambooFence;
+}
+
+bool isFenceConnectorBlock(std::uint16_t type)
+{
+	return type != 0 && (isFenceMesh(type) || isBlockMesh(type));
+}
+
+bool Block::normalize()
+{
+
+	auto type = getType();
+
+	//remove wierd blocks!
+	if (type >= BlockTypes::BlocksCount)
+	{
+		typeAndFlags = {};
+		return true;
+	}
+
+	//we have flags...
+	if (getFlagsBytes())
+	{
+		//todo
+	}
+
+
+	return false;
+}
+
+float Block::getFriction()
+{
+	if (getType() == BlockTypes::ice)
+	{
+		return 1.f;
+	}
+	if (getType() == BlockTypes::jellyBlock) { return 8.f; }
+	if (getType() == BlockTypes::quicksand) { return 0.5f; }
+	if (getType() == BlockTypes::mushroomTrampoline) { return 8.f; }
+
+	return BLOCK_DEFAULT_FRICTION;
+}
+
+int isCraftingStation(unsigned short type)
+{
+	switch (type)
+	{
+
+	case craftingItems:
+	case goblinWorkBench:
+	case workBench: return WorkStationType_WorkBench;
+
+
+	case cookingPot: return WorkStationType_CookingPot;
+	case furnace: return WorkStationType_Furnace;
+	case goblinStitchingPost: return WorkStationType_GoblinStitchingPost;
+
+	}
+
+
+	return 0;
+}
+
+
+
+float getBlockBaseMineDuration(BlockType type)
+{
+
+	if (!isBlock(type)) { return 0; }
+	if (type == water) { return 0; }
+
+	if (isAnyWoddenBlock(type))
+	{
+		return 2.5;
+	}
+
+	if (isAnyDirtBlock(type))
+	{
+		return 0.75;
+	}
+
+	if (isAnyClayBlock(type))
+	{
+		return 0.75;
+	}
+
+	if (isAnySandyBlock(type))
+	{
+		return 0.75;
+	}
+
+	if (type == snow_block)
+		{ return 0.75; }
+
+	if (isAnySemiHardBlock(type) || type == testBlock)
+	{
+		return 2.5;
+	}
+
+	if (isDungeonBrick(type))
+	{
+		return 9999999.0;
+	}
+
+	if (isAnyStone(type))
+	{
+		return 3.5;
+	}
+
+	if (isAnyPlant(type))
+	{
+		return 0.2;
+	}
+
+	if (isAnyGlass(type) || type == ice || type == glowstone)
+	{
+		return 0.75;
+	}
+
+	if (isAnyLeaves(type))
+	{
+		return 0.75 / 3.f;
+	}
+
+	if (isAnyWool(type))
+	{
+		return 0.75;
+	}
+
+	if (isAnyUnbreakable(type))
+	{
+		return 9999999.0f;
+	}
+
+	if (isTriviallyBreakable(type))
+	{
+		return 0.2;
+	}
+
+	if (type == cobweb)
+	{
+		return 1;
+	}
+
+	if (type == structureBase)
+	{
+		return 1;
+	}
+
+	if (isDecorativeFurniture(type))
+	{
+		return 0.2;
+	}
+
+	if (type == hayBalde)
+	{
+		return 0.3;
+	}
+
+	if (type == dungeonGlass || type == chiseledDungeonBrick || type == dungeonPillar || type == dungeonSkullBlock
+		|| type == dungeonSmoothStone || type == dungeonCobblestone || type == dungeonStone
+		|| type == sprucePlank || type == strippedOakLog || type == strippedBirchLog || type == strippedSpruceLog
+		|| type == wheatCrop || type == potatoCrop || type == cornCrop || type == carrotCrop
+		|| type == redstoneDust || type == redstoneTorch || type == redstoneLamp)
+	{
+		return 0.5f;
+	}
+
+	if(type==cristalBruto||type==cristalLapidado||type==cristalLapidado_stairs||type==cristalLapidado_slab||type==cristalLapidado_wall||type==obsidianaChorona||type==patinatedCopper||type==patinatedCopperAged||type==patinatedCopperOxidized||type==tinOre||type==tinBlock||type==mithrilOre||type==mithrilBlock||type==slateBlock||type==slateSlab||type==burntClayBricks||type==mahoganyLog||type==bambooBlock||type==bambooPlanks||type==oakBarrel||type==enchantmentTable||type==goblinAnvil||type==composterBlock||type==drawbridge||type==ropeElevator||type==waterPipe||type==conveyorBelt||type==windTurbine||type==solarPanel||type==wetTorch||type==torchUnlit) return 3.5;
+	if(type==temperedGlass||type==coloredVitral) return 0.75;
+	if(type==strawBlock||type==strawSlab||type==strawStairs||type==strawMattress) return 0.5;
+	if(type==jellyBlock||type==mushroomTrampoline) return 0.5;
+	if(type==quicksand) return 0.75;
+	if(type==paperLantern||type==lightPost) return 0.5;
+	if(type==clothLoom) return 1.0;
+	if(type==mahoganyLeaves) return 0.25;
+	if(type==bambooFence) return 2.0;
+	std::cout << "Block without base mine duration assigned!: " << type << "\n";
+	permaAssertComment(0, ("Block without base mine duration assigned!: " + std::to_string(type)).c_str());
+
+	return 0.0f;
+}
+
+bool canBeMinedByHand(std::uint16_t type)
+{
+	if (!isBlock(type)) { return 0; }
+
+	if (
+		isAnyWoddenBlock(type) ||
+		isAnyDirtBlock(type) ||
+		isAnyClayBlock(type) ||
+		isAnySandyBlock(type) ||
+		type == snow_block || 
+		isAnySemiHardBlock(type) || type == testBlock ||
+		isAnyPlant(type) || isAnyGlass(type) || type == ice || type == glowstone ||
+		isAnyWool(type) ||
+		isTriviallyBreakable(type)
+		)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool canBeMinedByPickaxe(std::uint16_t type)
+{
+	if (!isBlock(type)) { return 0; }
+
+	if (
+		isAnySemiHardBlock(type) || type == testBlock ||
+		isAnyPlant(type) || isAnyGlass(type) || type == ice || type == glowstone ||
+		isTriviallyBreakable(type) || 
+		isAnyStone(type)
+		)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool canBeMinedByShovel(std::uint16_t type)
+{
+	if (!isBlock(type)) { return 0; }
+
+	if (
+		isAnyDirtBlock(type) ||
+		isAnyClayBlock(type) ||
+		type == snow_block ||
+		isAnyPlant(type) ||
+		isTriviallyBreakable(type)
+		)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool canBeMinedByAxe(std::uint16_t type)
+{
+	if (!isBlock(type)) { return 0; }
+
+	if (!isBlock(type)) { return 0; }
+
+	if (
+		isAnyWoddenBlock(type) ||
+		isAnyPlant(type) ||
+		isTriviallyBreakable(type)
+		)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+BlockType fromAnyShapeToNormalBlockType(BlockType b)
+{
+
+	switch (b)
+	{
+
+	case oakLogChair:
+	case oakLogSlab:
+	case woodenLogFence:
+	case logWall: {return woodLog; }
+
+	case oakChair:
+	case wooden_slab:
+	case wooden_wall:
+	case woodenFence:
+	case wooden_stairs: { return wooden_plank; };
+
+	case bricks_slabs:
+	case bricks_wall:
+	case bricks_stairs: { return bricks; };
+
+	case stone_slabs:
+	case stone_wall:
+	case stone_stairts: { return stone; };
+
+	case cobbleStone_slabs:
+	case cobbleStone_wall:
+	case cobbleStone_stairts: { return cobblestone; };
+
+	case stoneBricks_slabs:
+	case stoneBricks_wall:
+	case stoneBricks_stairts: { return stoneBrick; };
+
+	case hardSandStone_slabs:
+	case hardSandStone_wall:
+	case hardSandStone_stairs: { return hardSandStone; };
+
+	case sandStone_slabs:
+	case sandStone_wall:
+	case sandStone_stairts: { return sand_stone; };
+
+	case dungeonBricks_slabs:
+	case dungeonBricks_wall:
+	case dungeonBricks_stairts: { return dungeonBricks; };
+
+	case volcanicRock_slabs:
+	case volcanicRock_wall:
+	case volcanicRock_stairts: { return volcanicRock_stairts; };
+
+	case smoothStone_slabs:
+	case smoothStone_wall:
+	case smoothStone_stairts: { return smoothStone; };
+
+	case smoothLimeStone_slabs:
+	case smoothLimeStone_wall:
+	case smoothLimeStone_stairs: { return limeStone; };
+
+	case marbleBlock_slabs:
+	case marbleBlock_wall:
+	case marbleBlock_stairs: { return marbleBlock; };
+
+	case marbleBricks_slabs:
+	case marbleBricks_wall:
+	case marbleBricks_stairs: { return marbleBlock_stairs; };
+
+	case blueBricks_slabs:
+	case blueBricks_wall:
+	case blueBricks_stairs: { return blueBricks; };
+
+	case tiledStoneBricks_slab:
+	case tiledStoneBricks_wall:
+	case tiledStoneBricks_stairs: { return tiledStoneBricks; };
+
+	case cloth_slabs:
+	case cloth_wall:
+	case cloth_stairs: { return clothBlock; };
+
+	case plankedWallBlock_wall:
+	case plankedWallBlock_stairs: { return plankedWallBlock; };
+
+	case terracotta_slabs:
+	case terracotta_wall:
+	case terracotta_stairs: { return terracotta; };
+
+	case birchPlanks_slabs:
+	case birchPlanks_wall:
+	case birchFence:
+	case birchPlanks_stairs: { return birchPlanks; };
+
+	case sprucePlank_stairs:
+	case sprucePlank_slabs:
+	case spruceFence:
+	case sprucePlank_wall: { return sprucePlank; };
+
+	case dungeonStone_stairs : 
+	case dungeonStone_slabs : 
+	case dungeonStone_wall: { return dungeonStone; }
+
+	case dungeonCobblestone_stairs:
+	case dungeonCobblestone_slabs:
+	case dungeonCobblestone_wall: { return dungeonCobblestone; }
+
+	case dungeonSmoothStone_stairs:
+	case dungeonSmoothStone_slabs:
+	case dungeonSmoothStone_wall: { return dungeonSmoothStone; }
+
+	case mossyCobblestone_stairs:
+	case mossyCobblestone_slab:
+	case mossyCobblestone_wall: { return mossyCobblestone; }
+
+	case spruceLogFence: { return spruceLogFence; }
+
+	case birchLogFence: { return birchLogFence; }
+
+	case cristalLapidado_stairs:
+	case cristalLapidado_slab:
+	case cristalLapidado_wall: { return cristalLapidado; }
+
+	case strawSlab:
+	case strawStairs: { return strawBlock; }
+
+	case slateSlab: { return slateBlock; }
+
+	case bambooFence: { return bambooPlanks; }
+
+	case patinatedCopperAged:
+	case patinatedCopperOxidized: { return patinatedCopper; }
+
+
+	};
+
+	if (INTERNAL_BUILD == 1)
+	{
+		permaAssertComment(!isStairsMesh(b), "error you forgot to add a stair here!");
+		permaAssertComment(!isWallMesh(b), "error you forgot to add a wall here!");
+		permaAssertComment(!isSlabMesh(b), "error you forgot to add a slab here!");
+		permaAssertComment(!isFenceMesh(b), "error you forgot to add a fence here!");
+	}
+
+	return b;
+}
+
+//true for standing on wall!
+unsigned char getRotatedOrStandingForWallOrStandingBlocks(BlockType b)
+{
+	return (b >> 13) & 0b001;
+}
