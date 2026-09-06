@@ -2,6 +2,8 @@
 #include <string>
 #include <glad/glad.h>
 
+struct GLFWwindow;
+
 namespace Performance
 {
 	enum class VSyncMode { Off = 0, On = 1, Adaptive = 2 };

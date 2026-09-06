@@ -19,6 +19,7 @@ struct SheepClient: public ClientEntity<Sheep, SheepClient>
 };
 struct SheepServer: public ServerEntity<Sheep>
 {
+	void configureSpawnSettings(std::minstd_rand &rng) { (void)rng; }
 	bool update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter,
 		ServerChunkStorer &serverChunkStorer, std::minstd_rand &rng, std::uint64_t yourEID,
 		std::unordered_set<std::uint64_t> &othersDeleted,

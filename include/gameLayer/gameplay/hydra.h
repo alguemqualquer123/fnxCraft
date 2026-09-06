@@ -1,6 +1,14 @@
 #pragma once
 #include <gameplay/entity.h>
 #include <gameplay/life.h>
+
+enum HydraVariant : int
+{
+	HydraVariantFire = 0,
+	HydraVariantFrost = 1,
+	HydraVariantVenom = 2,
+};
+
 struct Hydra: public PhysicalEntity, public HasOrientationAndHeadTurnDirection,
 	public MovementSpeedForLegsAnimations, public CollidesWithPlacedBlocks,
 	public CanBeKilled, public CanBeAttacked
@@ -9,6 +17,7 @@ struct Hydra: public PhysicalEntity, public HasOrientationAndHeadTurnDirection,
 	glm::vec3 getColliderSize();
 	static glm::vec3 getMaxColliderSize();
 	Life life{30};
+	HydraVariant variant = HydraVariantFire;
 	Armour getArmour() { return {0}; }
 };
 struct HydraClient: public ClientEntity<Hydra, HydraClient>
@@ -19,6 +28,7 @@ struct HydraClient: public ClientEntity<Hydra, HydraClient>
 };
 struct HydraServer: public ServerEntity<Hydra>
 {
+	HydraVariant variant = HydraVariantFire;
 	bool update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter,
 		ServerChunkStorer &serverChunkStorer, std::minstd_rand &rng, std::uint64_t yourEID,
 		std::unordered_set<std::uint64_t> &othersDeleted,

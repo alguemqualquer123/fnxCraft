@@ -818,7 +818,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 					}
 				}
 				// clear inventory after dropping
-				inv = {};
+				inv = PlayerInventory{};
 			}
 
 			c.second->playerData.kill();
@@ -2779,7 +2779,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 			}
 
 			// Freezing damage in snowstorms
-			if (ws->type == Weather_Snow)
+			if (ws->type == WeatherType::Weather_Snow)
 			{
 				for (auto &c : allClients)
 				{
@@ -3482,7 +3482,7 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 			for (auto &c : allClients)
 			{
 				auto &loadedChunks = c.second->loadedChunks;
-				for (auto &chunkPair : sd.chunkCache.savedChunks)
+				for (auto &chunkPair : chunkCache.savedChunks)
 				{
 					glm::ivec2 chunkPos = chunkPair.first;
 					if (loadedChunks.find(chunkPos) == loadedChunks.end()) continue;

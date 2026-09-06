@@ -2401,8 +2401,8 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			{
 				float roll = (rand()%100)+ (rand()%100)/100.f;
 				float chance = 0.f;
-				if(programData.weatherState.type==Weather_Storm) chance = LIGHTNING_FIRE_CHANCE_STORM;
-				else if(programData.weatherState.type==Weather_Rain) chance = LIGHTNING_FIRE_CHANCE_RAIN;
+				if(programData.weatherState.type==WeatherType::Weather_Storm) chance = LIGHTNING_FIRE_CHANCE_STORM;
+				else if(programData.weatherState.type==WeatherType::Weather_Rain) chance = LIGHTNING_FIRE_CHANCE_RAIN;
 				else chance = 4.f;
 				chance *= (1.0f - programData.weatherState.wetness*0.55f);
 				chance *= (1.0f - programData.weatherState.intensity*0.22f);
@@ -2517,7 +2517,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 			}
 
 			// Wind: play periodically in storms/snow
-			if (programData.weatherState.type == Weather_Storm || programData.weatherState.type == Weather_Snow)
+			if (programData.weatherState.type == WeatherType::Weather_Storm || programData.weatherState.type == WeatherType::Weather_Snow)
 			{
 				windSoundTimer += deltaTime;
 				if (windSoundTimer > 4.f)
@@ -2879,7 +2879,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 				if(p.life<=0) continue;
 				glm::dvec3 s = glm::dvec3(p.position);
 				glm::dvec3 e = glm::dvec3(p.position) + glm::dvec3(p.velocity)*0.045;
-				if(programData.weatherState.type==Weather_Snow) programData.gyzmosRenderer.drawCube(glm::ivec3(s), glm::vec3(0), glm::vec3(0.12f));
+				if(programData.weatherState.type==WeatherType::Weather_Snow) programData.gyzmosRenderer.drawCube(glm::ivec3(s), glm::vec3(0), glm::vec3(0.12f));
 				else programData.gyzmosRenderer.drawLine(s, e);
 			}
 			for(size_t i=1;i<programData.weatherState.currentBolt.points.size();i++){

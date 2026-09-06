@@ -4,6 +4,7 @@
 
 #if REMOVE_IMGUI == 0
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #endif
@@ -39,9 +40,15 @@ void SplashScreen::draw(float progress, const std::string &module, const std::st
 	if (!ImGui::GetCurrentContext()) { glfwSwapBuffers(s_window); glfwPollEvents(); return; }
 	ImGuiIO &io = ImGui::GetIO();
 	if (io.BackendPlatformUserData == nullptr) { glfwSwapBuffers(s_window); glfwPollEvents(); return; }
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
+
+	bool withinFrame = ImGui::GetCurrentContext()->WithinFrameScope;
+
+	if (!withinFrame)
+	{
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+	}
 
 	ImGui::SetNextWindowPos(ImVec2(0, 0));
 	ImGui::SetNextWindowSize(ImVec2((float)w, (float)h));
@@ -113,22 +120,26 @@ void SplashScreen::draw(float progress, const std::string &module, const std::st
 	ImGui::PopStyleColor();
 
 	ImGui::End();
-	ImGui::Render();
-	int display_w, display_h;
-	glfwGetFramebufferSize(s_window, &display_w, &display_h);
-	glViewport(0, 0, display_w, display_h);
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+
+	if (!withinFrame)
 	{
-		GLFWwindow* backup = glfwGetCurrentContext();
-		ImGui::UpdatePlatformWindows();
-		ImGui::RenderPlatformWindowsDefault();
-		glfwMakeContextCurrent(backup);
+		ImGui::Render();
+		int display_w, display_h;
+		glfwGetFramebufferSize(s_window, &display_w, &display_h);
+		glViewport(0, 0, display_w, display_h);
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			GLFWwindow* backup = glfwGetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup);
+		}
+
+		glfwSwapBuffers(s_window);
+		glfwPollEvents();
 	}
 #endif
-
-	glfwSwapBuffers(s_window);
-	glfwPollEvents();
 }
 
 void SplashScreen::shutdown()

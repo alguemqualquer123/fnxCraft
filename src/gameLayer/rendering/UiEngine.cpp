@@ -2001,4 +2001,17 @@ bool ConfirmationModal::render(gl2d::Renderer2D &renderer2d, gl2d::Font &font,
 			: glm::vec4(0.4f, 0.2f, 0.2f, 1.f);
 
 		renderer2d.renderRectangle({noX, btnY, noX + btnW, btnY + btnH}, color);
-		renderer2d.renderText({noX + btnW / 2, btnY + btn
+		renderer2d.renderText({noX + btnW / 2, btnY + btnH / 2},
+			loc_No(), font, Colors_White, 28.f, -1);
+
+		if (hover && platform::isLMousePressed())
+		{
+			show = false;
+			result = false;
+			resultReady = true;
+			AudioEngine::playSound(AudioEngine::uiButtonPress, UI_SOUND_VOLUME);
+		}
+	}
+
+	return resultReady;
+}

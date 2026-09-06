@@ -9,6 +9,8 @@ struct Slime: public PhysicalEntity, public HasOrientationAndHeadTurnDirection,
 	glm::vec3 getColliderSize();
 	static glm::vec3 getMaxColliderSize();
 	Life life{30};
+	unsigned char slimeSize = 1;
+	static int getHealthForSize(int size) { return size * 15; }
 	Armour getArmour() { return {0}; }
 };
 struct SlimeClient: public ClientEntity<Slime, SlimeClient>
@@ -19,6 +21,12 @@ struct SlimeClient: public ClientEntity<Slime, SlimeClient>
 };
 struct SlimeServer: public ServerEntity<Slime>
 {
+	void configureSpawnSettings(std::minstd_rand &rng, unsigned char size)
+	{
+		(void)rng;
+		entity.slimeSize = size;
+		entity.life = Life(Slime::getHealthForSize(size));
+	}
 	bool update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter,
 		ServerChunkStorer &serverChunkStorer, std::minstd_rand &rng, std::uint64_t yourEID,
 		std::unordered_set<std::uint64_t> &othersDeleted,
