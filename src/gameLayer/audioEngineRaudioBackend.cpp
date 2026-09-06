@@ -355,6 +355,12 @@ namespace AudioEngine
 		SoundCollection(RESOURCES_PATH "/sounds/waterSplash"),
 		SoundCollection(RESOURCES_PATH "/sounds/waterSwim"),
 		SoundCollection(RESOURCES_PATH "/sounds/waterExit"),
+		SoundCollection(RESOURCES_PATH "/sounds/waterIn"),
+		SoundCollection(RESOURCES_PATH "/sounds/waterOut"),
+
+		// UI checkbox sounds
+		SoundCollection(RESOURCES_PATH "/sounds/checkBoxOn"),
+		SoundCollection(RESOURCES_PATH "/sounds/checkBoxOff"),
 
 		// Additional step sounds
 		SoundCollection(RESOURCES_PATH "/sounds/lavaSizzle"),

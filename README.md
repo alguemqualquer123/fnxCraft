@@ -235,7 +235,7 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 
 ### 🟢 Fácil — dá para fazer em 1-3 dias cada
 
-- [ ] Sons `water_in`, `water_out`, `water_swim` (`soundsTodo.md`)
+- [ ] Sons `water_in`, `water_out`, `water_swim` (`soundsTodo.md`) ✅
 - [ ] Sons fallback `plants→grass`, `sandstone→stone`, `clay`, `mish` (torch)→stone, `wood`, `wool`
 - [ ] Sons UI `Sliders`, `CheckBoxOn`, `CheckBoxOff`
 - [ ] HUD fome/sede — barras, depleção, dano inanição (`plans/pending/survival-hunger-thirst.md` 5/10 feito, falta HUD/depleção/breeding). Itens existem, mecânica não

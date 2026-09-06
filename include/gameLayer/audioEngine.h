@@ -82,6 +82,12 @@ namespace AudioEngine
 		waterSplash,
 		waterSwim,
 		waterExit,
+		waterIn,
+		waterOut,
+
+		// UI checkbox sounds
+		uiCheckBoxOn,
+		uiCheckBoxOff,
 
 		// Additional step sounds
 		lavaSizzle,

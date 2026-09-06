@@ -2135,6 +2135,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 	if (underWater && player.otherPlayerSettings.gameMode == OtherPlayerSettings::SURVIVAL)
 	{
 		// Check if head is also underwater
+		bool wasInWater = player.isInWater;
 		bool headUnderwater = isEntityHeadInWater(player.entity.position, 
 			Player::getMaxColliderSize().y, 
 			[](glm::ivec2 pos) -> ChunkData* { 
@@ -2165,19 +2166,27 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 					// Send damage task to server
 					Task task;
 					task.taskType = Task::clientRecievedDamageLocally;
-					task.damage = DROWNING_DAMAGE;
-					submitTaskClient(task);
+					task.damage = DROWNING_DAMAGE;					submitTaskClient(task);
 				}
+			}
+
+			if (!wasInWater && player.otherPlayerSettings.gameMode == OtherPlayerSettings::SURVIVAL)
+			{
+				AudioEngine::playSound(AudioEngine::waterIn, 0.5f);
 			}
 		}
 		else
 		{
 			// Head is above water, reset drowning timer
+			if (wasInWater && player.otherPlayerSettings.gameMode == OtherPlayerSettings::SURVIVAL)
+			{
+				AudioEngine::playSound(AudioEngine::waterOut, 0.5f);
+			}
 			player.drowningTimer = DROWNING_MAX_TIME;
 			player.drowningDamageTimer = 0;
 		}
 	}
-	else
+else
 	{
 		// Not in water or in creative mode, reset drowning timer
 		player.drowningTimer = DROWNING_MAX_TIME;

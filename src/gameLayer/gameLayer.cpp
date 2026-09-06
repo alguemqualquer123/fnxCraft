@@ -866,11 +866,11 @@ bool gameLogic(float deltaTime)
 
 	if (anyToggleToggeled)
 	{
-		AudioEngine::playSound(AudioEngine::uiOn, UI_SOUND_VOLUME);
+		AudioEngine::playSound(AudioEngine::uiCheckBoxOn, UI_SOUND_VOLUME);
 	}
 	if(anyToggleDetoggeled)
 	{
-		AudioEngine::playSound(AudioEngine::uiOff, UI_SOUND_VOLUME);
+		AudioEngine::playSound(AudioEngine::uiCheckBoxOff, UI_SOUND_VOLUME);
 	}
 	if (anyButtonPressed)
 	{
