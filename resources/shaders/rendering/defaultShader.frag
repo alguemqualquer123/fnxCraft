@@ -492,7 +492,7 @@ vec3 fDiffuseOrenNayar2(vec3 color, float roughness, vec3 L, vec3 V, vec3 N)
 }
 
 
-//https://github.com/meemknight/gl3d
+//https://github.com/alguemqualquer123/gl3d
 vec3 computePointLightSource(vec3 lightDirection, float metallic, float roughness, in vec3 lightColor, 
 	in vec3 viewDir, in vec3 color, in vec3 normal, in vec3 F0)
 {

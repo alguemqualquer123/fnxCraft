@@ -3,10 +3,10 @@
 #include <deque>
 
 // Light system enabled - tochas, glowstones, etc. now illuminate the map
-bool constexpr dontUpdateLightSystem = 0;
-
 struct ChunkSystem;
 struct Chunk;
+
+bool constexpr dontUpdateLightSystem = 0;
 
 struct LightSystem
 {

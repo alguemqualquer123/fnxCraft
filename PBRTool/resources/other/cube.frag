@@ -186,7 +186,7 @@ float metallic, vec3 albedo, float dotNVClamped
 }
 
 
-//https://github.com/meemknight/gl3d
+//https://github.com/alguemqualquer123/gl3d
 vec3 computePointLightSource(vec3 lightDirection, float metallic, float roughness, in vec3 lightColor, 
 	in vec3 viewDir, in vec3 color, in vec3 normal, in vec3 F0)
 {

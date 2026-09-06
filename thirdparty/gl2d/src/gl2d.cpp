@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////
 //gl2d.cpp				1.6.2
 //Copyright(c) 2020 - 2025 Luta Vlad
-//https://github.com/meemknight/gl2d
+//https://github.com/alguemqualquer123/gl2d
 // 
 //notes: 
 // 1.2.1

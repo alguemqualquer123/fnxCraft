@@ -572,6 +572,8 @@ bool spawnSkeletonPirate(ServerChunkStorer &chunkManager, SkeletonPirate v, Worl
 bool spawnJuvenileDragon(ServerChunkStorer &chunkManager, JuvenileDragon v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ JuvenileDragonServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::juvenileDragons); c->entityData.juvenileDragons.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
 bool spawnCrystalGolem(ServerChunkStorer &chunkManager, CrystalGolem v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ CrystalGolemServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::crystalGolems); c->entityData.crystalGolems.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
 bool spawnHydra(ServerChunkStorer &chunkManager, Hydra v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ HydraServer e={}; e.entity=v; e.variant=v.variant; auto id=getEntityIdAndIncrement(worldSaver, EntityType::hydras); c->entityData.hydras.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnBee(ServerChunkStorer &chunkManager, Bee v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ BeeServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::bees); c->entityData.bees.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
+bool spawnQueenBee(ServerChunkStorer &chunkManager, QueenBee v, WorldSaver &worldSaver, std::minstd_rand &rng){ auto p=determineChunkThatIsEntityIn(v.position); auto c=chunkManager.getChunkOrGetNull(p.x,p.y); if(c){ QueenBeeServer e={}; e.entity=v; auto id=getEntityIdAndIncrement(worldSaver, EntityType::queenBees); c->entityData.queenBees.insert({id,e}); chunkManager.entityChunkPositions[id]=determineChunkThatIsEntityIn(e.getPosition());} else return 0; return 1;}
 
 
 void killEntity(WorldSaver &worldSaver, std::uint64_t entity, ServerChunkStorer &chunkCache)
@@ -781,6 +783,44 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		//kill players
 		if (c.second->playerData.newLife.life <= 0 && !c.second->playerData.killed)
 		{
+			//drop items on death if keepInventory is ON (items are dropped, not kept)
+			if (settings.keepInventory)
+			{
+				auto &inv = c.second->playerData.inventory;
+				auto pos = c.second->playerData.getPosition();
+				for (int i = 0; i < PlayerInventory::INVENTORY_CAPACITY; i++)
+				{
+					auto &item = inv.items[i];
+					if (item.type != 0 && item.counter > 0)
+					{
+						float spreadX = ((float)(i % 6) - 2.5f) * 0.3f;
+						float spreadZ = ((float)(i / 6 % 6) - 2.5f) * 0.3f;
+						spawnDroppedItemEntity(chunkCache, worldSaver,
+							item.counter, item.type, nullptr,
+							glm::dvec3(pos.x + spreadX, pos.y + 0.5, pos.z + spreadZ));
+					}
+				}
+				for (int i = 0; i < PlayerInventory::MAX_EQUIPEMENT_SLOTS; i++)
+				{
+					Item *eqItem = nullptr;
+					switch (i) {
+						case 0: eqItem = &inv.headArmour; break;
+						case 1: eqItem = &inv.chestArmour; break;
+						case 2: eqItem = &inv.bootsArmour; break;
+						case 3: eqItem = &inv.offHand; break;
+					}
+					if (eqItem && eqItem->type != 0 && eqItem->counter > 0)
+					{
+						float spreadX = ((float)(i) - 1.5f) * 0.4f;
+						spawnDroppedItemEntity(chunkCache, worldSaver,
+							eqItem->counter, eqItem->type, nullptr,
+							glm::dvec3(pos.x + spreadX, pos.y + 0.5, pos.z));
+					}
+				}
+				// clear inventory after dropping
+				inv = {};
+			}
+
 			c.second->playerData.kill();
 			c.second->playerData.killed = true;
 
@@ -3403,63 +3443,112 @@ void doGameTick(float deltaTime, int deltaTimeMs, std::uint64_t currentTimer,
 		{
 			sendEntityTimer = 0.4;
 
-			//todo make a different timer for each player			
-			//todo maybe merge things into one packet
-
-			//no need for mutex because this thread modifies the clients data
-
 			for (auto &c : allClients)
 			{
-
-				// send players
-
 				for (auto &other : allClients)
 				{
 					if (other.first != c.first)
 					{
-
 						auto &loadedChunks = c.second->loadedChunks;
-						
 						glm::ivec2 lastChunkPos = other.second->playerData.lastChunkPositionWhenAnUpdateWasSent;
 						glm::ivec2 currentChunkPos = {};
 						currentChunkPos.x = divideChunk(other.second->playerData.getPosition().x);
 						currentChunkPos.y = divideChunk(other.second->playerData.getPosition().z);
-
-						//todo only players that have entities in the simulated region later
 						if(loadedChunks.find(lastChunkPos) != loadedChunks.end()
-							||
-							loadedChunks.find(currentChunkPos) != loadedChunks.end()
-							)
-						//if (checkIfPlayerShouldGetEntity(
-						//	{c.second.playerData.entity.position.x, c.second.playerData.entity.position.z},
-						//	other.second.playerData.entity.position, c.second.playerData.entity.chunkDistance, 0)
-						//	)
+							|| loadedChunks.find(currentChunkPos) != loadedChunks.end())
 						{
 							Packet_ClientRecieveOtherPlayerPosition sendData;
 							sendData.eid = other.first;
 							sendData.timer = getTimer();
 							sendData.entity = other.second->playerData.entity;
-
 							Packet p;
 							p.cid = 0;
 							p.header = headerClientRecieveOtherPlayerPosition;
-
 							sendPacket(c.second->peer, p, (const char *)&sendData, sizeof(sendData),
 								false, channelPlayerPositions);
 						}
-
 						other.second->playerData.lastChunkPositionWhenAnUpdateWasSent = currentChunkPos;
-
-
 					}
 				}
-
-
 			}
 
 		}
 
-
+		static thread_local float sendAllEntitiesTimer = 0;
+		sendAllEntitiesTimer -= deltaTime;
+		if (sendAllEntitiesTimer < 0)
+		{
+			sendAllEntitiesTimer = 0.5;
+			for (auto &c : allClients)
+			{
+				auto &loadedChunks = c.second->loadedChunks;
+				for (auto &chunkPair : sd.chunkCache.savedChunks)
+				{
+					glm::ivec2 chunkPos = chunkPair.first;
+					if (loadedChunks.find(chunkPos) == loadedChunks.end()) continue;
+					SavedChunk *chunk = chunkPair.second;
+					if (!chunk) continue;
+					auto sendEntityMap = [&](auto &map)
+					{
+						for (auto &e : map)
+						{
+							Packet_UpdateGenericEntity header;
+							header.eid = e.first;
+							header.timer = getTimer();
+							unsigned char buf[sizeof(Packet_UpdateGenericEntity) + 2048] = {};
+							memcpy(buf, &header, sizeof(header));
+							size_t entitySize = sizeof(e.second.entity);
+							if (entitySize > 2048) entitySize = 2048;
+							memcpy(buf + sizeof(header), &e.second.entity, entitySize);
+							Packet p; p.cid = 0; p.header = headerUpdateGenericEntity;
+							sendPacket(c.second->peer, p, (const char*)buf, sizeof(header) + entitySize, false, channelEntityPositions);
+						}
+					};
+					sendEntityMap(chunk->entityData.zombies);
+					sendEntityMap(chunk->entityData.pigs);
+					sendEntityMap(chunk->entityData.cats);
+					sendEntityMap(chunk->entityData.goblins);
+					sendEntityMap(chunk->entityData.fish);
+					sendEntityMap(chunk->entityData.droppedItems);
+					sendEntityMap(chunk->entityData.trainingDummy);
+					sendEntityMap(chunk->entityData.scareCrows);
+					sendEntityMap(chunk->entityData.bees);
+					sendEntityMap(chunk->entityData.queenBees);
+					sendEntityMap(chunk->entityData.slime);
+					sendEntityMap(chunk->entityData.creepers);
+					sendEntityMap(chunk->entityData.enderlings);
+					sendEntityMap(chunk->entityData.skeletons);
+					sendEntityMap(chunk->entityData.stoneGolems);
+					sendEntityMap(chunk->entityData.wolves);
+					sendEntityMap(chunk->entityData.foxes);
+					sendEntityMap(chunk->entityData.crows);
+					sendEntityMap(chunk->entityData.manatees);
+					sendEntityMap(chunk->entityData.caveSpiders);
+					sendEntityMap(chunk->entityData.crystalBats);
+					sendEntityMap(chunk->entityData.capybaraChefs);
+					sendEntityMap(chunk->entityData.riverGuardians);
+					sendEntityMap(chunk->entityData.treeEnts);
+					sendEntityMap(chunk->entityData.nomadTraders);
+					sendEntityMap(chunk->entityData.mimicChests);
+					sendEntityMap(chunk->entityData.lightFairies);
+					sendEntityMap(chunk->entityData.armoredBoars);
+					sendEntityMap(chunk->entityData.sandSerpents);
+					sendEntityMap(chunk->entityData.mistGhosts);
+					sendEntityMap(chunk->entityData.hermitCrabs);
+					sendEntityMap(chunk->entityData.honeyBears);
+					sendEntityMap(chunk->entityData.lavaSlugs);
+					sendEntityMap(chunk->entityData.crystalSentinels);
+					sendEntityMap(chunk->entityData.blacksmithVillagers);
+					sendEntityMap(chunk->entityData.herbalistVillagers);
+					sendEntityMap(chunk->entityData.skeletonPirates);
+					sendEntityMap(chunk->entityData.juvenileDragons);
+					sendEntityMap(chunk->entityData.crystalGolems);
+					sendEntityMap(chunk->entityData.hydras);
+					sendEntityMap(chunk->entityData.sheeps);
+					sendEntityMap(chunk->entityData.cows);
+				}
+			}
+		}
 
 	}
 

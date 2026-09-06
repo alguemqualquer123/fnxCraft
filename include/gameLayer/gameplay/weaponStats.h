@@ -17,7 +17,7 @@ struct WeaponStats
 	//float comboFrequency = 1; // // -10 -> 20; //
 	float armourPenetration = 1; // 0 -> 999;
 	float accuracy = 5; // -10 -> 20; //increase enemy hit box + more chances to hit corectly
-	float range = 1.8; // 1 -> 6			
+	float range = 3.5; // 1 -> 6			
 	float knockBack = 4; // 0 -> 30
 
 	void normalize();

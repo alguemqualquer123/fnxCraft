@@ -26,6 +26,8 @@ struct Zombie: public PhysicalEntity, public CanPushOthers
 struct ZombieClient: public ClientEntity<Zombie, ZombieClient>
 {
 	float currentHandsAngle = 0;
+	float deathTimer = 0;
+	float lastDeltaTime = 1.f / 60.f;
 
 	void update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter);
 	void setEntityMatrix(glm::mat4 *skinningMatrix);

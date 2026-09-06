@@ -1,35 +1,17 @@
-# [STATUS] Plan Title
+# [PRIORIDADE] Título da Task
 
-## Overview
-Brief description of what this plan aims to accomplish.
+## Objetivo
+Descrição curta do que fazer.
 
-## Related Tasks
-- Task 1
-- Task 2
-- Task 3
-
-## Status
+## Checklist
 - [ ] Subtask 1
 - [ ] Subtask 2
-- [ ] Subtask 3
 
-## Notes
-Additional context, references, or important information.
+## Arquivos
+- `caminho/arquivo.cpp` — o que mudar
 
-## Dependencies
-- Dependency 1
-- Dependency 2
+## Como Testar
+Comando para verificar: `cmake --build build -j4 && ./build/fnxCraft`
 
-## Priority
-[High/Medium/Low] - Reason
-
-## Implementation Details
-Technical approach, algorithms, or architecture decisions.
-
-## Testing
-How to verify this implementation works correctly.
-
-## References
-- Links to relevant code
-- External documentation
-- Related issues
+## Prioridade
+🟢 Fácil | 🟡 Médio | 🔴 Avançado — motivo

@@ -86,14 +86,15 @@ float WeaponStats::getDrawSpeedNormalizedInSecconds() const
 
 float WeaponStats::getAccuracyAdjusted()
 {
-	float accuracyNormalized = (accuracy + 10.f) / 30.f;
+	// accuracy: -10 (worst) to 20 (best)
+	// Higher accuracy = smaller hitbox expansion (more precise)
+	// Lower accuracy = larger hitbox expansion (more forgiving)
+	float accuracyNormalized = (accuracy + 10.f) / 30.f; // 0.0 (worst) to 1.0 (best)
 
-	accuracyNormalized *= 1.0f;
-	accuracyNormalized -= 0.5f;
+	// Invert: worst accuracy → biggest delta
+	float delta = (1.0f - accuracyNormalized) * 0.4f; // 0.0 to 0.4
 
-	accuracyNormalized *= 0.5;
-
-	return accuracyNormalized;
+	return delta;
 }
 
 float WeaponStats::getAccuracyNormalized() const

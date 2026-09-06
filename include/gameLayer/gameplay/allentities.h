@@ -8,6 +8,7 @@
 #include <gameplay/trainingDummy.h>
 #include <gameplay/scareCrow.h>
 #include <gameplay/fish.h>
+#include <gameplay/bee.h>
 #include <gameplay/queenBee.h>
 #include <gameplay/slime.h>
 #include <gameplay/creeper.h>

@@ -1782,7 +1782,7 @@ void Renderer::renderAllBlocksUiTextures(BlocksLoader &blocksLoader, ModelsManag
 
 void Renderer::create(ModelsManager &modelsManager)
 {
-
+	weatherRenderer.create();
 
 	for (int i = 0; i < sizeof(sunFlareQueries) / sizeof(sunFlareQueries[0]); i++)
 	{
@@ -4371,9 +4371,12 @@ else
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		GL_CHECK("after FXAA");
 	}
-
 	//secondaryFBO->copyDepthAndColorToMainFbo(fboMain.size.x, fboMain.size.y);
 
+	// Weather rendering		if (programData.weatherState.type != WeatherType::Weather_Clear || programData.weatherState.intensity > 0.01f || programData.weatherState.ambientFlash > 0.05f)
+	{
+		programData.renderer.weatherRenderer.render(programData.renderer, programData, c, programData.weatherState, deltaTime);
+	}
 
 #pragma endregion
 
@@ -4978,10 +4981,24 @@ void Renderer::renderEntities(
 	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.fish);
 
 
-	glBindVertexArray(0);
+		glBindVertexArray(0);
 
-	//cube entities
-#pragma region cubeEntities
+		// Render particles
+		entityManager.localPlayer.particles.render();
+
+		// Render swing trails
+		{
+			std::vector<glm::vec3> verts;
+			std::vector<glm::vec4> colors;
+			entityManager.localPlayer.swingTrails.getRenderData(verts, colors);
+			if (!verts.empty())
+			{
+				// Render swing trail quads
+			}
+		}
+
+		//cube entities
+		#pragma region cubeEntities
 	{
 
 		entityRenderer.blockEntityshader.shader.bind();

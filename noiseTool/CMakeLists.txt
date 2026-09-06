@@ -1,4 +1,4 @@
-#https://github.com/meemknight/cmakeSetup
+#https://github.com/alguemqualquer123/cmakeSetup
 #Version 1.0.0
 
 cmake_minimum_required(VERSION 3.16)

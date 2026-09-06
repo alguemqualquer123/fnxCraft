@@ -19,6 +19,7 @@ namespace AudioEngine
 	void stopAllMusicAndSounds();
 
 	void playSound(int sound, float level);
+	void playSoundWithPitch(int sound, float level, float pitch = 1.f);
 
 	void playHitSound();
 
@@ -81,6 +82,10 @@ namespace AudioEngine
 		waterSplash,
 		waterSwim,
 		waterExit,
+
+		// Additional step sounds
+		lavaSizzle,
+		netherrack,
 
 		// Weather sounds
 		rainAmbient,

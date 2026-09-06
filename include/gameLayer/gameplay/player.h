@@ -6,6 +6,10 @@
 #include <gameplay/life.h>
 #include <gameplay/gameplayRules.h>
 #include <gameplay/effects.h>
+#include <gameplay/animationSystem.h>
+#include <gameplay/particleSystem.h>
+#include <gameplay/damageNumbers.h>
+#include <gameplay/swingTrail.h>
 
 EntityStats getPlayerStats(struct PlayerInventory &inventory);
 
@@ -81,7 +85,7 @@ struct OtherPlayerSettings
 	constexpr static int CREATIVE = 1;
 
 	unsigned char gameMode = 0;
-	char commandPermisionLevel = 2; //0 means nothing, 1 is basic stuff, 2 is admin, 3 is main admin.
+	char commandPermisionLevel = 1; //0 nothing, 1 Player, 2 Moderator, 3 Operator (owner)
 };
 
 //this is the player struct when playing locally
@@ -117,6 +121,9 @@ struct LocalPlayer
 	float thirst = THIRST_MAX;
 	float hungerDamageTimer = 0;
 	float thirstDamageTimer = 0;
+
+	ParticleSystem particles;
+	SwingTrailSystem swingTrails;
 };
 
 
@@ -126,6 +133,11 @@ struct PlayerClient: public ClientEntity<Player, PlayerClient>
 
 	//todo other player settings here!
 
+	PlayerAnimator animator;
+	ParticleSystem particles;
+	DamageNumberSystem damageNumbers;
+	SwingTrailSystem swingTrails;
+	float lastDeltaTime = 1.f / 60.f;
 
 	void update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter);
 	void setEntityMatrix(glm::mat4 *skinningMatrix);

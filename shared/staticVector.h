@@ -2,7 +2,7 @@
 //////////////////////////////////////////
 //staticVector.h
 //Luta Vlad(c) 2022
-//https://github.com/meemknight/PikaEngine
+//https://github.com/alguemqualquer123/PikaEngine
 //////////////////////////////////////////
 
 #include <initializer_list>

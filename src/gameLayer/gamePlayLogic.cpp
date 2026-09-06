@@ -185,7 +185,9 @@ static WeatherState *globalWeatherStatePtr = nullptr;
 void setWeatherGlobally(int type)
 {
 	globalWeatherType = type;
+	std::cerr << "[weather-debug] setWeatherGlobally type=" << type << " globalWeatherType=" << globalWeatherType << std::endl;
 }
+
 
 int getWeatherGlobally()
 {
@@ -355,6 +357,7 @@ void playSoundAndShakeForPlayerTakingDamage()
 	AudioEngine::playHurtSound();
 	gameData.justDamaged = true;
 	gameData.hitLensDirt = 1;
+	gameData.cameraShaker.triggerHitShake(1.f);
 }
 
 void dealDamageToLocalPlayer(int damage)
@@ -895,11 +898,13 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 				}
 
 				float speed = moveSpeed;
+				bool flyingFast = ent.fly && platform::isKeyHeld(platform::Button::LeftShift);
 				if(ent.isProne) speed *= 0.3f;
 				else if(ent.isCrouching) speed *= 0.55f;
 				else if(ent.isSwimmingAnim) speed *= 0.7f;
 				else if(ent.isRunning) speed *= 1.75f;
-				else if(ent.fly && platform::isKeyHeld(platform::Button::LeftShift)) speed *= 1.9f;
+				else if(flyingFast) speed *= 3.0f;
+				speed *= player.effects.getSpeedMultiplier();
 				moveDir *= speed;
 				float animSpeed = 0;
 				if(glm::length(glm::vec2(moveDir.x,moveDir.z))>0.1f || glm::length(moveDir)>0.1f){
@@ -907,6 +912,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 					else if(ent.isProne) animSpeed = 0.6f;
 					else if(ent.isCrouching) animSpeed = 0.8f;
 					else if(ent.isRunning) animSpeed = 1.9f;
+					else if(flyingFast) animSpeed = 2.5f;
 					else animSpeed = 1.0f;
 				}
 				ent.movementSpeedForLegsAnimations = animSpeed;
@@ -964,6 +970,21 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 					-prelucrateControllerMovementPower(platform::getControllerButtons().RStick.x, platform::getControllerButtons().RStick.y),
 					11.0f * deltaTime
 				);
+			}
+
+		{
+			auto &ent = gameData.entityManager.localPlayer.entity;
+			float moveSpeed = glm::length(glm::vec2(ent.forces.velocity.x, ent.forces.velocity.z));
+			if (moveSpeed > 0.5f && ent.forces.colidesBottom() && !ent.fly)
+			{
+				static float localBobPhase = 0.f;
+				float bobFreq = ent.isRunning ? 14.f : 10.f;
+				float bobAmp = ent.isRunning ? 0.04f : 0.02f;
+				localBobPhase += deltaTime * bobFreq;
+				float bobY = sin(localBobPhase) * bobAmp;
+				float bobX = cos(localBobPhase * 0.5f) * bobAmp * 0.3f;
+				gameData.c.position += glm::dvec3(0, bobY, 0);
+			}
 			}
 
 			if (!gameData.escapePressed)
@@ -2458,8 +2479,10 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 	{
 		int wType = getWeatherGlobally();
 		WeatherType wt = (WeatherType)wType;
+		std::cerr << "[weather-debug] gameplayFrame read globalWeatherType=" << wType << " current programData.weatherState.type=" << (int)programData.weatherState.type << std::endl;
 		if (programData.weatherState.type != wt)
 		{
+			std::cerr << "[weather-debug] applying weather change to programData.weatherState.type=" << (int)wt << std::endl;
 			programData.weatherState.setWeather(wt);
 		}
 		programData.weatherState.update(deltaTime, glm::vec3(gameData.c.position), gameData.lastFrameInWater);
@@ -2885,7 +2908,7 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		glm::ivec2 chunkPos = { (int)std::floor((float)bpos.x / CHUNK_SIZE), (int)std::floor((float)bpos.z / CHUNK_SIZE)};
 		int facing = gameData.c.getViewDirectionRotation();
 		const char* facingStr = facing==0?"north (-Z)":facing==1?"west (-X)":facing==2?"south (+Z)":"east (+X)";
-		std::string l1 = "ourCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
+		std::string l1 = "fnxCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
 		std::string l2 = "XYZ: " + std::to_string(p.x).substr(0,7) + " / " + std::to_string(p.y).substr(0,7) + " / " + std::to_string(p.z).substr(0,7);
 		std::string l3 = "Block: " + std::to_string(bpos.x) + " " + std::to_string(bpos.y) + " " + std::to_string(bpos.z);
 		std::string l4 = "Chunk: " + std::to_string(chunkPos.x) + " " + std::to_string(chunkPos.y) + " [" + std::to_string(bpos.x - chunkPos.x*CHUNK_SIZE) + " " + std::to_string(bpos.z - chunkPos.y*CHUNK_SIZE) + "]";

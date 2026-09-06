@@ -1,7 +1,7 @@
 //////////////////////////////////////////////////
 //gl2d.h				1.0.3
 //Copyright(c) 2023 Luta Vlad
-//https://github.com/meemknight/glui
+//https://github.com/alguemqualquer123/glui
 //////////////////////////////////////////////////
 
 #define GLM_ENABLE_EXPERIMENTAL

@@ -155,11 +155,11 @@ static void crashHandler(int sig){
 	}else{
 		sleep(5);
 		if(::system("which zenity >/dev/null 2>&1")==0){
-			std::string z = "zenity --error --title='ourCraft crashou!' --text='"
+			std::string z = "zenity --error --title='fnxCraft crashou!' --text='"
 				+ sigHuman + "\\n\\nVeja logs/crash.log' --width=520 2>/dev/null &";
 			::system(z.c_str()); sleep(6);
 		}else if(::system("which kdialog >/dev/null 2>&1")==0){
-			::system("kdialog --error 'ourCraft crashou! Veja logs/crash.log' 2>/dev/null &"); sleep(6);
+			::system("kdialog --error 'fnxCraft crashou! Veja logs/crash.log' 2>/dev/null &"); sleep(6);
 		}else sleep(5);
 	}
 	_Exit(1);
@@ -200,7 +200,7 @@ void reportError(const char *message)
 }
 void reportErrorDetailed(const char *file, int line, const char *func, const char *message){
 	std::string rel = file;
-	auto pos = rel.find("ourCraft/");
+	auto pos = rel.find("fnxCraft/");
 	if(pos!=std::string::npos) rel = rel.substr(pos+9);
 	std::string msg = rel + ":" + std::to_string(line) + " (" + func + ") -> " + message;
 	reportError(msg.c_str());

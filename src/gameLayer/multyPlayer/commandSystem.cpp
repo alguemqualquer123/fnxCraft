@@ -1472,16 +1472,17 @@ void initCommandSystem()
 			if(rule=="hunger"){ s.hungerEnabled=on; return std::string("Hunger ")+(on?"ativado":"desativado"); }
 			if(rule=="thirst"){ s.thirstEnabled=on; return std::string("Thirst ")+(on?"ativado":"desativado"); }
 			if(rule=="pvp"){ s.pvpEnabled=on; return std::string("PvP ")+(on?"ativado":"desativado"); }
-			return "Regra desconhecida, use hunger/thirst/pvp";
+			if(rule=="keepInventory"){ s.keepInventory=on; return std::string("keepInventory ")+(on?"ativado (itens mantidos ao morrer)":"desativado (itens dropados ao morrer)"); }
+			return "Regra desconhecida, use hunger/thirst/pvp/keepInventory";
 		};
 		//gamerule
 		{
 			CommandDefinition def;
 			def.name = "gamerule";
-			def.description = "Altera regras do servidor: /gamerule <hunger|thirst|pvp> <true|false>";
+			def.description = "Altera regras do servidor: /gamerule <hunger|thirst|pvp|keepInventory> <true|false>";
 			def.permissionLevel = 2;
 			CommandOverload ov;
-			CommandArg rule; rule.name="rule"; rule.type=CommandArgType::Enum; rule.valueNames={"hunger","thirst","pvp"};
+			CommandArg rule; rule.name="rule"; rule.type=CommandArgType::Enum; rule.valueNames={"hunger","thirst","pvp","keepInventory"};
 			CommandArg val; val.name="value"; val.type=CommandArgType::Enum; val.valueNames={"true","false","on","off"};
 			ov.args={rule,val};
 			def.overloads.push_back(ov);
@@ -1557,6 +1558,8 @@ void initCommandSystem()
 			const CommandValue *first = ctx.arg(0);
 			if (!first) { return "Invalid arguments"; }
 
+			fprintf(stderr, "[weather-debug] /weather command received: first->str=\"%s\"\n", first->str.c_str());
+
 			if (first->str == "clear")
 			{
 				setWeatherGlobally(0);
@@ -1617,6 +1620,136 @@ void initCommandSystem()
 			return "Mobs descongelados.";
 		};
 		registerCommand(std::move(def));
+	}
+
+	//rank management commands
+	{
+		auto getRankName = [](char level) -> std::string {
+			if (level >= 3) return "Operator";
+			if (level >= 2) return "Moderador";
+			return "Jogador";
+		};
+
+		auto findClientByName = [&clients = getAllClientsReff()](const std::string &name) -> Client* {
+			for (auto &c : clients) {
+				if (c.second.playerData.otherPlayerSettings.commandPermisionLevel >= 0) {
+					// match by player entity id or by name if available
+				}
+			}
+			// try matching by entity id
+			try {
+				std::uint64_t id = std::stoull(name);
+				auto it = clients.find(id);
+				if (it != clients.end()) return &it->second;
+			} catch(...) {}
+			return nullptr;
+		};
+
+		// /op <player> - promote to Operator (level 3)
+		{
+			CommandDefinition def;
+			def.name = "op";
+			def.description = "Promove jogador a Operator (dono do servidor): /op <jogador>";
+			def.permissionLevel = 3;
+			CommandOverload ov;
+			CommandArg p; p.name="player"; p.type=CommandArgType::Player;
+			ov.args={p};
+			def.overloads.push_back(ov);
+			def.handler = [getRankName, findClientByName](CommandContext &ctx) -> std::string {
+				auto *target = ctx.client;
+				if (ctx.arg(0)) {
+					target = findClientByName(ctx.arg(0)->str);
+				}
+				if (!target) return "Jogador nao encontrado.";
+				target->playerData.otherPlayerSettings.commandPermisionLevel = 3;
+				return "Jogador promovido a Operator.";
+			};
+			registerCommand(std::move(def));
+		}
+		// /deop <player> - demote to Player (level 1)
+		{
+			CommandDefinition def;
+			def.name = "deop";
+			def.description = "Remove cargo Operator: /deop <jogador>";
+			def.permissionLevel = 3;
+			CommandOverload ov;
+			CommandArg p; p.name="player"; p.type=CommandArgType::Player;
+			ov.args={p};
+			def.overloads.push_back(ov);
+			def.handler = [getRankName, findClientByName](CommandContext &ctx) -> std::string {
+				auto *target = ctx.client;
+				if (ctx.arg(0)) {
+					target = findClientByName(ctx.arg(0)->str);
+				}
+				if (!target) return "Jogador nao encontrado.";
+				target->playerData.otherPlayerSettings.commandPermisionLevel = 1;
+				return "Cargo Operator removido. Agora e Jogador.";
+			};
+			registerCommand(std::move(def));
+		}
+		// /mod <player> - promote to Moderator (level 2)
+		{
+			CommandDefinition def;
+			def.name = "mod";
+			def.description = "Promove jogador a Moderador: /mod <jogador>";
+			def.permissionLevel = 3;
+			CommandOverload ov;
+			CommandArg p; p.name="player"; p.type=CommandArgType::Player;
+			ov.args={p};
+			def.overloads.push_back(ov);
+			def.handler = [getRankName, findClientByName](CommandContext &ctx) -> std::string {
+				auto *target = ctx.client;
+				if (ctx.arg(0)) {
+					target = findClientByName(ctx.arg(0)->str);
+				}
+				if (!target) return "Jogador nao encontrado.";
+				target->playerData.otherPlayerSettings.commandPermisionLevel = 2;
+				return "Jogador promovido a Moderador.";
+			};
+			registerCommand(std::move(def));
+		}
+		// /demod <player> - demote to Player (level 1)
+		{
+			CommandDefinition def;
+			def.name = "demod";
+			def.description = "Remove cargo Moderador: /demod <jogador>";
+			def.permissionLevel = 3;
+			CommandOverload ov;
+			CommandArg p; p.name="player"; p.type=CommandArgType::Player;
+			ov.args={p};
+			def.overloads.push_back(ov);
+			def.handler = [getRankName, findClientByName](CommandContext &ctx) -> std::string {
+				auto *target = ctx.client;
+				if (ctx.arg(0)) {
+					target = findClientByName(ctx.arg(0)->str);
+				}
+				if (!target) return "Jogador nao encontrado.";
+				target->playerData.otherPlayerSettings.commandPermisionLevel = 1;
+				return "Cargo Moderador removido. Agora e Jogador.";
+			};
+			registerCommand(std::move(def));
+		}
+		// /rank [player] - show rank
+		{
+			CommandDefinition def;
+			def.name = "rank";
+			def.description = "Mostra o cargo de um jogador: /rank [jogador]";
+			def.permissionLevel = 1;
+			CommandOverload ov;
+			CommandArg p; p.name="player"; p.type=CommandArgType::Player; p.optional=true;
+			ov.args={p};
+			def.overloads.push_back(ov);
+			def.handler = [getRankName, findClientByName](CommandContext &ctx) -> std::string {
+				auto *target = ctx.client;
+				if (ctx.arg(0)) {
+					target = findClientByName(ctx.arg(0)->str);
+				}
+				if (!target) return "Jogador nao encontrado.";
+				char level = target->playerData.otherPlayerSettings.commandPermisionLevel;
+				return "Cargo: " + getRankName(level) + " (nivel " + std::to_string((int)level) + ")";
+			};
+			registerCommand(std::move(def));
+		}
 	}
 }
 

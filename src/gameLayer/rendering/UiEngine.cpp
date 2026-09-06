@@ -1108,38 +1108,78 @@ void UiENgine::renderGameUI(float deltaTime, int w, int h
 					}
 					else if (currentInventoryTab == INVENTORY_TAB_BLOCKS)
 					{
-
+						{
+							auto searchArea = glui::Box().xCenter().yTopPerc(0.12).xDimensionPercentage(0.62).yDimensionPixels(26)();
+							glm::vec2 mp{platform::getRelMousePosition().x, platform::getRelMousePosition().y};
+							bool hover = mp.x>=searchArea.x && mp.x<=searchArea.x+searchArea.z && mp.y>=searchArea.y && mp.y<=searchArea.y+searchArea.w;
+							if(hover && platform::isLMousePressed()) itemSearchFocused=true;
+							else if(platform::isLMousePressed() && !hover) itemSearchFocused=false;
+							if(itemSearchFocused){
+								for(char c: std::string(platform::getTypedInput())){
+									if(c==8 && strlen(itemSearchBuf)>0) itemSearchBuf[strlen(itemSearchBuf)-1]=0;
+									else if(c>=32 && c<127 && strlen(itemSearchBuf)<31){ size_t l=strlen(itemSearchBuf); itemSearchBuf[l]=c; itemSearchBuf[l+1]=0; }
+								}
+								if(platform::isKeyPressedOn(platform::Button::Escape)) itemSearchFocused=false;
+								if(platform::isKeyPressedOn(platform::Button::Enter)) itemSearchFocused=false;
+							}
+							glm::vec4 bgCol = itemSearchFocused ? glm::vec4(0.22f,0.24f,0.28f,0.98f) : hover ? glm::vec4(0.20f,0.20f,0.23f,0.95f) : glm::vec4(0.16f,0.16f,0.19f,0.92f);
+							glm::vec4 borderCol = itemSearchFocused ? glm::vec4(0.45f,0.65f,1.f,1.f) : glm::vec4(0.35f,0.35f,0.40f,0.55f);
+							renderer2d.render9Patch(searchArea, 10, bgCol, {}, 0.f, buttonTexture, GL2D_DefaultTextureCoords, {0.2f,0.8f,0.8f,0.2f});
+							renderer2d.renderRectangle(searchArea, borderCol, {}, 1.2f);
+							if(itemSearchFocused) renderer2d.renderRectangle(shrinkRectanglePixels(searchArea, -2, -2), glm::vec4(0.45f,0.65f,1.f,0.12f));
+							float tx = searchArea.x + 10;
+							float ty = searchArea.y + 16;
+							if(itemSearchBuf[0]){
+								renderer2d.renderText({tx, ty}, itemSearchBuf, font, Colors_White, 12.f, -1);
+								float tw = renderer2d.getTextSize(itemSearchBuf, font, 12.f).x;
+								static float blink=0; blink+=deltaTime*2.6f; if(itemSearchFocused && fmod(blink,1.f)<0.5f) renderer2d.renderRectangle({tx+tw+2, searchArea.y+6, tx+tw+3.5f, searchArea.y+searchArea.w-6}, glm::vec4(1,1,1,0.85f));
+								float cx = searchArea.x + searchArea.z - 18;
+								glm::vec4 clearBox{cx, searchArea.y+5, cx+12, searchArea.y+searchArea.w-5};
+								bool cHover = mp.x>=clearBox.x && mp.x<=clearBox.z && mp.y>=clearBox.y && mp.y<=clearBox.w;
+								renderer2d.render9Patch(clearBox, 6, cHover?glm::vec4(0.55f,0.18f,0.18f,0.95f):glm::vec4(0.35f,0.18f,0.18f,0.75f), {}, 0.f, buttonTexture, GL2D_DefaultTextureCoords, {0.2f,0.8f,0.8f,0.2f});
+								renderer2d.renderText({cx+3, ty}, "x", font, Colors_White, 11.f, -1);
+								if(cHover && platform::isLMousePressed()){ itemSearchBuf[0]=0; itemSearchFocused=true; }
+							}else{
+								renderer2d.renderText({tx, ty}, "Buscar bloco...  (clique para digitar)", font, glm::vec4(0.62f,0.62f,0.68f,0.9f), 11.f, -1);
+							}
+							renderer2d.renderText({searchArea.x-18, ty}, ">", font, itemSearchFocused?glm::vec4(0.5f,0.7f,1.f,1.f):glm::vec4(0.55f,0.55f,0.60f,0.8f), 12.f, -1);
+						}
 						auto inventoryBars = glui::Box().xCenter().yBottomPerc(-0.17).xDimensionPercentage(0.9).
 							yAspectRatio(itemsBarInventorySize.y / itemsBarInventorySize.x)();
-
+						std::vector<int> filteredBlocks;
+						for(int _b=0; _b<BlocksCount; _b++){
+							int bt = getBlockReorder(_b);
+							std::string n = Item(bt,1).getItemName();
+							std::string needle = itemSearchBuf;
+							std::transform(n.begin(), n.end(), n.begin(), ::tolower);
+							std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+							if(needle.empty() || n.find(needle)!=std::string::npos) filteredBlocks.push_back(bt);
+						}
 						static int currentStartRow = 0;
 						currentStartRow += renderSideSlider(inventoryBars);
-						currentStartRow = glm::clamp(currentStartRow, 0,
-							(((int)BlocksCount / 9) - BARS_COUNT) + 1);
+						int maxRow = std::max(0, (int)((filteredBlocks.size()+8)/9) - BARS_COUNT);
+						currentStartRow = glm::clamp(currentStartRow, 0, maxRow);
 						if (currentStartRow < 0) { currentStartRow = 0; }
-
-						//render items
-						auto renderCreativeBlocks = [&](int start, glm::ivec4 box)
-						{
-							auto itemBox = box;
-							itemBox.z = itemBox.w;
-							for (int i = start; i < start + 9; i++)
-							{
-								if (i < BlocksCount)
-								{
-									itemBox.x = box.x + itemBox.z * (i - start);
-									renderOneItem(itemBox, Item(getBlockReorder(i)), 4.f / 22.f);
-								}
-							}
-						};
-
 						for (int i = 0; i < BARS_COUNT; i++)
 						{
 							renderer2d.renderRectangle(inventoryBars, itemsBarInventory);
-
-							checkInsideCreativeMenuBlocks((6 - i) * 9 + 1 + currentStartRow * 9, inventoryBars);
-							renderCreativeBlocks((6 - i) * 9 + 1 + currentStartRow * 9, inventoryBars);
-
+							int base = (6 - i) * 9 + currentStartRow * 9;
+							auto itemBox = inventoryBars;
+							itemBox.z = itemBox.w;
+							for(int k=0;k<9;k++){
+								int idx = base + k;
+								if(idx >= (int)filteredBlocks.size()) break;
+								itemBox.x = inventoryBars.x + itemBox.z * k;
+								renderOneItem(itemBox, Item(filteredBlocks[idx]), 4.f/22.f);
+								glm::vec2 mp{platform::getRelMousePosition().x, platform::getRelMousePosition().y};
+								bool hover = mp.x>=itemBox.x && mp.x<=itemBox.x+itemBox.z && mp.y>=itemBox.y && mp.y<=itemBox.y+itemBox.w;
+								if(hover){
+									selectedItem = filteredBlocks[idx];
+									currentItemHovered = Item(selectedItem);
+									cursorItemIndexBox = itemBox;
+									renderer2d.renderRectangle(shrinkRectanglePercentage(itemBox, (2.f/22.f)), {0.7,0.7,0.7,0.5});
+								}
+							}
 							inventoryBars.y -= inventoryBars.w;
 						}
 
@@ -1961,17 +2001,4 @@ bool ConfirmationModal::render(gl2d::Renderer2D &renderer2d, gl2d::Font &font,
 			: glm::vec4(0.4f, 0.2f, 0.2f, 1.f);
 
 		renderer2d.renderRectangle({noX, btnY, noX + btnW, btnY + btnH}, color);
-		renderer2d.renderText({noX + btnW / 2, btnY + btnH / 2},
-			loc_No(), font, Colors_White, 28.f, -1);
-
-		if (hover && platform::isLMousePressed())
-		{
-			show = false;
-			result = false;
-			resultReady = true;
-			AudioEngine::playSound(AudioEngine::uiButtonBack, UI_SOUND_VOLUME);
-		}
-	}
-
-	return resultReady;
-}
+		renderer2d.renderText({noX + btnW / 2, btnY + btn

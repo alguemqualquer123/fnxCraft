@@ -1,4 +1,4 @@
-#https://github.com/meemknight/cmakeSetup
+#https://github.com/alguemqualquer123/cmakeSetup
 
 
 cmake_minimum_required(VERSION 3.16)
@@ -22,7 +22,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-project(ourCraft)
+project(fnxCraft)
 
 
 if (MSVC)
@@ -83,9 +83,19 @@ add_subdirectory(thirdparty/magic_enum-0.9.3)
 add_subdirectory(thirdparty/safeSave)
 add_subdirectory(thirdparty/profilerLib)
 add_subdirectory(thirdparty/zstd-1.5.5/build/cmake)
-add_subdirectory(thirdparty/lua)
-add_subdirectory(noiseTool)
-add_subdirectory(PBRTool)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lua/CMakeLists.txt")
+ add_subdirectory(thirdparty/lua)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/noiseTool/CMakeLists.txt")
+ add_subdirectory(noiseTool)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/apps/noiseTool/CMakeLists.txt")
+ add_subdirectory(apps/noiseTool)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PBRTool/CMakeLists.txt")
+ add_subdirectory(PBRTool)
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/apps/PBRTool/CMakeLists.txt")
+ add_subdirectory(apps/PBRTool)
+endif()
 
 
 # MY_SOURCES is a list of all the source files for my game 
@@ -148,7 +158,7 @@ endif()
 # ============================================
 add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/game"
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" "${CMAKE_SOURCE_DIR}/game/ourCraft" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${CMAKE_PROJECT_NAME}>" "${CMAKE_SOURCE_DIR}/game/fnxCraft" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/resources/icon.png" "${CMAKE_SOURCE_DIR}/game/icon.png" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/resources/icon.ico" "${CMAKE_SOURCE_DIR}/game/icon.ico" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/game/resources/scripts" 2>/dev/null || true
@@ -166,34 +176,34 @@ file(GLOB_RECURSE SERVER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/
 file(GLOB_RECURSE PERSISTENCE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/gameLayer/persistence/*.cpp")
 set(SERVER_EXTRA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/gameLayer/GamePaths.cpp")
 
-add_executable(ourCraftServer ${SERVER_SOURCES} ${PERSISTENCE_SOURCES} ${SERVER_EXTRA_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/safeSave/src/safeSave.cpp")
+add_executable(fnxCraftServer ${SERVER_SOURCES} ${PERSISTENCE_SOURCES} ${SERVER_EXTRA_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/safeSave/src/safeSave.cpp")
 
-set_property(TARGET ourCraftServer PROPERTY CXX_STANDARD 17)
-set_property(TARGET ourCraftServer PROPERTY OUTPUT_NAME "ourCraftServer")
+set_property(TARGET fnxCraftServer PROPERTY CXX_STANDARD 17)
+set_property(TARGET fnxCraftServer PROPERTY OUTPUT_NAME "fnxCraftServer")
 
-target_compile_definitions(ourCraftServer PUBLIC OURCRAFT_HEADLESS=1)
-target_compile_definitions(ourCraftServer PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
-target_compile_definitions(ourCraftServer PUBLIC PLATFORM_LINUX)
+target_compile_definitions(fnxCraftServer PUBLIC FNXCRAFT_HEADLESS=1)
+target_compile_definitions(fnxCraftServer PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
+target_compile_definitions(fnxCraftServer PUBLIC PLATFORM_LINUX)
 
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/shared/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/gameLayer/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/platform/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/glm/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/safeSave/include/")
-target_include_directories(ourCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/enet-1.3.18/include/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/shared/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/gameLayer/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/platform/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/glm/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/safeSave/include/")
+target_include_directories(fnxCraftServer PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/enet-1.3.18/include/")
 
-target_link_libraries(ourCraftServer PRIVATE enet libzstd_static glm glad)
+target_link_libraries(fnxCraftServer PRIVATE enet libzstd_static glm glad)
 
 if(NOT MSVC)
-	target_compile_options(ourCraftServer PRIVATE -pthread)
-	target_link_options(ourCraftServer PRIVATE -pthread)
+	target_compile_options(fnxCraftServer PRIVATE -pthread)
+	target_link_options(fnxCraftServer PRIVATE -pthread)
 endif()
 
-add_custom_command(TARGET ourCraftServer POST_BUILD
+add_custom_command(TARGET fnxCraftServer POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/server"
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:ourCraftServer>" "${CMAKE_SOURCE_DIR}/server/ourCraftServer" 2>/dev/null || true
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:fnxCraftServer>" "${CMAKE_SOURCE_DIR}/server/fnxCraftServer" 2>/dev/null || true
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/server/data/worlds"
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/server/data/players"
 	COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/server/logs"

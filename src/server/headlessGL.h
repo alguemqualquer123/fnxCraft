@@ -1,4 +1,4 @@
-#ifdef OURCRAFT_HEADLESS
+#ifdef FNXCRAFT_HEADLESS
 
 // Minimal OpenGL stubs for headless compilation
 // These are never called, just satisfy linker
@@ -386,4 +386,4 @@ inline void glWaitSync() {}
 typedef uint64_t GLuint64;
 typedef void *GLsync;
 
-#endif // OURCRAFT_HEADLESS
+#endif // FNXCRAFT_HEADLESS

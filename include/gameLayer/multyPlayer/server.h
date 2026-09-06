@@ -53,6 +53,7 @@ struct ServerSettings
 	bool hungerEnabled = true;
 	bool thirstEnabled = true;
 	bool pvpEnabled = false;
+	bool keepInventory = true;
 
 
 };

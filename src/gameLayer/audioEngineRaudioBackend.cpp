@@ -356,6 +356,10 @@ namespace AudioEngine
 		SoundCollection(RESOURCES_PATH "/sounds/waterSwim"),
 		SoundCollection(RESOURCES_PATH "/sounds/waterExit"),
 
+		// Additional step sounds
+		SoundCollection(RESOURCES_PATH "/sounds/lavaSizzle"),
+		SoundCollection(RESOURCES_PATH "/sounds/netherrack"),
+
 		// Weather sounds
 		SoundCollection(RESOURCES_PATH "/sounds/weather/rainAmbient"),
 		SoundCollection(RESOURCES_PATH "/sounds/weather/thunder"),

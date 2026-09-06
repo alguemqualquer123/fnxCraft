@@ -30,6 +30,7 @@
 #include <gameLayer/SplashScreen.h>
 #include <gameLayer/Launcher.h>
 #include <gameLayer/persistence/SaveSystem.h>
+#include "gameLayerHelpers.h"
 
 #if REMOVE_IMGUI == 0
 #include "imgui.h"
@@ -353,6 +354,7 @@ bool initGame() //main server and title screen stuff
 	createErrorFile();
 	ensureAllDataDirectories();
 	SaveSystem::get().init("world");
+	// Launcher state must be initialized before use
 
 	std::filesystem::create_directory(RESOURCES_PATH "../playerSettings/");
 
@@ -533,6 +535,8 @@ static std::string lastError = "";
 static ConfirmationModal exitModal;
 bool hostServer(const std::string &path)
 {
+	SplashScreen::draw(0.5f, "Conectando ao servidor local...", "Preparando mundo");
+
 	if (!startServer(path))
 	{
 		lastError = "Problem starting server";
@@ -540,6 +544,7 @@ bool hostServer(const std::string &path)
 	else
 	{
 		gameStarted = true;
+		SplashScreen::draw(0.7f, "Conectando ao servidor local...", "Entrando no mundo");
 		if (!initGameplay(programData, nullptr))
 		{
 			closeServer();
@@ -678,17 +683,22 @@ bool gameLogic(float deltaTime)
 				{
 					lastError = "IP invalido / Invalid IP";
 				}
-				else if (initGameplay(programData, ipString))
-				{
-					gameStarted = true;
-					lastError.clear();
-				}
 				else
 				{
-					if (trimmed.empty())
-						lastError = std::string(loc_CouldntJoinServer()) + " (servidor local nao iniciou / local server failed)";
+					std::string connectMsg = trimmed.empty() ? "Conectando ao servidor local..." : ("Conectando a " + trimmed + "...");
+					SplashScreen::draw(0.5f, connectMsg.c_str(), "Entrando no mundo");
+					if (initGameplay(programData, ipString))
+					{
+						gameStarted = true;
+						lastError.clear();
+					}
 					else
-						lastError = std::string(loc_CouldntJoinServer()) + " - Verifique IP:porta e firewall UDP 7771 / Check IP:port & UDP 7771 firewall";
+					{
+						if (trimmed.empty())
+							lastError = std::string(loc_CouldntJoinServer()) + " (servidor local nao iniciou / local server failed)";
+						else
+							lastError = std::string(loc_CouldntJoinServer()) + " - Verifique IP:porta e firewall UDP 7771 / Check IP:port & UDP 7771 firewall";
+					}
 				}
 			}
 			programData.ui.menuRenderer.InputText(loc_IP(), ipString, sizeof(ipString),

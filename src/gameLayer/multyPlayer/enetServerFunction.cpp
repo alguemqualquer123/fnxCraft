@@ -257,6 +257,13 @@ void addConnection(ENetHost *server, ENetEvent &event, WorldSaver &worldSaver)
 
 		c.playerData.otherPlayerSettings.gameMode = OtherPlayerSettings::CREATIVE;
 
+		//first player to connect becomes Operator (server owner)
+		auto &allClients = getAllClientsReff();
+		if (allClients.empty())
+		{
+			c.playerData.otherPlayerSettings.commandPermisionLevel = 3;
+		}
+
 		c.playerData.inventory.items[0] = itemCreator(ItemTypes::trainingSword);
 		c.playerData.inventory.items[1] = itemCreator(ItemTypes::apple, 20);
 		c.playerData.inventory.items[2] = itemCreator(ItemTypes::goblinSpawnEgg, 400);

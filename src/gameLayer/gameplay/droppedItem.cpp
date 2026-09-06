@@ -197,4 +197,16 @@ void DroppedItemClient::update(float deltaTime,
 
 void DroppedItemClient::setEntityMatrix(glm::mat4 *skinningMatrix)
 {
+	static float time = 0.f;
+	time += 1.f / 60.f;
+
+	float bob = sin(time * 3.f) * 0.1f;
+	float rot = time * 2.f;
+
+	glm::mat4 tr = glm::translate(glm::vec3(0, bob + 0.3f, 0));
+	glm::mat4 rotMat = glm::rotate(rot, glm::vec3(0, 1, 0));
+
+	for (int i = 0; i < 6; i++)
+		if (skinningMatrix[i].length() > 0)
+			skinningMatrix[i] = tr * rotMat * skinningMatrix[i];
 }

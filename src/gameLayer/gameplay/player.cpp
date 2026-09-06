@@ -4,6 +4,8 @@
 #include <iostream>
 #include <rendering/model.h>
 
+static bool animatorInitialized = false;
+
 void Player::flyFPS(glm::vec3 direction, glm::vec3 lookDirection)
 {
 	lookDirection.y = 0;
@@ -93,59 +95,73 @@ glm::vec3 Player::getMaxColliderSize()
 //todo move update here
 void PlayerClient::update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter)
 {
+	lastDeltaTime = deltaTime;
 	entityBuffered.update(deltaTime, chunkGetter);
+	particles.update(deltaTime);
+	damageNumbers.update(deltaTime);
+	swingTrails.update(deltaTime);
 }
 
 void PlayerClient::setEntityMatrix(glm::mat4 *m)
 {
+	if (!animatorInitialized)
+	{
+		animator.init();
+		animatorInitialized = true;
+	}
+
 	auto &e = entityBuffered;
-	float leg = getLegsAngle();
-	if(animationStateClient.isAttacking){
-		float t = animationStateClient.attackTimer;
-		float swing = sin(t*14.f) * 0.9f;
-		float hit = glm::clamp(swing, -0.9f, 0.9f);
-		if(m[4].length()>0) m[4] = m[4] * glm::rotate(hit*1.2f, glm::vec3(1,0,0)) * glm::rotate(hit*0.4f, glm::vec3(0,0,1));
-		if(m[5].length()>0) m[5] = m[5] * glm::rotate(hit*0.2f, glm::vec3(1,0,0));
-		if(m[0].length()>0) m[0] = m[0] * glm::rotate(hit*0.15f, glm::vec3(0,1,0));
+
+	animator.isAttacking = animationStateClient.isAttacking;
+	animator.isGrounded = e.forces.colidesBottom();
+	animator.isSwimming = e.isSwimmingAnim;
+	animator.isCrouching = e.isCrouching;
+	animator.isProne = e.isProne;
+	animator.isFlying = e.fly;
+	animator.currentSpeed = glm::length(glm::vec2(e.forces.velocity.x, e.forces.velocity.z));
+
+	animator.update(lastDeltaTime);
+
+	auto &pose = animator.skeleton.bones;
+
+	if (m[0].length() > 0 && pose.size() > 4)
+		m[0] = m[0] * glm::mat4_cast(pose[4].rotation);
+	if (m[1].length() > 0 && pose.size() > 1)
+		m[1] = m[1] * glm::translate(pose[0].position) * glm::mat4_cast(pose[0].rotation);
+	if (m[2].length() > 0 && pose.size() > 16)
+		m[2] = m[2] * glm::mat4_cast(pose[15].rotation);
+	if (m[3].length() > 0 && pose.size() > 13)
+		m[3] = m[3] * glm::mat4_cast(pose[12].rotation);
+	if (m[4].length() > 0 && pose.size() > 10)
+		m[4] = m[4] * glm::mat4_cast(pose[9].rotation);
+	if (m[5].length() > 0 && pose.size() > 7)
+		m[5] = m[5] * glm::mat4_cast(pose[6].rotation);
+
+	float jumpSquash = 0.f;
+	if (!e.forces.colidesBottom() && !e.isSwimmingAnim)
+	{
+		jumpSquash = glm::clamp(e.forces.velocity.y * 0.04f, -0.25f, 0.25f);
 	}
-	if(leg!=0 || e.movementSpeedForLegsAnimations!=0){
-		if(leg==0 && e.movementSpeedForLegsAnimations!=0) leg = sin(e.crouchTransition*8.f)*0.35f;
-		if(m[2].length()>0) m[2] = m[2] * glm::rotate(leg, glm::vec3(1,0,0));
-		if(m[3].length()>0) m[3] = m[3] * glm::rotate(-leg, glm::vec3(1,0,0));
-		float arm = leg*0.5f;
-		if(e.isSwimmingAnim){
-			float s = sin(e.crouchTransition*12 + leg*3) * 0.7f;
-			if(m[4].length()>0) m[4] = m[4] * glm::rotate(s, glm::vec3(1,0,0));
-			if(m[5].length()>0) m[5] = m[5] * glm::rotate(-s, glm::vec3(1,0,0));
-		}else if(!animationStateClient.isAttacking){
-			if(m[4].length()>0) m[4] = m[4] * glm::rotate(-arm, glm::vec3(1,0,0));
-			if(m[5].length()>0) m[5] = m[5] * glm::rotate(arm, glm::vec3(1,0,0));
-		}
-		if(e.isRunning && !e.isCrouching && !e.isProne){
-			float bob = fabs(sin(leg*2.2f))*0.07f;
-			for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = glm::translate(glm::vec3(0,bob,0)) * m[i];
-		}
+
+	if (e.isProne)
+	{
+		glm::mat4 rot = glm::rotate(glm::radians(85.f), glm::vec3(1, 0, 0));
+		glm::mat4 tr = glm::translate(glm::vec3(0, -0.7f, 0.3f));
+		for (int i = 0; i < 6; i++)
+			if (m[i].length() > 0) m[i] = tr * rot * m[i];
 	}
-	if(!e.forces.colidesBottom() && !e.isSwimmingAnim){
-		float fallTilt = glm::clamp(e.forces.velocity.y * -0.06f, -0.4f, 0.4f);
-		if(m[0].length()>0) m[0] = m[0] * glm::rotate(fallTilt, glm::vec3(1,0,0));
+	else if (e.isCrouching)
+	{
+		glm::mat4 tr = glm::translate(glm::vec3(0, -0.25f, 0));
+		glm::mat4 sc = glm::scale(glm::vec3(1, 0.85f, 1));
+		for (int i = 0; i < 6; i++)
+			if (m[i].length() > 0) m[i] = tr * sc * m[i];
 	}
-	if(e.isProne){
-		glm::mat4 rot = glm::rotate(glm::radians(85.f), glm::vec3(1,0,0));
-		glm::mat4 tr = glm::translate(glm::vec3(0,-0.7f,0.3f));
-		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * rot * m[i];
-	}else if(e.isSwimmingAnim){
-		glm::mat4 rot = glm::rotate(glm::radians(75.f), glm::vec3(1,0,0));
-		glm::mat4 tr = glm::translate(glm::vec3(0,-0.4f,0));
-		float bob = sin(e.crouchTransition*10)*0.05f;
-		tr = glm::translate(glm::vec3(0,bob,0)) * tr;
-		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * rot * m[i];
-	}else if(e.isCrouching){
-		glm::mat4 tr = glm::translate(glm::vec3(0,-0.25f,0));
-		glm::mat4 sc = glm::scale(glm::vec3(1,0.85f,1));
-		for(int i=0;i<6;i++) if(m[i].length()>0) m[i] = tr * sc * m[i];
-		if(m[2].length()>0) m[2] = m[2] * glm::rotate(glm::radians(15.f), glm::vec3(1,0,0));
-		if(m[3].length()>0) m[3] = m[3] * glm::rotate(glm::radians(15.f), glm::vec3(1,0,0));
+	else if (jumpSquash != 0.f)
+	{
+		glm::mat4 sc = glm::scale(glm::vec3(1.f - jumpSquash, 1.f + jumpSquash, 1.f - jumpSquash));
+		for (int i = 0; i < 6; i++)
+			if (m[i].length() > 0) m[i] = m[i] * sc;
 	}
 }
 

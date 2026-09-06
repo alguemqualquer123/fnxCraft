@@ -243,4 +243,15 @@ struct CameraShaker
 		}
 	};
 
+	void triggerHitShake(float intensity = 1.f)
+	{
+		hitShakeTimer = hitShakeDuration * intensity;
+	};
+
+	void triggerLandingShake(float velocity)
+	{
+		float intensity = glm::clamp(glm::abs(velocity) / 15.f, 0.f, 1.f);
+		hitShakeTimer = hitShakeDuration * intensity * 0.5f;
+	};
+
 };

@@ -2,7 +2,7 @@
 #include <chrono>
 
 ///////////////////////////////////////////
-//https://github.com/meemknight/profilerLib
+//https://github.com/alguemqualquer123/profilerLib
 //do not remove this notice
 //(c) Luta Vlad
 // 

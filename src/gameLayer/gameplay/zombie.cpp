@@ -45,6 +45,7 @@ glm::vec3 Zombie::getMaxColliderSize()
 
 void ZombieClient::update(float deltaTime, decltype(chunkGetterSignature) *chunkGetter)
 {
+	lastDeltaTime = deltaTime;
 	currentHandsAngle += deltaTime;
 	if (currentHandsAngle > glm::radians(360.f))
 	{
@@ -56,7 +57,20 @@ void ZombieClient::update(float deltaTime, decltype(chunkGetterSignature) *chunk
 
 void ZombieClient::setEntityMatrix(glm::mat4 *skinningMatrix)
 {
-
+	if (entityBuffered.life.life <= 0)
+	{
+		deathTimer += lastDeltaTime;
+		float t = glm::clamp(deathTimer / 0.5f, 0.f, 1.f);
+		glm::mat4 rot = glm::rotate(glm::radians(90.f * t), glm::vec3(0, 0, 1));
+		glm::mat4 tr = glm::translate(glm::vec3(0, -0.5f * t, 0));
+		for (int i = 0; i < 6; i++)
+			if (skinningMatrix[i].length() > 0)
+				skinningMatrix[i] = tr * rot * skinningMatrix[i];
+	}
+	else
+	{
+		deathTimer = 0.f;
+	}
 
 	//animatePlayerHandsZombie(skinningMatrix, currentHandsAngle);
 }

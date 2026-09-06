@@ -1,4 +1,4 @@
-#ifdef OURCRAFT_HEADLESS
+#ifdef FNXCRAFT_HEADLESS
 
 #include <iostream>
 #include <string>
@@ -28,7 +28,7 @@ void printBanner()
 	std::cout << "\n";
 	std::cout << "\033[36m"; // Cyan
 	std::cout << "  ===========================================\n";
-	std::cout << "    ourCraft Dedicated Server v0.1.0\n";
+	std::cout << "    fnxCraft Dedicated Server v0.1.0\n";
 	std::cout << "  ===========================================\n";
 	std::cout << "\033[0m";
 	std::cout << "\n";
@@ -36,7 +36,7 @@ void printBanner()
 
 void printHelp()
 {
-	std::cout << "Usage: ourCraftServer [options]\n\n";
+	std::cout << "Usage: fnxCraftServer [options]\n\n";
 	std::cout << "Options:\n";
 	std::cout << "  --port <port>        Server port (default: 7771)\n";
 	std::cout << "  --name <name>        Server name\n";
@@ -236,4 +236,4 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-#endif // OURCRAFT_HEADLESS
+#endif // FNXCRAFT_HEADLESS

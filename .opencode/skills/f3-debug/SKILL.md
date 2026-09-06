@@ -37,7 +37,7 @@ Implementa overlay estilo Minecraft ativado com F3.
 
 4. **Formato texto** - 2 colunas como Minecraft:
    ```
-   Minecraft 1.21 (ourCraft) / FPS: 60
+   Minecraft 1.21 (fnxCraft) / FPS: 60
    XYZ: 123 / 64 / -45
    Block: 123 64 -45
    Chunk: 7  -3  in 8 8

@@ -1,7 +1,7 @@
 //////////////////////////////////////////////////
 //gl2d.h				1.6.2
 //Copyright(c) 2020 - 2025 Luta Vlad
-//https://github.com/meemknight/gl2d
+//https://github.com/alguemqualquer123/gl2d
 //
 //	dependences: glew(or any loader you want to use), glm, stb_image, stb_trueType
 //
