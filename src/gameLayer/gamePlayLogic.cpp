@@ -2906,11 +2906,12 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		glm::dvec3 p = gameData.entityManager.localPlayer.entity.position;
 		glm::ivec3 bpos = from3DPointToBlock(p);
 		glm::ivec2 chunkPos = { (int)std::floor((float)bpos.x / CHUNK_SIZE), (int)std::floor((float)bpos.z / CHUNK_SIZE)};
+		int chunkSection = (int)std::floor(bpos.y / 16.f);
 		int facing = gameData.c.getViewDirectionRotation();
 		const char* facingStr = facing==0?"north (-Z)":facing==1?"west (-X)":facing==2?"south (+Z)":"east (+X)";
 		std::string l1 = "fnxCraft F3 | FPS: " + std::to_string(programData.currentFps) + " | " + (gameData.cameraMode==0?"First":gameData.cameraMode==1?"Third Back":"Third Front");
 		std::string l2 = "XYZ: " + std::to_string(p.x).substr(0,7) + " / " + std::to_string(p.y).substr(0,7) + " / " + std::to_string(p.z).substr(0,7);
-		std::string l3 = "Block: " + std::to_string(bpos.x) + " " + std::to_string(bpos.y) + " " + std::to_string(bpos.z);
+		std::string l3 = "Block: " + std::to_string(bpos.x) + " " + std::to_string(bpos.y) + " " + std::to_string(bpos.z) + " (Section " + std::to_string(chunkSection) + ")";
 		std::string l4 = "Chunk: " + std::to_string(chunkPos.x) + " " + std::to_string(chunkPos.y) + " [" + std::to_string(bpos.x - chunkPos.x*CHUNK_SIZE) + " " + std::to_string(bpos.z - chunkPos.y*CHUNK_SIZE) + "]";
 		std::string l5 = "Facing: " + std::string(facingStr) + " (" + std::to_string(gameData.c.viewDirection.x).substr(0,5) + ", " + std::to_string(gameData.c.viewDirection.z).substr(0,5) + ")";
 		std::string l6 = "";
@@ -2919,7 +2920,8 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		std::string l7 = blk ? ("Light sky:" + std::to_string((int)blk->getSkyLight()) + " block:" + std::to_string((int)blk->getLight())) : "Light: -";
 		size_t entCount = gameData.entityManager.players.size() + gameData.entityManager.zombies.size() + gameData.entityManager.pigs.size() + gameData.entityManager.goblins.size();
 		std::string l8 = "Entities: " + std::to_string(entCount) + " | Mem chunks: " + std::to_string(gameData.chunkSystem.loadedChunks.size());
-		r2d.renderRectangle({5,5, 360, 145}, {0,0,0,0.55});
+		std::string l9 = "Sim distance: " + std::to_string(getShadingSettings().viewDistance) + " chunks";
+		r2d.renderRectangle({5,5, 360, 162}, {0,0,0,0.55});
 		float y = 28;
 		auto drawL = [&](std::string s, float yy){ r2d.renderText({10, yy}, s.c_str(), programData.ui.font, Colors_White, 14); };
 		drawL(l1, y); y+=16;
@@ -2929,7 +2931,8 @@ bool gameplayFrame(float deltaTime, int w, int h, ProgramData &programData)
 		drawL(l5, y); y+=16;
 		drawL(l6, y); y+=16;
 		drawL(l7, y); y+=16;
-		drawL(l8, y);
+		drawL(l8, y); y+=16;
+		drawL(l9, y);
 	}
 
 	if (gameData.bowCharging && !gameData.isInsideMapView && !gameData.isInsideChat)

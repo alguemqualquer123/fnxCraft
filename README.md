@@ -246,9 +246,10 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 - [ ] Câmera não mover ao sair do inventário (`hardertodos.md`)
 - [ ] `sendPlayerOtherInfo` (`hardertodos.md`)
 - [ ] Item dropping + survival — rejeitar drop recria inventário (`hardertodos.md`)
-- [ ] F3 polish: `chunkSection`, `light level`, `simulationDistance`, `seed` no F3, cor borda por Y
+- [x] F3 polish: `chunkSection`, `light level`, `simulationDistance`
+- [ ] F3 polish (resto): `seed` no F3, cor borda por Y
 - [ ] Farming polish: `blockNames` cor por stage, `boneMeal` partícula verde, `F3` mostra `light`/`hasWater`
-- [ ] Tocha flicker em `torch` também (hoje só `lamp`/`torchWood`/`goblinTorch`)
+- [x] Tocha flicker em `torch/torchWood/goblinTorch/lamp` (via `sin(flick+hash)` em `gamePlayLogic.cpp`)
 - [ ] Skins grid paginado 4×4 preview 32×32
 - [ ] View distance sem resetar chunks (`todo.txt`)
 
