@@ -442,8 +442,8 @@ int main(int argc, char *argv[])
 	loadShadingSettings();
 	if(getShadingSettings().msaa>0) glfwWindowHint(GLFW_SAMPLES, getShadingSettings().msaa);
 
-	int w = 500;
-	int h = 500;
+	int w = 1720;
+	int h = 1280;
 	wind = glfwCreateWindow(w, h, "fnxCraft", nullptr, nullptr);
 	if(!wind){
 		std::cerr<<"[glfw] Falha ao criar janela - verifique suporte OpenGL 4.6 / driver\n";
