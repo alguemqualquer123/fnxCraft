@@ -1,10 +1,13 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <glm/vec3.hpp>
 struct PlayerSaveData
 {
 	std::string username;
 	std::string uuid;
+	glm::dvec3 position = {};
+	bool hasPosition = false;
 };
 
 struct SaveSystem

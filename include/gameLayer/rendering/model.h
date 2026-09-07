@@ -186,6 +186,15 @@ struct ModelsManager
 
 	Model hydra;
 
+	Model cow;
+	Model sheep;
+	Model wolf;
+	Model fox;
+	Model chicken;
+	Model crow;
+	Model bee;
+	Model manatee;
+
 
 	enum BlockModels
 	{
@@ -263,6 +272,8 @@ struct ModelsManager
 			FoxTexture,
 			ChickenTexture,
 			CrowTexture,
+			BeeTexture,
+			ManateeTexture,
 			TEXTURES_COUNT
 		};
 

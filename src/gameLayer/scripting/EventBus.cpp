@@ -23,3 +23,7 @@ void EventBus::subscribe(const std::string &event, std::function<void()> callbac
 {
 	callbacks[event].push_back(std::move(callback));
 }
+void EventBus::addEventHandler(const std::string &event, std::function<void()> callback)
+{
+	callbacks[event].push_back(std::move(callback));
+}

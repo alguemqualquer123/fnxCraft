@@ -603,7 +603,8 @@ int main(int argc, char *argv[])
 		stop = std::chrono::high_resolution_clock::now();
 
 		float augmentedDeltaTime = deltaTime;
-		if (augmentedDeltaTime > 1.f / 6) { augmentedDeltaTime = 1.f / 6; }
+		if (augmentedDeltaTime > 1.f / 20) { augmentedDeltaTime = 1.f / 20; }
+		if (augmentedDeltaTime < 0) augmentedDeltaTime = 0;
 	
 	#pragma endregion
 

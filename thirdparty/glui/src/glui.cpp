@@ -1181,8 +1181,9 @@ namespace glui
 			i.first.z /= colums.size();
 		}
 
-		float columAdvanceSize = colums[0].first.z; //all colums have the same width for now
-		float beginY = colums[0].first.y; //all colums start from the same height fot now
+		if(colums.empty()) return;
+		float columAdvanceSize = colums[0].first.z;
+		float beginY = colums[0].first.y;
 
 		for (int i = 0; i < colums.size(); i++)
 		{

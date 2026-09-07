@@ -34,20 +34,29 @@ void displayVolumeMenuButton(ProgramData &programData);
 
 void displayLanguageMenuButton(ProgramData &programData);
 
+void displayWorldConfigMenu(ProgramData &programData, std::string &selectedWorld);
+void displayWorldConfigMenuButton(ProgramData &programData, std::string &selectedWorld);
+
+void displayPlayerRolesMenu(ProgramData &programData);
+void displayPlayerRolesMenuButton(ProgramData &programData);
+
+void displayWorldSettingsMenu(ProgramData &programData);
+void displayWorldSettingsMenuButton(ProgramData &programData);
+
 
 std::string getSkinName();
 
 struct ShadingSettings
 {
 
-	int viewDistance = 10;
+	int viewDistance = 8;
 	int tonemapper = 0;
 	int shadows = 0;
 	int waterType = 1;
-	int workerThreadsForBaking = 2; //MOVE TODO
-	int lodStrength = 1; //MOVE TODO
+	int workerThreadsForBaking = 4;
+	int lodStrength = 1;
 	int PBR = 1;
-	int maxLights = 40;
+	int maxLights = 20;
 	int useLights = 1;
 	float lightsStrength = 1.f;
 	bool FXAA = 1;
@@ -76,6 +85,8 @@ struct ShadingSettings
 	int bloom = 1; // disabled - causes black screen, re-enable after skybox fix
 
 	int SSR = 1;
+
+	float parallaxStrength = 0.03f; // POM height scale, 0 = disabled
 
 	float toneMapSaturation = 1;
 	float toneMapVibrance = 1;

@@ -123,18 +123,28 @@ void PlayerClient::setEntityMatrix(glm::mat4 *m)
 	animator.update(lastDeltaTime);
 
 	auto &pose = animator.skeleton.bones;
-
-	if (m[0].length() > 0 && pose.size() > 4)
-		m[0] = m[0] * glm::mat4_cast(pose[4].rotation);
-	if (m[1].length() > 0 && pose.size() > 1)
+	if (m[0].length() > 0 && pose.size() > 4) {
+		glm::quat lookRot = glm::quat(1,0,0,0);
+		glm::vec3 lookDir = e.lookDirectionAnimation;
+		if (glm::length(lookDir) > 0.01f) {
+			lookDir = glm::normalize(lookDir);
+			float yaw = atan2(lookDir.x, lookDir.z);
+			float pitch = asin(glm::clamp(-lookDir.y, -1.f, 1.f));
+			lookRot = glm::angleAxis(yaw, glm::vec3(0,1,0)) * glm::angleAxis(pitch, glm::vec3(1,0,0));
+		}
+		m[0] = m[0] * glm::mat4_cast(lookRot * pose[4].rotation);
+	}
+	if (m[1].length() > 0 && pose.size() > 2)
+		m[1] = m[1] * glm::translate(pose[2].position) * glm::mat4_cast(pose[2].rotation);
+	else if (m[1].length() > 0 && pose.size() > 1)
 		m[1] = m[1] * glm::translate(pose[0].position) * glm::mat4_cast(pose[0].rotation);
 	if (m[2].length() > 0 && pose.size() > 16)
-		m[2] = m[2] * glm::mat4_cast(pose[15].rotation);
+		m[2] = m[2] * glm::mat4_cast(pose[16].rotation);
 	if (m[3].length() > 0 && pose.size() > 13)
-		m[3] = m[3] * glm::mat4_cast(pose[12].rotation);
+		m[3] = m[3] * glm::mat4_cast(pose[13].rotation);
 	if (m[4].length() > 0 && pose.size() > 10)
-		m[4] = m[4] * glm::mat4_cast(pose[9].rotation);
-	if (m[5].length() > 0 && pose.size() > 7)
+		m[4] = m[4] * glm::mat4_cast(pose[10].rotation);
+	if (m[5].length() > 0 && pose.size() > 6)
 		m[5] = m[5] * glm::mat4_cast(pose[6].rotation);
 
 	float jumpSquash = 0.f;

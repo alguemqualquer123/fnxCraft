@@ -6,10 +6,14 @@
 #include <platform/platformInput.h>
 #include <platform/platformDetection.h>
 #include "multyPlayer/createConnection.h"
+#include "multyPlayer/server.h"
+#include "multyPlayer/enetServerFunction.h"
+#include "gameLayer/Launcher.h"
 #include <audioEngine.h>
 #include <safeSave.h>
 #include <sstream>
 #include <localization.h>
+#include <gameplay/player.h>
 
 void displayRenderSettingsMenuButton(ProgramData &programData)
 {
@@ -115,6 +119,15 @@ good performance.\n-Fancy: significant performance cost but looks very nice.");
 		programData.ui.menuRenderer.sliderFloat(loc_BloomMultiplier(), &getShadingSettings().bloomMultiplier, 0, 1, DEFAULT_SLIDER);
 		programData.ui.menuRenderer.sliderFloat(loc_BloomThreshold(), &getShadingSettings().bloomTresshold, 0.1, 1, DEFAULT_SLIDER);
 	};
+
+	programData.ui.menuRenderer.EndMenu();
+#pragma endregion
+
+#pragma region parallax
+	programData.ui.menuRenderer.BeginMenu("Parallax", Colors_Gray, programData.ui.buttonTexture);
+	programData.ui.menuRenderer.Text("Parallax occlusion mapping (block depth)", Colors_White);
+
+	programData.ui.menuRenderer.sliderFloat("Strength: ", &getShadingSettings().parallaxStrength, 0.0, 0.1, DEFAULT_SLIDER);
 
 	programData.ui.menuRenderer.EndMenu();
 #pragma endregion
@@ -839,6 +852,7 @@ void saveShadingSettings()
 	SET_FLOAT(bloomMultiplier);
 	SET_FLOAT(exposure);
 	SET_FLOAT(fogGradient);
+	SET_FLOAT(parallaxStrength);
 
 
 	SET_FLOAT(toneMapSaturation);
@@ -933,6 +947,7 @@ void loadShadingSettings()
 		GET_FLOAT(bloomTresshold);
 		GET_FLOAT(bloomMultiplier);
 		GET_FLOAT(fogGradient);
+		GET_FLOAT(parallaxStrength);
 
 	}
 
@@ -1341,6 +1356,14 @@ void displayWorldSelectorMenu(ProgramData &programData)
 
 			}
 
+			if (selected.size())
+			{
+				if (programData.ui.menuRenderer.Button("Configurar mundo", Colors_Gray, programData.ui.buttonTexture))
+				{
+					programData.ui.menuRenderer.StartManualMenu("World Config");
+				}
+			}
+			displayWorldConfigMenu(programData, selected);
 		}
 
 	}
@@ -1348,6 +1371,11 @@ void displayWorldSelectorMenu(ProgramData &programData)
 	static char seed[12] = {};
 	static char name[20] = {};
 	static int currentIndex = 0; //0 normal, 1 super flat
+	static int createDifficulty = 2; //0 peaceful 1 easy 2 normal 3 hard
+	static int createGamemode = 0; //0 survival 1 creative
+	static int createKeepInventory = 0; //0 off 1 on
+	static int createAllowCheats = 0; //0 off 1 on
+	static int createPvp = 0;
 	static WorldGeneratorSettings settings;
 	static gl2d::Texture worldPreviewTexture;
 	static WorldGenerator wg;
@@ -1429,7 +1457,11 @@ void displayWorldSelectorMenu(ProgramData &programData)
 		programData.ui.menuRenderer.InputText("Seed:", seed, sizeof(seed),
 			Colors_Gray, programData.ui.buttonTexture);
 		
-		//programData.ui.menuRenderer.Toggle("Super Flat", Colors_Gray, &superFlatWorld, programData.ui.buttonTexture, programData.ui.buttonTexture);
+		programData.ui.menuRenderer.toggleOptions("Dificuldade: ", "Paz|Facil|Normal|Dificil", &createDifficulty, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		programData.ui.menuRenderer.toggleOptions("Modo: ", "Sobrevivencia|Criativo", &createGamemode, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		programData.ui.menuRenderer.toggleOptions("KeepInventory: ", "OFF|ON", &createKeepInventory, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		programData.ui.menuRenderer.toggleOptions("Cheats: ", "OFF|ON", &createAllowCheats, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		programData.ui.menuRenderer.toggleOptions("PvP: ", "OFF|ON", &createPvp, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
 
 		std::string finalName = RESOURCES_PATH "worlds/";
 		finalName += name;
@@ -1523,6 +1555,21 @@ void displayWorldSelectorMenu(ProgramData &programData)
 						f << settings.saveSettings();
 
 					}
+					{
+						ServerSettings defCfg;
+						defCfg.worldName = name;
+						defCfg.allowCheats = createAllowCheats;
+						defCfg.pvpEnabled = createPvp;
+						defCfg.keepInventory = createKeepInventory;
+						if (createDifficulty==0) defCfg.difficulty="peaceful";
+						else if (createDifficulty==1) defCfg.difficulty="easy";
+						else if (createDifficulty==2) defCfg.difficulty="normal";
+						else defCfg.difficulty="hard";
+						defCfg.defaultGamemode = createGamemode ? "creative" : "survival";
+						auto &launcher = getLauncherState();
+						defCfg.worldOwner = launcher.currentUUID.empty()? launcher.currentUsername : launcher.currentUUID;
+						saveWorldConfig(name, defCfg);
+					}
 
 					if (createAndPlay)
 					{
@@ -1592,12 +1639,320 @@ void displayWorldSelectorMenu(ProgramData &programData)
 		memset(seed, 0, sizeof(seed));
 		memset(name, 0, sizeof(name));
 		currentIndex = 0;
+		createDifficulty = 2;
+		createGamemode = 0;
+		createKeepInventory = 0;
+		createAllowCheats = 0;
+		createPvp = 0;
 		settings = {};
 	}
 	
 	programData.ui.menuRenderer.EndMenu();
 
 
+}
+
+void displayWorldConfigMenu(ProgramData &programData, std::string &selectedWorld)
+{
+	programData.ui.menuRenderer.BeginManualMenu("World Config");
+	if (programData.ui.menuRenderer.internal.allMenuStacks[programData.ui.menuRenderer.internal.currentId].size()
+		&& programData.ui.menuRenderer.internal.allMenuStacks[programData.ui.menuRenderer.internal.currentId].back() == "World Config")
+	{
+		if (selectedWorld.empty())
+		{
+			programData.ui.menuRenderer.Text("Nenhum mundo selecionado", Colors_White);
+			if (programData.ui.menuRenderer.Button("Voltar", Colors_Gray, programData.ui.buttonTexture))
+				programData.ui.menuRenderer.ExitCurrentMenu();
+		}
+		else
+		{
+			static ServerSettings cfg;
+			static std::string loadedFor;
+			if (loadedFor != selectedWorld)
+			{
+				cfg = loadWorldConfig(selectedWorld);
+				loadedFor = selectedWorld;
+			}
+			programData.ui.menuRenderer.Text(("Mundo: " + selectedWorld).c_str(), Colors_White);
+			programData.ui.menuRenderer.Text("Configuracoes do mundo", Colors_White);
+			{
+				int cheats = cfg.allowCheats ? 1 : 0;
+				programData.ui.menuRenderer.toggleOptions("Permitir cheats: ", "NAO|SIM", &cheats, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+				cfg.allowCheats = cheats;
+				std::string label = cfg.allowCheats ? "Cheats: ATIVADO" : "Cheats: DESATIVADO";
+				programData.ui.menuRenderer.Text(label.c_str(), cfg.allowCheats ? glm::vec4(0.3f,1,0.4f,1) : glm::vec4(1,0.4f,0.4f,1));
+				programData.ui.menuRenderer.Text(cfg.allowCheats ? "Comandos liberados para todos" : "Apenas OP pode usar comandos", glm::vec4(0.7f,0.7f,0.7f,1));
+			}
+			int diffIdx = 0;
+			if (cfg.difficulty == "peaceful") diffIdx = 0;
+			else if (cfg.difficulty == "easy") diffIdx = 1;
+			else if (cfg.difficulty == "normal") diffIdx = 2;
+			else if (cfg.difficulty == "hard") diffIdx = 3;
+			programData.ui.menuRenderer.toggleOptions("Dificuldade: ", "Paz|Facil|Normal|Dificil", &diffIdx, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+			if (diffIdx == 0) cfg.difficulty = "peaceful";
+			else if (diffIdx == 1) cfg.difficulty = "easy";
+			else if (diffIdx == 2) cfg.difficulty = "normal";
+			else cfg.difficulty = "hard";
+
+			int gmIdx = (cfg.defaultGamemode == "creative") ? 1 : 0;
+			programData.ui.menuRenderer.toggleOptions("Modo padrao: ", "Sobrevivencia|Criativo", &gmIdx, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+			cfg.defaultGamemode = gmIdx ? "creative" : "survival";
+
+			int pvp = cfg.pvpEnabled ? 1 : 0;
+			programData.ui.menuRenderer.toggleOptions("PvP: ", "OFF|ON", &pvp, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+			cfg.pvpEnabled = pvp;
+
+			int keep = cfg.keepInventory ? 1 : 0;
+			programData.ui.menuRenderer.toggleOptions("Keep Inventory: ", "OFF|ON", &keep, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+			cfg.keepInventory = keep;
+
+			int hunger = cfg.hungerEnabled ? 1 : 0;
+			programData.ui.menuRenderer.toggleOptions("Fome: ", "OFF|ON", &hunger, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+			cfg.hungerEnabled = hunger;
+
+			if (programData.ui.menuRenderer.Button("Salvar", Colors_Gray, programData.ui.buttonTexture))
+			{
+				cfg.worldName = selectedWorld;
+				saveWorldConfig(selectedWorld, cfg);
+				if (isServerRunning() && getServerSettingsReff().worldName == selectedWorld)
+				{
+					auto cur = getServerSettingsReff();
+					cur.allowCheats = cfg.allowCheats;
+					cur.difficulty = cfg.difficulty;
+					cur.defaultGamemode = cfg.defaultGamemode;
+					cur.pvpEnabled = cfg.pvpEnabled;
+					cur.keepInventory = cfg.keepInventory;
+					cur.hungerEnabled = cfg.hungerEnabled;
+					setServerSettings(cur);
+				}
+				programData.ui.menuRenderer.ExitCurrentMenu();
+			}
+			if (programData.ui.menuRenderer.Button("Cancelar", Colors_Gray, programData.ui.buttonTexture))
+			{
+				loadedFor.clear();
+				programData.ui.menuRenderer.ExitCurrentMenu();
+			}
+			if (programData.ui.menuRenderer.Button("Voltar", Colors_Gray, programData.ui.buttonTexture))
+			{
+				programData.ui.menuRenderer.ExitCurrentMenu();
+			}
+		}
+	}
+	programData.ui.menuRenderer.EndMenu();
+}
+
+void displayWorldConfigMenuButton(ProgramData &programData, std::string &selectedWorld)
+{
+	if (programData.ui.menuRenderer.Button("Configurar mundo", Colors_Gray, programData.ui.buttonTexture))
+	{
+		if (!selectedWorld.empty())
+			programData.ui.menuRenderer.StartManualMenu("World Config");
+	}
+	displayWorldConfigMenu(programData, selectedWorld);
+}
+
+void displayPlayerRolesMenu(ProgramData &programData)
+{
+	programData.ui.menuRenderer.Text("Gerenciar jogadores", Colors_White);
+	programData.ui.menuRenderer.Text("Lista de jogadores online", glm::vec4(0.7f,0.7f,0.9f,1));
+
+	auto getRoleName = [](int lvl)->std::string{
+		if (lvl >= 3) return "Operator";
+		if (lvl >= 2) return "Moderador";
+		return "Jogador";
+	};
+	auto getRoleColor = [](int lvl)->glm::vec4{
+		if (lvl >= 3) return glm::vec4(1,0.84f,0,1);
+		if (lvl >= 2) return glm::vec4(0.3f,0.6f,1,1);
+		return glm::vec4(0.8f,0.8f,0.8f,1);
+	};
+	auto getRoleIcon = [](int lvl)->const char*{
+		if (lvl >= 3) return "[OP]";
+		if (lvl >= 2) return "[MOD]";
+		return "[PLY]";
+	};
+	auto getRoleDesc = [](int lvl)->const char*{
+		if (lvl >= 3) return "Operator: acesso total, pode gerenciar mundo, cheats e cargos";
+		if (lvl >= 2) return "Moderador: pode moderar jogadores, usar comandos de moderacao";
+		return "Jogador: acesso basico, sem comandos admin";
+	};
+
+	int localLevel = 1;
+	bool isOwner = false;
+	if (isServerRunning())
+	{
+		auto &clients = getAllClientsReff();
+		if (!clients.empty())
+		{
+			localLevel = clients.begin()->second.playerData.otherPlayerSettings.commandPermisionLevel;
+			isOwner = (localLevel >= 3);
+		}
+	}
+	else
+	{
+		localLevel = 3;
+		isOwner = true;
+	}
+
+	if (isServerRunning())
+	{
+		auto &clients = getAllClientsReff();
+		if (clients.empty())
+		{
+			programData.ui.menuRenderer.Text("Nenhum jogador online", glm::vec4(0.8f,0.8f,0.8f,1));
+			auto &launcher = getLauncherState();
+			glm::vec4 roleCol = getRoleColor(3);
+			programData.ui.menuRenderer.Text((std::string(getRoleIcon(3)) + " " + launcher.currentUsername + " - " + getRoleName(3)).c_str(), roleCol);
+			programData.ui.menuRenderer.Text(getRoleDesc(3), glm::vec4(0.6f,0.6f,0.6f,1));
+		}
+		for (auto &kv : clients)
+		{
+			std::uint64_t cid = kv.first;
+			Client &cl = kv.second;
+			int lvl = cl.playerData.otherPlayerSettings.commandPermisionLevel;
+			std::string name = "Player " + std::to_string(cid);
+			if (cid == clients.begin()->first)
+			{
+				auto &launcher = getLauncherState();
+				if (!launcher.currentUsername.empty()) name = launcher.currentUsername;
+			}
+			glm::vec4 col = getRoleColor(lvl);
+			std::string line = std::string(getRoleIcon(lvl)) + " " + name + " - " + getRoleName(lvl);
+			programData.ui.menuRenderer.Text(line.c_str(), col);
+			programData.ui.menuRenderer.Text(getRoleDesc(lvl), glm::vec4(0.55f,0.55f,0.55f,1));
+			{
+				glm::vec4 widgetPos = {};
+				bool hovered = false, clicked = false;
+				if (programData.ui.menuRenderer.CustomWidget((int)cid, &widgetPos, &hovered, &clicked))
+				{
+					if (hovered)
+					{
+						programData.ui.renderer2d.renderRectangle(widgetPos, {1,1,0.2f,0.15f});
+					}
+				}
+				if (hovered)
+				{
+					programData.ui.menuRenderer.Text(("Hover: " + std::string(getRoleDesc(lvl))).c_str(), glm::vec4(1,1,0.5f,1));
+				}
+			}
+			if (isOwner)
+			{
+				std::string btnOp = "Tornar OP##" + std::to_string(cid);
+				std::string btnMod = "Tornar MOD##" + std::to_string(cid);
+				std::string btnPly = "Tornar Jogador##" + std::to_string(cid);
+				if (lvl != 3)
+				{
+					if (programData.ui.menuRenderer.Button(btnOp.c_str(), glm::vec4(1,0.84f,0,1), programData.ui.buttonTexture))
+					{
+						cl.playerData.otherPlayerSettings.commandPermisionLevel = 3;
+						executeServerCommand(cid, "op");
+					}
+				}
+				if (lvl != 2)
+				{
+					if (programData.ui.menuRenderer.Button(btnMod.c_str(), glm::vec4(0.3f,0.6f,1,1), programData.ui.buttonTexture))
+					{
+						cl.playerData.otherPlayerSettings.commandPermisionLevel = 2;
+					}
+				}
+				if (lvl != 1)
+				{
+					if (programData.ui.menuRenderer.Button(btnPly.c_str(), Colors_Gray, programData.ui.buttonTexture))
+					{
+						cl.playerData.otherPlayerSettings.commandPermisionLevel = 1;
+					}
+				}
+			}
+			programData.ui.menuRenderer.Text("", Colors_White);
+		}
+	}
+	else
+	{
+		auto &launcher = getLauncherState();
+		std::string name = launcher.currentUsername.empty() ? "Player" : launcher.currentUsername;
+		programData.ui.menuRenderer.Text((std::string("[OP] ") + name + " - Operator (Singleplayer)").c_str(), glm::vec4(1,0.84f,0,1));
+		programData.ui.menuRenderer.Text("Dono do mundo singleplayer tem todas as permissoes", glm::vec4(0.6f,0.6f,0.6f,1));
+	}
+	if (!isOwner)
+	{
+		programData.ui.menuRenderer.Text("Apenas Operator pode gerenciar cargos", glm::vec4(1,0.5f,0.5f,1));
+	}
+}
+
+void displayPlayerRolesMenuButton(ProgramData &programData)
+{
+	programData.ui.menuRenderer.BeginMenu("Cargos", Colors_Gray, programData.ui.buttonTexture);
+	displayPlayerRolesMenu(programData);
+	programData.ui.menuRenderer.EndMenu();
+}
+
+void displayWorldSettingsMenu(ProgramData &programData)
+{
+	programData.ui.menuRenderer.Text("Configuracoes do mundo (Owner)", Colors_White);
+	if (!isServerRunning())
+	{
+		programData.ui.menuRenderer.Text("Mundo nao esta rodando", glm::vec4(0.8f,0.3f,0.3f,1));
+		return;
+	}
+	auto &s = getServerSettingsReff();
+	bool isOwner = false;
+	{
+		auto &clients = getAllClientsReff();
+		if (!clients.empty())
+		{
+			int lvl = clients.begin()->second.playerData.otherPlayerSettings.commandPermisionLevel;
+			isOwner = (lvl >= 3);
+		}
+		else isOwner = true;
+	}
+	if (!isOwner)
+	{
+		programData.ui.menuRenderer.Text("Apenas o dono (Operator) pode alterar", glm::vec4(1,0.5f,0.5f,1));
+		programData.ui.menuRenderer.Text(("Cheats: " + std::string(s.allowCheats?"ATIVADO":"DESATIVADO")).c_str(), s.allowCheats? glm::vec4(0.3f,1,0.4f,1): glm::vec4(1,0.4f,0.4f,1));
+		return;
+	}
+	{
+		int v = s.allowCheats ? 1 : 0;
+		programData.ui.menuRenderer.toggleOptions("Cheats: ", "OFF|ON", &v, true, s.allowCheats? glm::vec4(0.3f,1,0.4f,1): glm::vec4(1,0.4f,0.4f,1), 0, programData.ui.buttonTexture, Colors_Gray);
+		bool newVal = v;
+		if (newVal != s.allowCheats)
+		{
+			s.allowCheats = newVal;
+			saveWorldConfig(s.worldName, s);
+		}
+		programData.ui.menuRenderer.Text(s.allowCheats ? "Cheats liberados: qualquer jogador pode usar comandos" : "Cheats bloqueados: apenas OP", glm::vec4(0.7f,0.7f,0.7f,1));
+	}
+	{
+		int pvp = s.pvpEnabled ? 1 : 0;
+		programData.ui.menuRenderer.toggleOptions("PvP: ", "OFF|ON", &pvp, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		if ((bool)pvp != s.pvpEnabled){ s.pvpEnabled = pvp; saveWorldConfig(s.worldName, s);}
+	}
+	{
+		int keep = s.keepInventory ? 1 : 0;
+		programData.ui.menuRenderer.toggleOptions("Keep Inventory: ", "OFF|ON", &keep, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		if ((bool)keep != s.keepInventory){ s.keepInventory = keep; saveWorldConfig(s.worldName, s);}
+	}
+	{
+		int hunger = s.hungerEnabled ? 1 : 0;
+		programData.ui.menuRenderer.toggleOptions("Fome: ", "OFF|ON", &hunger, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		if ((bool)hunger != s.hungerEnabled){ s.hungerEnabled = hunger; saveWorldConfig(s.worldName, s);}
+	}
+	{
+		int diffIdx = 0;
+		if (s.difficulty == "peaceful") diffIdx=0; else if (s.difficulty=="easy") diffIdx=1; else if (s.difficulty=="normal") diffIdx=2; else diffIdx=3;
+		programData.ui.menuRenderer.toggleOptions("Dificuldade: ", "Paz|Facil|Normal|Dificil", &diffIdx, true, Colors_White, 0, programData.ui.buttonTexture, Colors_Gray);
+		std::string ndiff = s.difficulty;
+		if (diffIdx==0) ndiff="peaceful"; else if (diffIdx==1) ndiff="easy"; else if (diffIdx==2) ndiff="normal"; else ndiff="hard";
+		if (ndiff != s.difficulty){ s.difficulty = ndiff; saveWorldConfig(s.worldName, s);}
+	}
+	programData.ui.menuRenderer.Text(("Mundo: " + s.worldName).c_str(), glm::vec4(0.7f,0.7f,0.9f,1));
+}
+
+void displayWorldSettingsMenuButton(ProgramData &programData)
+{
+	programData.ui.menuRenderer.BeginMenu("Mundo", Colors_Gray, programData.ui.buttonTexture);
+	displayWorldSettingsMenu(programData);
+	programData.ui.menuRenderer.EndMenu();
 }
 
 void ShadingSettings::normalize()

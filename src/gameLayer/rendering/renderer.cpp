@@ -14,14 +14,17 @@
 #include <gamePlayLogic.h>
 #include <iostream>
 #include <sstream>
+#include <unordered_map>
 
-// GL Error checking for render pass debugging
 static int glCheckErrors(const char *passName, int line = 0)
 {
+	static std::unordered_map<std::string,int> seen;
 	GLenum err;
 	int count = 0;
 	while ((err = glGetError()) != GL_NO_ERROR)
 	{
+		std::string key = std::string(passName) + ":" + std::to_string(err);
+		if (seen[key]++ > 3) { count++; continue; }
 		const char *errStr = "UNKNOWN";
 		switch (err)
 		{
@@ -2334,6 +2337,7 @@ void Renderer::reloadShaders()
 	GET_UNIFORM2(defaultShader, u_time);
 	GET_UNIFORM2(defaultShader, u_showLightLevels);
 	GET_UNIFORM2(defaultShader, u_skyLightIntensity);
+	GET_UNIFORM2(defaultShader, u_parallaxScale);
 	GET_UNIFORM2(defaultShader, u_lightsCount);
 	GET_UNIFORM2(defaultShader, u_pointPosF);
 	GET_UNIFORM2(defaultShader, u_pointPosI);
@@ -2847,8 +2851,8 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 	auto projectionMatrix = c.getProjectionMatrix();
 	auto vp = projectionMatrix * viewMatrix;
 
-	//todo change, also reuse in the the decal shader
-	float timeGrass = std::clock() / 1000.f;
+	static float timeGrassAccum = 0; timeGrassAccum += deltaTime * 0.5f;
+	float timeGrass = timeGrassAccum;
 
 	float sunTwilight = 0;
 	{
@@ -3064,6 +3068,7 @@ void Renderer::renderFromBakedData(SunShadow &sunShadow, ChunkSystem &chunkSyste
 		glUniform1f(defaultShader.u_time, std::clock() / 400.f);
 		glUniform1i(defaultShader.u_showLightLevels, showLightLevels);
 		glUniform1i(defaultShader.u_skyLightIntensity, skyLightIntensity);
+		glUniform1f(defaultShader.u_parallaxScale, getShadingSettings().parallaxStrength);
 		glUniform3fv(defaultShader.u_sunDirection, 1, &mainLightPosition[0]);
 		glUniform1f(defaultShader.u_metallic, metallic);
 		glUniform1f(defaultShader.u_roughness, roughness);
@@ -4559,8 +4564,7 @@ void Renderer::renderDecal(glm::ivec3 position, Camera &c, Block b, ProgramData 
 #pragma endregion
 
 
-	//todo change, also reuse in the the decal shader
-	float timeGrass = std::clock() / 1000.f;
+	float timeGrass = std::clock() / 2000.f;
 
 	auto viewMatrix = c.getViewMatrix();
 	auto vp = c.getProjectionMatrix() * viewMatrix;
@@ -4603,7 +4607,7 @@ void Renderer::renderDecal(glm::ivec3 position, Camera &c, Block b, ProgramData 
 static float droppedItemSpin(std::uint64_t eid)
 {
 	float t = (float)std::clock() / (float)CLOCKS_PER_SEC;
-	float phase = ((float)((eid * 2654435761u) & 0x7FF) / 2048.f) * 6.28318530718f;
+	float phase = ((float)((eid * 2654435761u) & 0x7FF) / 1024.f) * 6.28318530718f;
 	return t * 2.6f + phase;
 }
 
@@ -4756,15 +4760,12 @@ void Renderer::renderEntities(
 			//handItemMatrix = glm::translate(glm::vec3{0,0,2});
 
 			PerEntityData data = {};
-			//data.textureId1 = currentSkinBindlessTexture;
-			//data.textureId0 = currentSkinBindlessTexture;
-			//data.textureId2 = currentSkinBindlessTexture;
-			//data.textureId3 = currentSkinBindlessTexture;
-
-			data.textureId0 = modelsManager.temporaryPlayerHandBindlessTexture;
-			data.textureId1 = modelsManager.temporaryPlayerHandBindlessTexture;
-			data.textureId2 = modelsManager.temporaryPlayerHandBindlessTexture;
-			data.textureId3 = modelsManager.temporaryPlayerHandBindlessTexture;
+			GLuint64 handTex = currentSkinBindlessTexture ? currentSkinBindlessTexture : modelsManager.gpuIds[ModelsManager::SteveTexture];
+			if (handTex == modelsManager.gpuIds[0]) handTex = modelsManager.temporaryPlayerHandBindlessTexture ? modelsManager.temporaryPlayerHandBindlessTexture : modelsManager.gpuIds[ModelsManager::SteveTexture];
+			data.textureId0 = handTex;
+			data.textureId1 = handTex;
+			data.textureId2 = handTex;
+			data.textureId3 = handTex;
 
 
 			glm::dvec3 position = glm::dvec3(posInt) + glm::dvec3(posFloat);
@@ -4972,10 +4973,11 @@ void Renderer::renderEntities(
 	}
 	renderAllEntitiesOfOneType(modelsManager.human, entityManager.zombies);
 	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.pigs);
-	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.sheeps);
-	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.cows);
+	renderAllEntitiesOfOneType(modelsManager.sheep, entityManager.sheeps);
+	renderAllEntitiesOfOneType(modelsManager.cow, entityManager.cows);
 	renderAllEntitiesOfOneType(modelsManager.cat, entityManager.cats);
 	renderAllEntitiesOfOneType(modelsManager.goblin, entityManager.goblins);
+	renderAllEntitiesOfOneType(modelsManager.hydra, entityManager.hydras);
 	renderAllEntitiesOfOneType(modelsManager.trainingDummy, entityManager.trainingDummy);
 	renderAllEntitiesOfOneType(modelsManager.scareCrow, entityManager.scareCrows);
 	renderAllEntitiesOfOneType(modelsManager.pig, entityManager.fish);
@@ -5281,22 +5283,10 @@ void Renderer::renderEntities(
 		}
 
 
-		//hand item
 		auto handItem = entityManager.localPlayer.inventory.getItemFromIndex(currentHeldItemIndex, nullptr);
-		if(handItem)	
+		if(handItem && handItem->type)
 		{
-
-			if (handItem->isBlock())
-			{
-
-
-			}
-			else if(handItem->type)
-			{
-				renderOneItem(handItem->type, {}, 15, 0.f, &handItemMatrix);
-			}
-
-
+			renderOneItem(handItem->type, {}, 15, 0.f, &handItemMatrix);
 		}
 
 
@@ -5517,7 +5507,7 @@ glm::mat4 calculateLightProjectionMatrix(Camera &camera, glm::vec3 lightDir,
 	//remove shadow flicker
 	if (1)
 	{
-		glm::vec2 shadowMapSize(2048, 2048);
+		glm::vec2 shadowMapSize(1024, 1024);
 		glm::vec2 worldUnitsPerTexel = (ortoMax - ortoMin) / shadowMapSize;
 
 		ortoMin /= worldUnitsPerTexel;
@@ -5528,7 +5518,7 @@ glm::mat4 calculateLightProjectionMatrix(Camera &camera, glm::vec3 lightDir,
 		ortoMax = glm::floor(ortoMax);
 		ortoMax *= worldUnitsPerTexel;
 
-		float zWorldUnitsPerTexel = (far_plane - near_plane) / 2048;
+		float zWorldUnitsPerTexel = (far_plane - near_plane) / 1024;
 
 		near_plane /= zWorldUnitsPerTexel;
 		far_plane /= zWorldUnitsPerTexel;

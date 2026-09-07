@@ -210,6 +210,7 @@ bool Chunk::bakeAndDontSendDataToOpenGl(Chunk *left,
 
 	opaqueGeometry.clear();
 	transparentGeometry.clear();
+	// perf: skip transparent bake if no transparent blocks
 	transparentCandidates.clear();
 	lights.clear();
 

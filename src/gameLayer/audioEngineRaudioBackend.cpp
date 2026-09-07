@@ -511,7 +511,10 @@ int getSoundForBlockBreaking(unsigned int type)
 		return AudioEngine::sand;
 	}
 
-	if (isAnySemiHardBlock(type))
+	if (isAnySemiHardBlock(type) || type == sand_stone
+	 || type == hardSandStone || type == hardSandStone_stairs
+	 || type == hardSandStone_slabs || type == hardSandStone_wall
+	 || type == sandStone_stairts || type == sandStone_slabs || type == sandStone_wall)
 	{
 		return AudioEngine::sandStone;
 	}
@@ -523,7 +526,7 @@ int getSoundForBlockBreaking(unsigned int type)
 
 	if (isAnyPlant(type))
 	{
-		return AudioEngine::leaves; //todo
+		return AudioEngine::grass; // plants use grass sound
 	}
 
 	if (isAnyGlass(type) || type == glowstone)
@@ -544,6 +547,12 @@ int getSoundForBlockBreaking(unsigned int type)
 	if (isAnyWool(type))
 	{
 		return AudioEngine::wool;
+	}
+
+	if (type == torch || type == torchWood || type == torchUnlit
+	 || type == lamp || type == glowstone)
+	{
+		return AudioEngine::stone;
 	}
 
 	if (isAnyUnbreakable(type))

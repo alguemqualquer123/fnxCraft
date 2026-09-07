@@ -54,7 +54,11 @@ struct ServerSettings
 	bool thirstEnabled = true;
 	bool pvpEnabled = false;
 	bool keepInventory = true;
-
+	bool allowCheats = false;
+	std::string difficulty = "normal";
+	std::string defaultGamemode = "survival";
+	std::string worldName = "world";
+	std::string worldOwner = "";
 
 };
 
@@ -101,6 +105,11 @@ int getWorldSeed();
 unsigned int getRandomTickSpeed();
 
 void setServerSettings(ServerSettings settings);
+
+std::string worldConfigPath(const std::string &worldName);
+ServerSettings loadWorldConfig(const std::string &worldName);
+void saveWorldConfig(const std::string &worldName, const ServerSettings &s);
+ServerSettings &getWorldConfigForCreation(const std::string &worldName);
 
 void genericBroadcastEntityDeleteFromServerToPlayer(std::uint64_t eid, bool reliable,
 	std::unordered_map < std::uint64_t, Client *> &allClients,

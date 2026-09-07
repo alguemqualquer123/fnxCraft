@@ -331,10 +331,6 @@ GLint getUniformSubroutine(GLuint id, GLenum shaderType, const char* name)
 GLint getUniform(GLuint id, const char* name)
 {
 	GLint uniform = glGetUniformLocation(id, name);
-	if (uniform == -1)
-	{
-		std::cout << "uniform error " << name << "\n";
-	}
 	return uniform;
 };
 

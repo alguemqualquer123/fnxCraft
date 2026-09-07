@@ -210,8 +210,8 @@ void WeatherState::updateParticles(float dt, glm::vec3 playerPos)
 
 void WeatherState::updateWind(float dt)
 {
-	windX = glm::sin(time * 0.1f) * 2.f + glm::sin(time * 0.23f) * 1.f;
-	windZ = glm::cos(time * 0.15f) * 1.5f + glm::cos(time * 0.3f) * 0.5f;
+	windX = glm::sin(time * 0.05f) * 1.f + glm::sin(time * 0.12f) * 0.5f;
+	windZ = glm::cos(time * 0.07f) * 0.75f + glm::cos(time * 0.15f) * 0.25f;
 	if (type == WeatherType::Weather_Clear)
 	{
 		windX *= 0.2f;

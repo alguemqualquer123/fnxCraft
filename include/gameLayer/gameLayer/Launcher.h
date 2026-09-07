@@ -2,15 +2,17 @@
 
 #include <string>
 
+struct ProgramData;
+
 enum class LauncherStateEnum : int { MENU = 0, PLAYING = 1, PAUSED = 2, EXIT = 3 };
 
 struct LauncherState
 {
 	LauncherStateEnum state = LauncherStateEnum::MENU;
-	bool showLauncher = true;
-	bool loggedIn = false;
-	std::string currentUsername;
-	std::string currentUUID;
+	bool showLauncher = false;
+	bool loggedIn = true;
+	std::string currentUsername = "Player";
+	std::string currentUUID = "offline-player";
 
 	void logout()
 	{
@@ -31,5 +33,5 @@ inline LauncherState& getLauncher()
 	return getLauncherState();
 }
 
-inline void renderLauncherUI(ProgramData&) {}
+void renderLauncherUI(ProgramData&);
 

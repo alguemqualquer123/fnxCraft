@@ -146,6 +146,7 @@ target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURC
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/lua")
 
 
+target_sources("${CMAKE_PROJECT_NAME}" PRIVATE src/gameLayer/HtmlUiEngine.cpp)
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw glad stb_image stb_truetype 
 	gl2d raudio imgui fastNoiseSIMD FastNoise2 enet glui
 	magic_enum safeSave profilerLib
@@ -171,6 +172,11 @@ add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
 	COMMENT "Gerando pasta game/ com binário e ícone (separado de build)"
 )
 
+
+# ============================================
+# GLB STUDIO
+# ============================================
+add_subdirectory(apps/glb-studio)
 
 # ============================================
 # DEDICATED SERVER (headless, no OpenGL)

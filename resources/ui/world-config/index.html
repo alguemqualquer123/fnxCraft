@@ -1,0 +1,10 @@
+<link rel="stylesheet" href="style.css">
+<div class="world-config">
+  <h2>Configurar Mundo <span id="wname"></span></h2>
+  <label>Dificuldade <select id="diff"><option>peaceful</option><option>easy</option><option>normal</option><option>hard</option></select></label>
+  <label>Modo <select id="mode"><option>survival</option><option>creative</option></select></label>
+  <label><input type="checkbox" id="keep"> KeepInventory</label>
+  <label><input type="checkbox" id="cheats"> Cheats</label>
+  <button class="btn" onclick="htmlUi.saveWorldConfig(document.getElementById('wname').innerText, diff.value, mode.value, keep.checked, cheats.checked)">Salvar</button>
+</div>
+<script src="script.js"></script>

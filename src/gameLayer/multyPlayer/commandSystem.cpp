@@ -434,6 +434,14 @@ std::string executeServerCommand(std::uint64_t cid, const char *command)
 
 	CommandDefinition &def = it->second;
 
+	{
+		auto &worldSettings = getServerSettingsReff();
+		if (!worldSettings.allowCheats && def.permissionLevel > 0 && commandPermisionLevel < 3)
+		{
+			return "Cheats desativados neste mundo. O dono precisa ativar cheats nas configuracoes do mundo.";
+		}
+	}
+
 	if (commandPermisionLevel < def.permissionLevel)
 	{
 		return "You do not have permission to use that command.";
@@ -479,33 +487,37 @@ std::vector<std::string> getCommandSuggestions(int permissionLevel, const std::s
 {
 	initCommandSystem();
 
+	auto &worldSettings = getServerSettingsReff();
+	bool cheatsDisabled = !worldSettings.allowCheats;
+	auto hasPermission = [&](int lvl){ 
+		if (lvl > permissionLevel) return false;
+		if (cheatsDisabled && lvl > 0 && permissionLevel < 3) return false;
+		return true; 
+	};
+
 	std::vector<std::string> result;
 
 	if (command.empty())
 	{
 		for (auto &name : getHashedRegistry())
 		{
-			if (name.permissionLevel <= permissionLevel)
-			{
-				result.push_back(name.name);
-			}
+			if (!hasPermission(name.permissionLevel)) continue;
+			result.push_back(name.name);
 		}
 		return result;
 	}
 
-	//are we in the middle of typing the command name?
 	bool typedJustCommandName = command.find(' ') == std::string::npos && command.back() != ' ';
 	if (typedJustCommandName)
 	{
 		for (auto &def : getHashedRegistry())
 		{
-			if (def.permissionLevel > permissionLevel) { continue; }
+			if (!hasPermission(def.permissionLevel)) continue;
 			if (def.name.rfind(command, 0) == 0)
 			{
 				result.push_back(def.name);
 			}
 		}
-		//if the command name is fully typed we also want its first args, handled below
 	}
 
 	std::vector<std::string> tokens = split(command);
@@ -526,7 +538,7 @@ std::vector<std::string> getCommandSuggestions(int permissionLevel, const std::s
 	}
 
 	CommandDefinition &def = it->second;
-	if (def.permissionLevel > permissionLevel) { return result; }
+	if (!hasPermission(def.permissionLevel)) return result;
 
 	//find which overloads match the already typed args (as a prefix)
 	std::vector<const CommandOverload *> valid;
@@ -652,11 +664,14 @@ void initCommandSystem()
 
 		def.handler = [](CommandContext &ctx) -> std::string
 		{
+			auto &ws = getServerSettingsReff();
+			bool cheatsDisabled = !ws.allowCheats;
 			std::string list;
 			for (auto &def : getHashedRegistry())
 			{
-				if (def.permissionLevel > ctx.permissionLevel) { continue; }
-				if (!list.empty()) { list += ", "; }
+				if (def.permissionLevel > ctx.permissionLevel) continue;
+				if (cheatsDisabled && def.permissionLevel > 0 && ctx.permissionLevel < 3) continue;
+				if (!list.empty()) list += ", ";
 				list += "/" + def.name;
 			}
 			return "Available commands: " + list;

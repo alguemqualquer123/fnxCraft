@@ -1,0 +1,1 @@
+htmlUi.onWorlds = (list)=>{ const el=document.getElementById('worldList'); el.innerHTML=''; list.forEach(w=>{ const d=document.createElement('div'); d.className='card'; d.innerHTML=`<b>${w.name}</b><br><small>${w.diff}</small>`; d.onclick=()=>htmlUi.selectWorld(w.name); el.appendChild(d); }); };

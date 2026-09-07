@@ -1,6 +1,9 @@
 #pragma once
 #include <gameplay/entity.h>
 #include <gameplay/life.h>
+#include <unordered_set>
+#include <unordered_map>
+#include <glm/vec3.hpp>
 
 enum HydraVariant : int
 {

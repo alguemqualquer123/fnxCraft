@@ -50,6 +50,7 @@ uniform vec3 u_sunDirection;
 
 uniform int u_underWater;
 uniform int u_showLightLevels;
+uniform float u_parallaxScale = 0.0; //height scale for parallax occlusion mapping (0 = off)
 
 in vec4 v_fragPos; 
 //in vec4 v_fragPosLightSpace; //TODO REMOVE
@@ -1083,57 +1084,56 @@ void main()
 		vec2 finalUV = v_uv;
 
 	
-		//paralax
-		//https://www.youtube.com/watch?v=LrnE5f3h2SU
-		/*
-		if(false)
+		//parallax occlusion mapping -- depth from the _b height map (white = high)
+		//adapted from https://www.youtube.com/watch?v=LrnE5f3h2SU
+		if(u_parallaxScale > 0.0)
 		{
-			vec3 viewVector = normalize(viewWorldSpace);
-			
-			float heightScale = 0.10;
-			const float minLayers = 4;
-			const float maxLayers = 16;
-			float numLayers = mix(maxLayers, minLayers, abs(dot(vec3(0,0,1), viewVector)));
-			float power = 1;
+			vec3 Nface = normalize(v_normal);
 
+			//build a tangent frame from the (axis aligned) face normal
+			vec3 tangent = (abs(Nface.y) < 0.99) ? normalize(cross(vec3(0, 1, 0), Nface)) : vec3(1, 0, 0);
+			vec3 bitangent = cross(Nface, tangent);
+			mat3 TBN = mat3(tangent, bitangent, Nface);
 
-			float layerDepth = 1.0 / numLayers;
-			float currentLayerDepth = 0;
+			//v_semiViewSpacePos is camera relative, so the view vector is just -pos
+			vec3 viewVector = TBN * normalize(-v_semiViewSpacePos);
 
-
-			// Remove the z division if you want less aberated results
-			//vec2 S = viewVector.xy * heightScale; 
-			vec2 S = viewVector.xy / viewVector.z * heightScale; 
-			vec2 deltaUVs = S / numLayers;
-
-			vec2 UVs = v_uv;
-			float currentDepthMapValue = 1.0f - pow(texture(sampler2D(v_paralaxSampler), UVs).r, power);
-	
-
-			// Loop till the point on the heightmap is "hit"
-			while(currentLayerDepth < currentDepthMapValue)
+			//only parallax faces that actually look at the camera (avoids divide by ~0)
+			if(viewVector.z > 0.05)
 			{
-				UVs -= deltaUVs;
-				currentDepthMapValue = 1.0f - pow(texture(sampler2D(v_paralaxSampler), UVs).r, power);
-				currentLayerDepth += layerDepth;
+				float heightScale = u_parallaxScale;
+				const float minLayers = 4;
+				const float maxLayers = 16;
+				float numLayers = mix(maxLayers, minLayers, viewVector.z);
+
+				float layerDepth = 1.0 / numLayers;
+				float currentLayerDepth = 0;
+
+				vec2 S = viewVector.xy / viewVector.z * heightScale;
+				vec2 deltaUVs = S / numLayers;
+
+				vec2 UVs = v_uv;
+				float currentDepthMapValue = 1.0f - textureLod(sampler2D(v_paralaxSampler), UVs, 0.0).r;
+
+				//loop till the point on the heightmap is "hit"
+				while(currentLayerDepth < currentDepthMapValue)
+				{
+					UVs -= deltaUVs;
+					currentDepthMapValue = 1.0f - textureLod(sampler2D(v_paralaxSampler), UVs, 0.0).r;
+					currentLayerDepth += layerDepth;
+				}
+
+				//apply occlusion (interpolation with prev value)
+				vec2 prevTexCoords = UVs + deltaUVs;
+				float afterDepth = currentDepthMapValue - currentLayerDepth;
+				float beforeDepth = 1.0f - textureLod(sampler2D(v_paralaxSampler), prevTexCoords, 0.0).r - currentLayerDepth + layerDepth;
+				float weight = clamp(afterDepth / (afterDepth - beforeDepth), 0.0, 1.0);
+				UVs = prevTexCoords * weight + UVs * (1.0f - weight);
+
+				//wrap instead of clamping so tiling textures keep repeating
+				finalUV = fract(UVs);
 			}
-
-			// Apply Occlusion (interpolation with prev value)
-			vec2 prevTexCoords = UVs + deltaUVs;
-			float afterDepth  = currentDepthMapValue - currentLayerDepth;
-			float beforeDepth = 1.0f - pow(texture(sampler2D(v_paralaxSampler), prevTexCoords).r, power) - currentLayerDepth + layerDepth;
-			float weight = afterDepth / (afterDepth - beforeDepth);
-			UVs = prevTexCoords * weight + UVs * (1.0f - weight);
-
-			// Get rid of anything outside the normal range
-			//if(UVs.x > 1.0 || UVs.y > 1.0 || UVs.x < 0.0 || UVs.y < 0.0)
-			//	discard;
-			
-			//set the final UV
-			UVs = clamp(UVs, vec2(0,0), vec2(1,1));
-			finalUV = UVs;
 		}
-		*/
 
 		//load material
 		float metallic = 0;

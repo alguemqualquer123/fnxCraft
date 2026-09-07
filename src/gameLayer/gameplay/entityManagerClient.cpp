@@ -411,6 +411,25 @@ std::uint64_t genericIntersectAllAttackableEntities(T &container, glm::dvec3 sta
 		return 0;
 	}
 
+	static int debugFrameCount = 0;
+	if (++debugFrameCount % 120 == 0 && container.size() > 0)
+	{
+		std::cout << "[EntityDebug] Container type: " << typeid(T).name()
+			<< " size: " << container.size()
+			<< " start:(" << start.x << "," << start.y << "," << start.z << ")"
+			<< " maxDist:" << maxDistance << " delta:" << delta << "\n";
+		for (auto &e : container)
+		{
+			auto pos = e.second.getRubberBandPosition();
+			std::cout << "  eid:" << e.first
+				<< " pos:(" << pos.x << "," << pos.y << "," << pos.z << ")"
+				<< " collider:(" 
+				<< e.second.entityBuffered.getColliderSize().x << ","
+				<< e.second.entityBuffered.getColliderSize().y << ","
+				<< e.second.entityBuffered.getColliderSize().z << ")\n";
+		}
+	}
+
 	for (auto &e : container)
 	{
 		auto collider = e.second.entityBuffered.getColliderSize();

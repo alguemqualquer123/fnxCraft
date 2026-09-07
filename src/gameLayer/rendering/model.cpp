@@ -14,6 +14,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <fstream>
+#include <filesystem>
 #include <map>
 #include <set>
 #include <blocks.h>
@@ -62,6 +63,152 @@ bool areStringsSameToLower(const char *a, const char *b)
 	return false;
 }
 
+
+static void buildSteveModel(Model &model)
+{
+	struct Data{ glm::vec3 position; glm::vec3 normal; glm::vec2 uv; short boneIndex; short textureIndex; };
+	std::vector<Data> vertexes; vertexes.reserve(400);
+	std::vector<unsigned int> indices; indices.reserve(400);
+	auto addCube = [&](glm::vec3 origin, glm::vec3 size, glm::vec2 uvMap[6][4], short boneIdx, short texIdx){
+		glm::vec3 c0 = origin;
+		glm::vec3 c1 = origin + glm::vec3(size.x,0,0);
+		glm::vec3 c2 = origin + glm::vec3(size.x,0,size.z);
+		glm::vec3 c3 = origin + glm::vec3(0,0,size.z);
+		glm::vec3 c4 = origin + glm::vec3(0,size.y,0);
+		glm::vec3 c5 = origin + glm::vec3(size.x,size.y,0);
+		glm::vec3 c6 = origin + glm::vec3(size.x,size.y,size.z);
+		glm::vec3 c7 = origin + glm::vec3(0,size.y,size.z);
+		struct Face{ glm::vec3 a,b,c,d; glm::vec3 n; glm::vec2 *uv; };
+		glm::vec3 nBottom(0,-1,0), nTop(0,1,0), nFront(0,0,1), nBack(0,0,-1), nRight(1,0,0), nLeft(-1,0,0);
+		auto pushFace = [&](glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, glm::vec3 n, glm::vec2 uv[4]){
+			unsigned int base = vertexes.size();
+			Data v0{p0,n,uv[0],boneIdx,texIdx}; Data v1{p1,n,uv[1],boneIdx,texIdx}; Data v2{p2,n,uv[2],boneIdx,texIdx}; Data v3{p3,n,uv[3],boneIdx,texIdx};
+			vertexes.push_back(v0); vertexes.push_back(v1); vertexes.push_back(v2); vertexes.push_back(v3);
+			indices.push_back(base+0); indices.push_back(base+1); indices.push_back(base+2);
+			indices.push_back(base+2); indices.push_back(base+3); indices.push_back(base+0);
+		};
+		pushFace(c0,c1,c2,c3,nBottom,uvMap[0]);
+		pushFace(c4,c7,c6,c5,nTop,uvMap[1]);
+		pushFace(c3,c2,c6,c7,nFront,uvMap[2]);
+		pushFace(c1,c0,c4,c5,nBack,uvMap[3]);
+		pushFace(c1,c5,c6,c2,nRight,uvMap[4]);
+		pushFace(c0,c3,c7,c4,nLeft,uvMap[5]);
+	};
+	auto uvRect = [](float x0,float y0,float x1,float y1)->std::array<glm::vec2,4>{
+		float u0=x0/64.f, v0=1.f - y1/64.f, u1=x1/64.f, v1=1.f - y0/64.f;
+		return {glm::vec2(u0,v0), glm::vec2(u1,v0), glm::vec2(u1,v1), glm::vec2(u0,v1)};
+	};
+	const float s=1.f/16.f;
+	float infHat=0.5f*s, infLayer=0.25f*s;
+	auto makeUVs = [&](int part)->std::array<std::array<glm::vec2,4>,6>{
+		std::array<std::array<glm::vec2,4>,6> r;
+		if(part==0){
+			auto t=uvRect(8,0,16,8); r[1]={t[0],t[1],t[2],t[3]};
+			auto b=uvRect(16,0,24,8); r[0]={b[0],b[1],b[2],b[3]};
+			auto f=uvRect(8,8,16,16); r[2]={f[0],f[1],f[2],f[3]};
+			auto bk=uvRect(24,8,32,16); r[3]={bk[0],bk[1],bk[2],bk[3]};
+			auto ri=uvRect(0,8,8,16); r[5]={ri[0],ri[1],ri[2],ri[3]};
+			auto le=uvRect(16,8,24,16); r[4]={le[0],le[1],le[2],le[3]};
+		}else if(part==1){
+			auto t=uvRect(20,16,28,20); r[1]={t[0],t[1],t[2],t[3]};
+			auto b=uvRect(28,16,36,20); r[0]={b[0],b[1],b[2],b[3]};
+			auto f=uvRect(20,20,28,32); r[2]={f[0],f[1],f[2],f[3]};
+			auto bk=uvRect(32,20,40,32); r[3]={bk[0],bk[1],bk[2],bk[3]};
+			auto ri=uvRect(16,20,20,32); r[5]={ri[0],ri[1],ri[2],ri[3]};
+			auto le=uvRect(28,20,32,32); r[4]={le[0],le[1],le[2],le[3]};
+		}else if(part==2){
+			auto t=uvRect(4,16,8,20); r[1]={t[0],t[1],t[2],t[3]};
+			auto b=uvRect(8,16,12,20); r[0]={b[0],b[1],b[2],b[3]};
+			auto f=uvRect(4,20,8,32); r[2]={f[0],f[1],f[2],f[3]};
+			auto bk=uvRect(12,20,16,32); r[3]={bk[0],bk[1],bk[2],bk[3]};
+			auto ri=uvRect(0,20,4,32); r[5]={ri[0],ri[1],ri[2],ri[3]};
+			auto le=uvRect(8,20,12,32); r[4]={le[0],le[1],le[2],le[3]};
+		}else if(part==3){
+			auto t=uvRect(44,16,48,20); r[1]={t[0],t[1],t[2],t[3]};
+			auto b=uvRect(48,16,52,20); r[0]={b[0],b[1],b[2],b[3]};
+			auto f=uvRect(44,20,48,32); r[2]={f[0],f[1],f[2],f[3]};
+			auto bk=uvRect(52,20,56,32); r[3]={bk[0],bk[1],bk[2],bk[3]};
+			auto ri=uvRect(40,20,44,32); r[5]={ri[0],ri[1],ri[2],ri[3]};
+			auto le=uvRect(48,20,52,32); r[4]={le[0],le[1],le[2],le[3]};
+		}else if(part==4){
+			auto t=uvRect(20,48,24,52); auto b=uvRect(24,48,28,52); auto f=uvRect(20,52,24,64); auto bk=uvRect(28,52,32,64); auto ri=uvRect(16,52,20,64); auto le=uvRect(24,52,28,64);
+			r[1]={t[0],t[1],t[2],t[3]}; r[0]={b[0],b[1],b[2],b[3]}; r[2]={f[0],f[1],f[2],f[3]}; r[3]={bk[0],bk[1],bk[2],bk[3]}; r[5]={ri[0],ri[1],ri[2],ri[3]}; r[4]={le[0],le[1],le[2],le[3]};
+		}else{
+			auto t=uvRect(36,48,40,52); auto b=uvRect(40,48,44,52); auto f=uvRect(36,52,40,64); auto bk=uvRect(44,52,48,64); auto ri=uvRect(32,52,36,64); auto le=uvRect(40,52,44,64);
+			r[1]={t[0],t[1],t[2],t[3]}; r[0]={b[0],b[1],b[2],b[3]}; r[2]={f[0],f[1],f[2],f[3]}; r[3]={bk[0],bk[1],bk[2],bk[3]}; r[5]={ri[0],ri[1],ri[2],ri[3]}; r[4]={le[0],le[1],le[2],le[3]};
+		}
+		return r;
+	};
+	auto buildPart = [&](int partId, glm::vec3 origin, glm::vec3 sz, short bone){
+		auto uvs = makeUVs(partId);
+		glm::vec2 uvArr[6][4];
+		for(int i=0;i<6;i++) for(int j=0;j<4;j++) uvArr[i][j]=uvs[i][j];
+		addCube(origin,sz,uvArr,bone,0);
+	};
+	model.cleanup();
+	model.transforms.clear();
+	for(int i=0;i<6;i++) model.transforms.push_back(glm::mat4(1.f));
+	model.headIndex=0; model.bodyIndex=1; model.rLegIndex=2; model.lLefIndex=3; model.rArmIndex=4; model.lArmIndex=5;
+	buildPart(0, glm::vec3(-4*s,24*s,-4*s), glm::vec3(8*s,8*s,8*s), 0);
+	{
+		glm::vec3 o(-4*s- infHat,24*s- infHat,-4*s- infHat); glm::vec3 sz(8*s+2*infHat,8*s+2*infHat,8*s+2*infHat);
+		glm::vec2 uvArr2[6][4];
+		{ auto t=uvRect(48,0,56,8); for(int j=0;j<4;j++) uvArr2[0][j]=t[j]; }
+		{ auto t=uvRect(40,0,48,8); for(int j=0;j<4;j++) uvArr2[1][j]=t[j]; }
+		{ auto t=uvRect(40,8,48,16); for(int j=0;j<4;j++) uvArr2[2][j]=t[j]; }
+		{ auto t=uvRect(56,8,64,16); for(int j=0;j<4;j++) uvArr2[3][j]=t[j]; }
+		{ auto t=uvRect(48,8,56,16); for(int j=0;j<4;j++) uvArr2[4][j]=t[j]; }
+		{ auto t=uvRect(32,8,40,16); for(int j=0;j<4;j++) uvArr2[5][j]=t[j]; }
+		addCube(o,sz,uvArr2,0,0);
+	}
+	buildPart(1, glm::vec3(-4*s,12*s,-2*s), glm::vec3(8*s,12*s,4*s), 1);
+	buildPart(2, glm::vec3(-3.9f*s,0,-2*s), glm::vec3(4*s,12*s,4*s), 2);
+	buildPart(4, glm::vec3(-0.1f*s,0,-2*s), glm::vec3(4*s,12*s,4*s), 3);
+	buildPart(3, glm::vec3(-8*s,12*s,-2*s), glm::vec3(4*s,12*s,4*s), 4);
+	buildPart(5, glm::vec3(4*s,12*s,-2*s), glm::vec3(4*s,12*s,4*s), 5);
+	model.vertexCount = indices.size();
+	glGenVertexArrays(1,&model.vao); glBindVertexArray(model.vao);
+	glGenBuffers(1,&model.geometry); glGenBuffers(1,&model.indexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, model.geometry); glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.indexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, vertexes.size()*sizeof(Data), vertexes.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()*sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0); glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(Data),0);
+	glEnableVertexAttribArray(1); glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(Data),(void*)(sizeof(glm::vec3)));
+	glEnableVertexAttribArray(2); glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,sizeof(Data),(void*)(sizeof(glm::vec3)*2));
+	glEnableVertexAttribArray(3); glVertexAttribIPointer(3,1,GL_SHORT,sizeof(Data),(void*)(sizeof(glm::vec3)*2+sizeof(glm::vec2)));
+	glEnableVertexAttribArray(4); glVertexAttribIPointer(4,1,GL_SHORT,sizeof(Data),(void*)(sizeof(glm::vec3)*2+sizeof(glm::vec2)+sizeof(short)));
+	glBindVertexArray(0);
+}
+static void buildHandModel(Model &model){
+	struct Data{ glm::vec3 position; glm::vec3 normal; glm::vec2 uv; short boneIndex; short textureIndex; };
+	std::vector<Data> v; v.reserve(24); std::vector<unsigned int> idx; idx.reserve(36);
+	auto uvRect = [](float x0,float y0,float x1,float y1)->std::array<glm::vec2,4>{ float u0=x0/64.f, v0=1.f - y1/64.f, u1=x1/64.f, v1=1.f - y0/64.f; return {glm::vec2(u0,v0), glm::vec2(u1,v0), glm::vec2(u1,v1), glm::vec2(u0,v1)}; };
+	const float s=1.f/16.f;
+	glm::vec3 origin(-2*s,-6*s,-2*s); glm::vec3 sz(4*s,12*s,4*s);
+	auto uvs = [&]()->std::array<std::array<glm::vec2,4>,6>{
+		std::array<std::array<glm::vec2,4>,6> r;
+		auto t=uvRect(44,16,48,20); r[1]={t[0],t[1],t[2],t[3]};
+		auto b=uvRect(48,16,52,20); r[0]={b[0],b[1],b[2],b[3]};
+		auto f=uvRect(44,20,48,32); r[2]={f[0],f[1],f[2],f[3]};
+		auto bk=uvRect(52,20,56,32); r[3]={bk[0],bk[1],bk[2],bk[3]};
+		auto ri=uvRect(40,20,44,32); r[5]={ri[0],ri[1],ri[2],ri[3]};
+		auto le=uvRect(48,20,52,32); r[4]={le[0],le[1],le[2],le[3]};
+		return r;
+	}();
+	glm::vec3 c0=origin, c1=origin+glm::vec3(sz.x,0,0), c2=origin+glm::vec3(sz.x,0,sz.z), c3=origin+glm::vec3(0,0,sz.z), c4=origin+glm::vec3(0,sz.y,0), c5=origin+glm::vec3(sz.x,sz.y,0), c6=origin+glm::vec3(sz.x,sz.y,sz.z), c7=origin+glm::vec3(0,sz.y,sz.z);
+	auto push=[&](glm::vec3 p0,glm::vec3 p1,glm::vec3 p2,glm::vec3 p3,glm::vec3 n, std::array<glm::vec2,4> uv){ unsigned int b=v.size(); v.push_back({p0,n,uv[0],0,0}); v.push_back({p1,n,uv[1],0,0}); v.push_back({p2,n,uv[2],0,0}); v.push_back({p3,n,uv[3],0,0}); idx.push_back(b); idx.push_back(b+1); idx.push_back(b+2); idx.push_back(b+2); idx.push_back(b+3); idx.push_back(b); };
+	push(c0,c1,c2,c3,glm::vec3(0,-1,0), uvs[0]); push(c4,c7,c6,c5,glm::vec3(0,1,0), uvs[1]); push(c3,c2,c6,c7,glm::vec3(0,0,1), uvs[2]); push(c1,c0,c4,c5,glm::vec3(0,0,-1), uvs[3]); push(c1,c5,c6,c2,glm::vec3(1,0,0), uvs[4]); push(c0,c3,c7,c4,glm::vec3(-1,0,0), uvs[5]);
+	model.cleanup(); model.transforms.clear(); model.transforms.push_back(glm::mat4(1.f)); model.vertexCount=idx.size();
+	glGenVertexArrays(1,&model.vao); glBindVertexArray(model.vao); glGenBuffers(1,&model.geometry); glGenBuffers(1,&model.indexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, model.geometry); glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.indexBuffer);
+	glBufferData(GL_ARRAY_BUFFER, v.size()*sizeof(Data), v.data(), GL_STATIC_DRAW); glBufferData(GL_ELEMENT_ARRAY_BUFFER, idx.size()*sizeof(unsigned int), idx.data(), GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0); glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,sizeof(Data),0);
+	glEnableVertexAttribArray(1); glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(Data),(void*)sizeof(glm::vec3));
+	glEnableVertexAttribArray(2); glVertexAttribPointer(2,2,GL_FLOAT,GL_FALSE,sizeof(Data),(void*)(sizeof(glm::vec3)*2));
+	glEnableVertexAttribArray(3); glVertexAttribIPointer(3,1,GL_SHORT,sizeof(Data),(void*)(sizeof(glm::vec3)*2+sizeof(glm::vec2)));
+	glEnableVertexAttribArray(4); glVertexAttribIPointer(4,1,GL_SHORT,sizeof(Data),(void*)(sizeof(glm::vec3)*2+sizeof(glm::vec2)+sizeof(short)));
+	glBindVertexArray(0);
+}
 
 void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 {
@@ -173,9 +320,9 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 	//load textures
 	{
 		int index = 1;
-		//the order matters!!!!
-		//loadTexture((path+"steve.png").c_str());
-		loadTexture((path + "steve.png").c_str(), appendMode, index++, true);
+		std::string stevePath = path + "steve3.png";
+		if (!std::filesystem::exists(stevePath)) stevePath = path + "steve.png";
+		loadTexture(stevePath.c_str(), appendMode, index++, true);
 		loadTexture((path + "zombie.png").c_str(), appendMode, index++, true);
 		loadTexture((path + "pig.png").c_str(), appendMode, index++);
 		loadTexture((path + "cat.png").c_str(), appendMode, index++);
@@ -195,6 +342,8 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 		loadTexture((path+ "fox.png").c_str(), appendMode, index++);
 		loadTexture((path+ "chicken.png").c_str(), appendMode, index++);
 		loadTexture((path+ "crow.png").c_str(), appendMode, index++);
+		loadTexture((path+ "bee.png").c_str(), appendMode, index++);
+		loadTexture((path+ "manatee.png").c_str(), appendMode, index++);
 		
 	}
 
@@ -483,6 +632,7 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 
 	if(!human.vertexCount)
 		loadModel((path + "human.glb").c_str(), human, true);
+	buildSteveModel(human);
 
 	if (!pig.vertexCount)
 		loadModel((path + "pig.glb").c_str(), pig);
@@ -490,8 +640,26 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 	if (!cat.vertexCount)
 		loadModel((path + "cat.glb").c_str(), cat);
 
+	if (!cow.vertexCount)
+		loadModel((path + "cow.glb").c_str(), cow);
+	if (!sheep.vertexCount)
+		loadModel((path + "sheep.glb").c_str(), sheep);
+	if (!wolf.vertexCount)
+		loadModel((path + "wolf.glb").c_str(), wolf);
+	if (!fox.vertexCount)
+		loadModel((path + "fox.glb").c_str(), fox);
+	if (!chicken.vertexCount)
+		loadModel((path + "chicken.glb").c_str(), chicken);
+	if (!crow.vertexCount)
+		loadModel((path + "crow.glb").c_str(), crow);
+	if (!bee.vertexCount)
+		loadModel((path + "bee.glb").c_str(), bee);
+	if (!manatee.vertexCount)
+		loadModel((path + "manatee.glb").c_str(), manatee);
+
 	if (!rightHand.vertexCount)
 		loadModel((path + "rightHand.glb").c_str(), rightHand);
+	buildHandModel(rightHand);
 
 	if (!goblin.vertexCount)
 		loadModel((path + "goblin.glb").c_str(), goblin);
@@ -507,7 +675,7 @@ void ModelsManager::loadAllModels(std::string path, bool reportErrors)
 		loadModel((path + "creeper.glb").c_str(), creeper);
 
 	if (!hydra.vertexCount)
-		loadModel((path + "Goblin.glb").c_str(), hydra); // placeholder - use goblin model until custom hydra model is created
+		loadModel((path + "hydra.glb").c_str(), hydra); // placeholder - use goblin model until custom hydra model is created
 
 		
 	flags = aiProcess_ImproveCacheLocality 
@@ -902,8 +1070,6 @@ int getDefaultBlockShapeForFurniture(unsigned int b)
 		case birchLogFence: return ModelsManager::fence;
 
 	}
-
-	assert(0);
 	return 0;
 }
 

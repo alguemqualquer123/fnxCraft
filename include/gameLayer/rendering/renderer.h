@@ -185,6 +185,7 @@ struct Renderer
 		GLuint shadingSettingsBuffer = 0;
 		uniform u_lastViewProj = -1;
 		uniform u_baseAmbientExtra = -1;
+		uniform u_parallaxScale = -1;
 
 		uniform u_cascadedShadowsMaps;
 		uniform u_cascadedShadowMatrix;

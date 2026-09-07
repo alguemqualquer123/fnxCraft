@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="themes/dark.css"><style>body{margin:0;font-family:system-ui;background:var(--bg);color:var(--fg)} .loader{padding:40px;text-align:center}</style></head><body>
+<div class="loader">Carregando UIs por componente... <span id="status"></span></div>
+<script>
+async function loadComponent(name){
+  const html = await fetch(`${name}/index.html`).then(r=>r.text());
+  const div = document.createElement('div'); div.innerHTML=html;
+  document.body.appendChild(div);
+  // carrega css/js do componente
+  const link=document.createElement('link'); link.rel='stylesheet'; link.href=`${name}/style.css`; document.head.appendChild(link);
+  const s=document.createElement('script'); s.src=`${name}/script.js`; document.body.appendChild(s);
+}
+(async()=>{
+  for(const c of ['main-menu','hud','world-config','cargos','settings','inventory','chat','pause']){
+    await loadComponent(c);
+  }
+  document.getElementById('status').innerText='✓ 8 componentes carregados';
+  if(window.htmlUi) htmlUi.ready();
+})();
+</script>
+</body></html>

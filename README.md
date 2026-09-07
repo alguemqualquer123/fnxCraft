@@ -65,6 +65,7 @@ resources/sounds/         55 arquivos — 20 categorias + music/titleScreen/nigh
 thirdparty/               19 libs (glfw, glad, stb, glm, imgui, enet, assimp, zstd...)
 .opencode/skills/          4 skills — animation-system, create-item, f3-debug, karpathy-guidelines
 scripts/                  10 .sh + generate_weather_textures.py
+scripts/agents/           3 agentes Python + orquestrador (PBR, itens, validação)
 plans/                    15 .md — roadmap, completados, pendentes, em progresso
 ```
 
@@ -282,7 +283,7 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 - [ ] **Depth of Field** blur distante (`README antigo` — não existe)
 - [ ] **Motion blur** — não existe
 - [ ] **Volumetric fog/lighting** — não existe (só fog linear)
-- [ ] **Parallax occlusion mapping** — PBR tem `metallic/roughness` mas sem parallax
+- [x] **Parallax occlusion mapping** — ATIVADO (`defaultShader.frag`: steep parallax + oclusão via `v_paralaxSampler` = textura `_b`, TBN da normal da face, toggle `ShadingSettings.parallaxStrength` no menu Settings > Parallax, slider 0–0.1; fallback `_b` branco = sem efeito onde não há heightmap)
 - [ ] **Luzes em cube maps** — `pointLight.h` existe mas sombras cube map não (`README antigo`)
 - [ ] **SkyBox reflections** — cubemap `overworld_cubemap` existe mas reflexão PBR não (`hardertodos.md: skybox reflections`)
 - [ ] **Shader unificado** — hoje `defaultShader` + `blockEntity` + `itemEntity` + `basicEntity` separados (`README antigo: use same shader for all`)
@@ -295,8 +296,8 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 
 #### Texturas — faltam ou precisam melhorar (2126 assets, 1741 blocks, 37 items)
 
-- [ ] **23 itens sem PNG** caem no checker rosa `146,52,235` (`rawMeat`, `compost`, `fertilizer` etc — `blocksLoader.cpp` fallback 16×16)
-- [ ] **PBR `_n/_s` incompleto** — muitos blocos sem normal/specular (`_n.png`/`_s.png` auto-gen mas sem artista)
+- [x] **Itens sem PNG** — FEITO: 205/205 itens com PNG (validado por `scripts/agents/item_texture_agent.py`, que também gera pixel-art 16×16 para itens novos sem textura)
+- [x] **PBR `_n/_s/_b` completo** — FEITO: 855 mapas gerados pelo `scripts/agents/pbr_texture_agent.py` (normal + material + altura para os 307 slots; convenção validada empiricamente contra `dirt_n`; classificação de material por nome: madeira, pedra, minério, metal, vidro, cristal, tecido, terra, folha, emissivo)
 - [ ] **Shrink UVs** levemente p/ modelos (`todo.txt: shrink UVs extremely slightly for the models` — evita bleeding)
 - [ ] **Mover sprites restantes** in-game (`todo.txt: move the remaining sprites in game`)
 - [ ] **Texture packs** incompleto — `renderSettings.cpp: //TODO delete unused entries`, `getUsedTexturePacksAndResetFlag` parcial
@@ -338,6 +339,10 @@ Sistemas: `animationSystem` 19 bones (`AnimationClip/BlendTree/StateMachine` →
 - [ ] **Multiplayer buffering + validação completa** + `Buffering` + `RubberBand` avançado
 
 ---
+
+## Changelog Recente (Unreleased 2026-09-06)
+
+**PBR completo 855 mapas** (`_n/_s/_b` para os 307 slots via `pbr_texture_agent.py`), **Parallax Occlusion Mapping ativado** (`_b` + `ShadingSettings.parallaxStrength`, menu Settings > Parallax), **agentes de assets** (`scripts/agents/`: PBR, itens, validador + orquestrador), itens 205/205 com PNG, build fixes (link `audioEngine.h` uint16_t, `Launcher.h`). Ver `CHANGELOG.md`.
 
 ## Changelog Recente (Unreleased 2026-08-30)
 

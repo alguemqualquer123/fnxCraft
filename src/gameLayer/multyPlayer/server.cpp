@@ -8,6 +8,8 @@
 #include "worldGenerator.h"
 #include <unordered_map>
 #include <iostream>
+#include <filesystem>
+#include <fstream>
 #include <atomic>
 #include <enet/enet.h>
 #include "multyPlayer/packet.h"
@@ -220,8 +222,9 @@ bool computeRevisionStuff(Client &client, bool allowed,
 
 bool serverStartupStuff(const std::string &path)
 {
-	//reset data
 	sd = ServerData{};
+	sd.settings = loadWorldConfig(path);
+	sd.settings.worldName = path;
 
 
 	//start enet server
@@ -297,6 +300,17 @@ unsigned int getRandomTickSpeed()
 
 void setServerSettings(ServerSettings settings)
 {
+	auto perClient = sd.settings.perClientSettings;
+	for (auto &s : settings.perClientSettings)
+	{
+		auto it = perClient.find(s.first);
+		if (it != perClient.end())
+		{
+			s.second = it->second;
+		}
+	}
+	sd.settings = settings;
+	sd.settings.perClientSettings = perClient;
 	for (auto &s : sd.settings.perClientSettings)
 	{
 		auto it = settings.perClientSettings.find(s.first);
@@ -305,6 +319,81 @@ void setServerSettings(ServerSettings settings)
 			s.second = it->second;
 		}
 	}
+}
+
+std::string worldConfigPath(const std::string &worldName)
+{
+	return std::string(RESOURCES_PATH) + "worlds/" + worldName + "/worldConfig.json";
+}
+
+ServerSettings loadWorldConfig(const std::string &worldName)
+{
+	ServerSettings s;
+	s.worldName = worldName;
+	std::string path = worldConfigPath(worldName);
+	std::ifstream f(path);
+	if (!f.is_open()) return s;
+	std::string content((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+	auto getBool = [&](const std::string &key, bool def){
+		auto pos = content.find("\"" + key + "\"");
+		if (pos == std::string::npos) return def;
+		auto colon = content.find(":", pos);
+		if (colon == std::string::npos) return def;
+		auto v = content.substr(colon+1, 10);
+		if (v.find("true") != std::string::npos) return true;
+		if (v.find("false") != std::string::npos) return false;
+		return def;
+	};
+	auto getStr = [&](const std::string &key, std::string def){
+		auto pos = content.find("\"" + key + "\"");
+		if (pos == std::string::npos) return def;
+		auto colon = content.find(":", pos);
+		if (colon == std::string::npos) return def;
+		auto q1 = content.find("\"", colon+1);
+		if (q1 == std::string::npos) return def;
+		auto q2 = content.find("\"", q1+1);
+		if (q2 == std::string::npos) return def;
+		return content.substr(q1+1, q2-q1-1);
+	};
+	s.allowCheats = getBool("allowCheats", false);
+	s.pvpEnabled = getBool("pvpEnabled", false);
+	s.keepInventory = getBool("keepInventory", true);
+	s.hungerEnabled = getBool("hungerEnabled", true);
+	s.thirstEnabled = getBool("thirstEnabled", true);
+	s.difficulty = getStr("difficulty", "normal");
+	s.defaultGamemode = getStr("defaultGamemode", "survival");
+	s.worldOwner = getStr("worldOwner", "");
+	auto getInt = [&](const std::string &key, int def){
+		auto pos = content.find("\"" + key + "\"");
+		if (pos == std::string::npos) return def;
+		auto colon = content.find(":", pos);
+		if (colon == std::string::npos) return def;
+		try{ return std::stoi(content.substr(colon+1)); }catch(...){return def;}
+	};
+	s.randomTickSpeed = getInt("randomTickSpeed", 3);
+	s.simulationDistanceRadius = getInt("simulationDistanceRadius", 8);
+	return s;
+}
+
+void saveWorldConfig(const std::string &worldName, const ServerSettings &s)
+{
+	std::string path = worldConfigPath(worldName);
+	std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+	std::ofstream f(path);
+	if (!f.is_open()) return;
+	f << "{\n";
+	f << "  \"worldName\": \"" << s.worldName << "\",\n";
+	f << "  \"allowCheats\": " << (s.allowCheats?"true":"false") << ",\n";
+	f << "  \"pvpEnabled\": " << (s.pvpEnabled?"true":"false") << ",\n";
+	f << "  \"keepInventory\": " << (s.keepInventory?"true":"false") << ",\n";
+	f << "  \"hungerEnabled\": " << (s.hungerEnabled?"true":"false") << ",\n";
+	f << "  \"thirstEnabled\": " << (s.thirstEnabled?"true":"false") << ",\n";
+	f << "  \"difficulty\": \"" << s.difficulty << "\",\n";
+	f << "  \"defaultGamemode\": \"" << s.defaultGamemode << "\",\n";
+	f << "  \"worldOwner\": \"" << s.worldOwner << "\",\n";
+	f << "  \"randomTickSpeed\": " << s.randomTickSpeed << ",\n";
+	f << "  \"simulationDistanceRadius\": " << s.simulationDistanceRadius << "\n";
+	f << "}\n";
 }
 
 void genericBroadcastEntityDeleteFromServerToPlayer(std::uint64_t eid, bool reliable, 
@@ -345,12 +434,16 @@ void serverWorkerUpdate(
 {
 
 #pragma region timers stuff
+	if (deltaTime > 0.05f) deltaTime = 0.05f;
+	if (deltaTime < 0) deltaTime = 0;
 	auto currentTimer = getTimer();
 	sd.tickTimer += deltaTime;
 	sd.seccondsTimer += deltaTime;
 	sd.tickDeltaTime += deltaTime;
 	sd.saveEntitiesTimer -= deltaTime;
 	auto deltaTimeMS = currentTimer - sd.lastTimer;
+	if (deltaTimeMS > 50) deltaTimeMS = 50;
+	if (deltaTimeMS < 0) deltaTimeMS = 0;
 	sd.tickDeltaTimeMs += deltaTimeMS;
 #pragma endregion
 
@@ -453,7 +546,7 @@ void serverWorkerUpdate(
 #pragma region gameplay tick
 
 
-	if (sd.tickTimer > 1.f / targetTicksPerSeccond)
+	while (sd.tickTimer >= 1.f / targetTicksPerSeccond)
 	{
 
 	#pragma region set players in their chunks

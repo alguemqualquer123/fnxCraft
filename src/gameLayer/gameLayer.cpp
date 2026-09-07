@@ -12,7 +12,10 @@
 #include <ctime>
 #include "multyPlayer/server.h"
 #include "multyPlayer/createConnection.h"
+#include "multyPlayer/enetServerFunction.h"
 #include <enet/enet.h>
+#include <filesystem>
+#include <fstream>
 #include "scripting/EventBus.h"
 #include "rendering/UiEngine.h"
 #include "glui/glui.h"
@@ -531,6 +534,42 @@ bool initGame() //main server and title screen stuff
 }
 
 static bool gameStarted = 0;
+void renderLauncherUI(ProgramData &pd)
+{
+	auto &launcher = getLauncherState();
+	static char usernameBuf[64] = "Player";
+	static bool init = false;
+	if (!init)
+	{
+		if (!launcher.currentUsername.empty())
+			snprintf(usernameBuf, sizeof(usernameBuf), "%s", launcher.currentUsername.c_str());
+		init = true;
+	}
+	pd.ui.menuRenderer.Text("Bem-vindo ao fnxCraft!", Colors_White);
+	pd.ui.menuRenderer.Text("Digite seu nome para entrar:", Colors_White);
+	pd.ui.menuRenderer.InputText("Nome", usernameBuf, sizeof(usernameBuf), Colors_Gray, pd.ui.buttonTexture);
+	if (pd.ui.menuRenderer.Button("Entrar", Colors_Gray, pd.ui.buttonTexture))
+	{
+		std::string name = usernameBuf;
+		size_t s = name.find_first_not_of(" \t\r\n");
+		size_t e = name.find_last_not_of(" \t\r\n");
+		if (s == std::string::npos) name.clear();
+		else name = name.substr(s, e - s + 1);
+		if (name.empty()) name = "Player";
+		launcher.currentUsername = name;
+		launcher.currentUUID = name + "-offline";
+		launcher.loggedIn = true;
+		launcher.showLauncher = false;
+	}
+	if (pd.ui.menuRenderer.Button("Jogar como Convidado", Colors_Gray, pd.ui.buttonTexture))
+	{
+		launcher.currentUsername = "Player";
+		launcher.currentUUID = "offline-player";
+		launcher.loggedIn = true;
+		launcher.showLauncher = false;
+	}
+}
+
 static std::string lastError = "";
 static ConfirmationModal exitModal;
 bool hostServer(const std::string &path)
@@ -595,14 +634,37 @@ bool gameLogic(float deltaTime)
 	frameCounter++;
 	static float autosaveTimer=0;
 	autosaveTimer+=deltaTime;
-	if(autosaveTimer>60.f){
+	if(autosaveTimer>10.f){
 		autosaveTimer=0;
 		SaveSystem::get().autoSave();
+		if(isServerRunning()){
+			auto &s = getServerSettingsReff();
+			saveWorldConfig(s.worldName, s);
+			SaveSystem::get().saveWorld(s.worldName);
+			auto &clients = getAllClientsReff();
+			for(auto &kv: clients){
+				std::string pid = std::to_string(kv.first);
+				std::string pdir = std::string(RESOURCES_PATH) + "worlds/" + s.worldName + "/players";
+				std::filesystem::create_directories(pdir);
+				std::string pfile = pdir + "/" + pid + ".json";
+				std::ofstream f(pfile);
+				if(f.is_open()){
+					auto &pos = kv.second.playerData.entity.position;
+					f << "{\n  \"uuid\":\"" << pid << "\",\n  \"x\":" << pos.x << ",\n  \"y\":" << pos.y << ",\n  \"z\":" << pos.z << ",\n  \"skin\":\"" << getSkinName() << "\"\n}\n";
+				}
+				std::string invFile = pdir + "/" + pid + ".inv";
+				std::vector<unsigned char> data;
+				kv.second.playerData.inventory.formatIntoData(data);
+				std::ofstream invF(invFile, std::ios::binary);
+				if(invF.is_open() && !data.empty()) invF.write((char*)data.data(), data.size());
+			}
+		}
 		auto &ls = getLauncherState();
 		if(ls.loggedIn){
 			PlayerSaveData pd; pd.username=ls.currentUsername; pd.uuid=ls.currentUUID;
 			SaveSystem::get().savePlayer(pd.uuid, pd);
 		}
+		std::cout << "[AutoSave] mundo, inventario, posicoes, mobs e blocos salvos (10s)\n";
 	}
 
 #pragma endregion
@@ -631,6 +693,11 @@ bool gameLogic(float deltaTime)
 	if (platform::isKeyPressedOn(platform::Button::F11))
 	{
 		platform::setFullScreen(!platform::isFullScreen());
+	}
+	if (platform::isKeyPressedOn(platform::Button::F12))
+	{
+		bool html = gHtmlUi.toggle();
+		std::cout << "[UI] Toggle para " << (html ? "HTML/CSS/JS" : "ImGui/glui") << " (F12)\n";
 	}
 
 
@@ -819,13 +886,40 @@ bool gameLogic(float deltaTime)
 
 		if (!gameplayFrame(deltaTime, w, h, programData))
 		{
+			if(isServerRunning()){
+				auto &s = getServerSettingsReff();
+				saveWorldConfig(s.worldName, s);
+				SaveSystem::get().saveWorld(s.worldName);
+				auto &clients = getAllClientsReff();
+				for(auto &kv: clients){
+					std::string pid = std::to_string(kv.first);
+					std::string pdir = std::string(RESOURCES_PATH) + "worlds/" + s.worldName + "/players";
+					std::filesystem::create_directories(pdir);
+					std::ofstream f(pdir + "/" + pid + ".json");
+					if(f.is_open()){
+						auto &pos = kv.second.playerData.entity.position;
+						f << "{\"uuid\":\"" << pid << "\",\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << ",\"skin\":\"" << getSkinName() << "\"}\n";
+					}
+					std::string invFile = pdir + "/" + pid + ".inv";
+					std::vector<unsigned char> data;
+					kv.second.playerData.inventory.formatIntoData(data);
+					std::ofstream invF(invFile, std::ios::binary);
+					if(invF.is_open() && !data.empty()) invF.write((char*)data.data(), data.size());
+				}
+				auto &ls = getLauncherState();
+				if(ls.loggedIn){
+					PlayerSaveData pd; pd.username=ls.currentUsername; pd.uuid=ls.currentUUID;
+					SaveSystem::get().savePlayer(pd.uuid, pd);
+				}
+				std::cout << "[Save] quit world: inventario, pos, mobs, blocos salvos\n";
+			}
 			EventBus::instance().trigger("onWorldLeave");
 			EventBus::instance().trigger("onPlayerLeave");
 			EventBus::instance().trigger("playerDisconnected");
 			EventBus::instance().trigger("client:disconnected");
 			closeGameLogic();
 			closeConnection();
-			closeServer();		//this will do something only if the server is on
+			closeServer();
 			gameStarted = false;
 			platform::showMouse(true);
 			AudioEngine::playTitleMusic();
@@ -912,7 +1006,27 @@ void closeGame()
 	static bool closed = false;
 	if (closed) return;
 	closed = true;
-	SaveSystem::get().saveWorld("world");
+	if(isServerRunning()){
+		auto &s = getServerSettingsReff();
+		saveWorldConfig(s.worldName, s);
+		SaveSystem::get().saveWorld(s.worldName);
+		auto &clients = getAllClientsReff();
+		for(auto &kv: clients){
+			std::string pid = std::to_string(kv.first);
+			std::string pdir = std::string(RESOURCES_PATH) + "worlds/" + s.worldName + "/players";
+			std::filesystem::create_directories(pdir);
+			std::ofstream f(pdir + "/" + pid + ".json");
+			if(f.is_open()){
+				auto &pos = kv.second.playerData.entity.position;
+				f << "{\"uuid\":\"" << pid << "\",\"x\":" << pos.x << ",\"y\":" << pos.y << ",\"z\":" << pos.z << ",\"skin\":\"" << getSkinName() << "\"}\n";
+			}
+			std::string invFile = pdir + "/" + pid + ".inv";
+			std::vector<unsigned char> data;
+			kv.second.playerData.inventory.formatIntoData(data);
+			std::ofstream invF(invFile, std::ios::binary);
+			if(invF.is_open() && !data.empty()) invF.write((char*)data.data(), data.size());
+		}
+	}else SaveSystem::get().saveWorld("world");
 	auto &launcher = getLauncherState();
 	if(launcher.loggedIn){
 		PlayerSaveData pd;
@@ -920,6 +1034,7 @@ void closeGame()
 		pd.uuid = launcher.currentUUID;
 		SaveSystem::get().savePlayer(pd.uuid, pd);
 	}
+	std::cout << "[Save] fechar game: tudo salvo\n";
 	EventBus::instance().trigger("onGameClose");
 	EventBus::instance().trigger("game:close");
 	EventBus::instance().trigger("onClientExit");

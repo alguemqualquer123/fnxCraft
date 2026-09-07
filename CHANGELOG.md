@@ -1,5 +1,16 @@
 # Changelog - fnxCraft
 
+## [Unreleased] - 2026-09-06
+### Adicionado
+- **PBR completo para todos os blocos**: `scripts/agents/pbr_texture_agent.py` gerou **855 mapas** (`_n` normal, `_s` material, `_b` altura) para os 307 slots de textura — antes só 44 blocos tinham normal map. Convenção validada empiricamente contra `dirt_n` (R=0.5−dH/dx, G=0.5−dH/dy, flat=127/127/255). Classificação de material por nome (madeira com grão, tijolos com argamassa, minérios com protuberâncias, cristais facetados voronoi, tecidos, metais com costuras, terra granulada, folhas celulares, plantas planas com alpha)
+- **Parallax Occlusion Mapping ativado**: código que existia comentado no `defaultShader.frag` foi reimplementado e ligado — steep parallax + oclusão interpolada usando a textura `_b` (antes carregada e nunca usada), TBN construído da normal da face, guard `viewVector.z > 0.05`, UV com `fract()` para manter tiling. Controlado por `ShadingSettings.parallaxStrength` (default 0.03) com slider no menu **Settings > Parallax** (0 = off). Fallback `_b` do loader agora é BRANCO (255) para texturas sem heightmap não sofrerem offset
+- **Agentes de assets** (`scripts/agents/`): `pbr_texture_agent.py` (blocos PBR, `--verify`/`--force`), `item_texture_agent.py` (itens 16×16 pixel-art com contorno, `--verify`/`--outdir`), `validate_assets_agent.py` (cross-check C++↔assets↔shaders: albedo obrigatório, cobertura PBR, PNGs de itens, uniformes GET_UNIFORM2 presentes no .frag) e `run_all_agents.sh` (orquestrador com `--build`/`--verify`)
+- **Validator**: 205/205 itens com PNG 16×16 confirmado (README desatualizado falava em 23 faltando; 9 itens de arma fora do padrão 16×16 renderizam ok pois o loader faz padding para 28×28)
+### Corrigido
+- **Build quebrado no HEAD** (`d708418c`): 13 `undefined reference` — `audioEngine.h` declarava `isAnyStone(unsigned int)` etc., mas as definições em `shared/blocks.cpp` usam `BlockType` = `uint16_t` (mangling diferente). Declarações alinhadas para `uint16_t` (+ `#include <stdint.h>`)
+- `unbreakable` (símbolo inexistente) em `audioEngineRaudioBackend.cpp:553` — check redundante removido (`isAnyUnbreakable` já cobre)
+- `Launcher.h` quebrado por edição paralela (`dpd` não declarado, `ProgramData` sem membro `launcher`) — restaurado do HEAD
+
 ## [Unreleased] - 2026-08-30
 ### Adicionado
 - **F3 Debug** (`F3`): overlay com FPS, XYZ, Block, Chunk, Facing, Biome veg, Light, Entities, modo câmera

@@ -81,12 +81,10 @@ void PlayerAnimator::init()
 		kf0.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf0.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf0.rotations[12] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
-		kf0.rotations[13] = glm::angleAxis(glm::radians(-15.f), glm::vec3(1, 0, 0));
-		kf0.rotations[15] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
-		kf0.rotations[16] = glm::angleAxis(glm::radians(15.f), glm::vec3(1, 0, 0));
-		kf0.rotations[7] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
-		kf0.rotations[10] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
+		kf0.rotations[13] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
+		kf0.rotations[16] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
+		kf0.rotations[6] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
+		kf0.rotations[10] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
 		walkClip.keyframes.push_back(kf0);
 
 		AnimationKeyframe kf1;
@@ -95,12 +93,10 @@ void PlayerAnimator::init()
 		kf1.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf1.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf1.rotations[12] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
-		kf1.rotations[13] = glm::angleAxis(glm::radians(15.f), glm::vec3(1, 0, 0));
-		kf1.rotations[15] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
-		kf1.rotations[16] = glm::angleAxis(glm::radians(-15.f), glm::vec3(1, 0, 0));
-		kf1.rotations[7] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
-		kf1.rotations[10] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
+		kf1.rotations[13] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
+		kf1.rotations[16] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
+		kf1.rotations[6] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
+		kf1.rotations[10] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
 		walkClip.keyframes.push_back(kf1);
 
 		AnimationKeyframe kf2;
@@ -109,12 +105,10 @@ void PlayerAnimator::init()
 		kf2.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf2.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf2.rotations[12] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
-		kf2.rotations[13] = glm::angleAxis(glm::radians(-15.f), glm::vec3(1, 0, 0));
-		kf2.rotations[15] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
-		kf2.rotations[16] = glm::angleAxis(glm::radians(15.f), glm::vec3(1, 0, 0));
-		kf2.rotations[7] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
-		kf2.rotations[10] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
+		kf2.rotations[13] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
+		kf2.rotations[16] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
+		kf2.rotations[6] = glm::angleAxis(glm::radians(-25.f), glm::vec3(1, 0, 0));
+		kf2.rotations[10] = glm::angleAxis(glm::radians(25.f), glm::vec3(1, 0, 0));
 		walkClip.keyframes.push_back(kf2);
 	}
 
@@ -132,12 +126,10 @@ void PlayerAnimator::init()
 		kf0.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf0.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf0.rotations[12] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
-		kf0.rotations[13] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
-		kf0.rotations[15] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
-		kf0.rotations[16] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
-		kf0.rotations[7] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
-		kf0.rotations[10] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
+		kf0.rotations[13] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
+		kf0.rotations[16] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
+		kf0.rotations[6] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
+		kf0.rotations[10] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
 		runClip.keyframes.push_back(kf0);
 
 		AnimationKeyframe kf1;
@@ -146,12 +138,10 @@ void PlayerAnimator::init()
 		kf1.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf1.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf1.rotations[12] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
-		kf1.rotations[13] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
-		kf1.rotations[15] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
-		kf1.rotations[16] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
-		kf1.rotations[7] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
-		kf1.rotations[10] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
+		kf1.rotations[13] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
+		kf1.rotations[16] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
+		kf1.rotations[6] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
+		kf1.rotations[10] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
 		runClip.keyframes.push_back(kf1);
 
 		AnimationKeyframe kf2;
@@ -160,12 +150,10 @@ void PlayerAnimator::init()
 		kf2.rotations.resize(boneCount, glm::quat(1.f, 0.f, 0.f, 0.f));
 		kf2.scales.resize(boneCount, glm::vec3(1.f));
 
-		kf2.rotations[12] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
-		kf2.rotations[13] = glm::angleAxis(glm::radians(-20.f), glm::vec3(1, 0, 0));
-		kf2.rotations[15] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
-		kf2.rotations[16] = glm::angleAxis(glm::radians(20.f), glm::vec3(1, 0, 0));
-		kf2.rotations[7] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
-		kf2.rotations[10] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
+		kf2.rotations[13] = glm::angleAxis(glm::radians(40.f), glm::vec3(1, 0, 0));
+		kf2.rotations[16] = glm::angleAxis(glm::radians(-40.f), glm::vec3(1, 0, 0));
+		kf2.rotations[6] = glm::angleAxis(glm::radians(-35.f), glm::vec3(1, 0, 0));
+		kf2.rotations[10] = glm::angleAxis(glm::radians(35.f), glm::vec3(1, 0, 0));
 		runClip.keyframes.push_back(kf2);
 	}
 

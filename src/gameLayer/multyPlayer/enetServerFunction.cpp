@@ -1,6 +1,8 @@
 #include "multyPlayer/enetServerFunction.h"
 #include <gameLayer/GamePaths.h>
 #include <atomic>
+#include <fstream>
+#include <filesystem>
 #include <thread>
 #include <enet/enet.h>
 #include <iostream>
@@ -264,32 +266,35 @@ void addConnection(ENetHost *server, ENetEvent &event, WorldSaver &worldSaver)
 			c.playerData.otherPlayerSettings.commandPermisionLevel = 3;
 		}
 
-		c.playerData.inventory.items[0] = itemCreator(ItemTypes::trainingSword);
-		c.playerData.inventory.items[1] = itemCreator(ItemTypes::apple, 20);
-		c.playerData.inventory.items[2] = itemCreator(ItemTypes::goblinSpawnEgg, 400);
-		c.playerData.inventory.items[13] = Item(BlockTypes::clothBlock, 64);
-		c.playerData.inventory.items[21] = Item(BlockTypes::woodLog, 64);
-		c.playerData.inventory.items[22] = Item(BlockTypes::palm_log, 64);
-		c.playerData.inventory.items[23] = Item(BlockTypes::glowstone, 64);
-		c.playerData.inventory.items[24] = Item(BlockTypes::stoneBrick, 64);
-		c.playerData.inventory.items[26] = Item(BlockTypes::mud, 64);
-		c.playerData.inventory.items[27] = Item(BlockTypes::birch_log, 64);
-		c.playerData.inventory.items[28] = Item(BlockTypes::wooden_plank, 64);
-		c.playerData.inventory.items[29] = Item(BlockTypes::cobblestone, 64);
-		c.playerData.inventory.items[30] = Item(ItemTypes::cloth, 64);
-		c.playerData.inventory.items[36] = Item(ItemTypes::fang, 64);
-		c.playerData.inventory.items[37] = Item(BlockTypes::torchWood, 64);
-		c.playerData.inventory.items[38] = Item(ItemTypes::arrow, 64);
-		c.playerData.inventory.items[39] = Item(ItemTypes::copperIngot, 64);
-		c.playerData.inventory.items[40] = Item(ItemTypes::leadIngot, 64);
-		c.playerData.inventory.items[31] = itemCreator(ItemTypes::catSpawnEgg);
-		c.playerData.inventory.items[32] = itemCreator(ItemTypes::zombieSpawnEgg);
-		c.playerData.inventory.items[33] = itemCreator(ItemTypes::pigSpawnEgg);
-		c.playerData.inventory.items[34] = Item(BlockTypes::clay);
-		c.playerData.inventory.items[35] = Item(BlockTypes::glass);
-
-		c.playerData.inventory.items[PlayerInventory::COINS_START_INDEX] = Item(ItemTypes::copperCoin);
-
+		c.playerData.inventory = PlayerInventory{};
+		{
+			std::string worldName = getServerSettingsReff().worldName;
+			if(!worldName.empty()){
+				std::string invFile = std::string(RESOURCES_PATH) + "worlds/" + worldName + "/players/" + std::to_string(id) + ".inv";
+				std::ifstream invF(invFile, std::ios::binary);
+				if(invF.is_open()){
+					std::vector<unsigned char> data((std::istreambuf_iterator<char>(invF)), std::istreambuf_iterator<char>());
+					if(!data.empty()) c.playerData.inventory.readFromData(data.data(), data.size());
+				}
+				std::string pfile = std::string(RESOURCES_PATH) + "worlds/" + worldName + "/players/" + std::to_string(id) + ".json";
+				std::ifstream pf(pfile);
+				if(pf.is_open()){
+					std::string content((std::istreambuf_iterator<char>(pf)), std::istreambuf_iterator<char>());
+					auto findVal = [&](const std::string &k)->double{
+						auto p = content.find("\"" + k + "\"");
+						if(p==std::string::npos) return 0;
+						auto c = content.find(":", p);
+						if(c==std::string::npos) return 0;
+						try{ return std::stod(content.substr(c+1)); }catch(...){ return 0; }
+					};
+					double x = findVal("x"), y=findVal("y"), z=findVal("z");
+					if(x!=0 || y!=0 || z!=0){
+						c.playerData.entity.position = glm::dvec3(x,y,z);
+						c.playerData.entity.lastPosition = c.playerData.entity.position;
+					}
+				}
+			}
+		}
 		insertConnection(id, c);
 	}
 

@@ -1428,15 +1428,16 @@ void BlocksLoader::loadAllTextures(std::string filePath, bool reportErrors)
 			gpuIds.push_back(handle);
 		}
 
-		//default paralax
+		//default paralax (WHITE = flat surface, so POM has no effect on
+		//textures that don't ship a _b height map)
 		{
 			unsigned char data[4] = {};
 
 			{
 				int i = 0;
-				data[i++] = 0;
-				data[i++] = 0;
-				data[i++] = 0;
+				data[i++] = 255;
+				data[i++] = 255;
+				data[i++] = 255;
 				data[i++] = 255;
 			}
 

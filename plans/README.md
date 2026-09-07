@@ -25,6 +25,7 @@
 | 17 | Render otimização + fixes | 🟡 Médio | `17-rendering-optimization.md` |
 | 18 | Persistência JSON (JsonDatabase + Repository) | 🟡 Médio | `18-persistence-json-database.md` |
 | 19 | Sync completo entidades (todas, não só players) | 🟡 Médio | `19-entity-sync-full.md` |
+| 20 | Stack de UI unificada + bridge (RmlUi/ImGui/CEGUI/Nuklear/Ultralight + Lua) | 🔴 Avançado | `20-ui-stack.md` |
 
 ## Como Usar
 

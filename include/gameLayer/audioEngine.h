@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 
 namespace AudioEngine
 {
@@ -102,6 +103,25 @@ namespace AudioEngine
 	};
 
 };
+
+
+// NOTE: use uint16_t (BlockType) so the symbols match the definitions in
+// shared/blocks.cpp — `unsigned int` here creates undefined overloads at link
+// time (BlockType is `using BlockType = uint16_t`).
+bool isAnyDirtBlock(uint16_t type);
+bool isAnyClayBlock(uint16_t type);
+bool isAnySandyBlock(uint16_t type);
+bool isAnyWoodenBlock(uint16_t type);
+bool isAnySemiHardBlock(uint16_t type);
+bool isAnyStone(uint16_t type);
+bool isAnyPlant(uint16_t type);
+bool isAnyLeaves(uint16_t type);
+bool isAnyWool(uint16_t type);
+bool isAnyUnbreakable(uint16_t type);
+bool isTriviallyBreakable(uint16_t type);
+bool isBricksSound(uint16_t type);
+bool isVolcanicActiveSound(uint16_t type);
+bool isVolcanicInActiveSound(uint16_t type);
 
 int getSoundForBlockBreaking(unsigned int blockType);
 

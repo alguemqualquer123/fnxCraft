@@ -52,7 +52,34 @@
 #include <blockUpdates.h>
 #include <weather.h>
 #include "scripting/EventBus.h"
-
+#include <cctype>
+static glm::vec4 getChatColor(char code){
+	code = std::tolower((unsigned char)code);
+	switch(code){
+		case '0': return glm::vec4(0,0,0,1);
+		case '1': return glm::vec4(0,0,0.66f,1);
+		case '2': return glm::vec4(0,0.66f,0,1);
+		case '3': return glm::vec4(0,0.66f,0.66f,1);
+		case '4': return glm::vec4(0.66f,0,0,1);
+		case '5': return glm::vec4(0.66f,0,0.66f,1);
+		case '6': return glm::vec4(1,0.66f,0,1);
+		case '7': return glm::vec4(0.66f,0.66f,0.66f,1);
+		case '8': return glm::vec4(0.33f,0.33f,0.33f,1);
+		case '9': return glm::vec4(0.33f,0.33f,1,1);
+		case 'a': return glm::vec4(0.33f,1,0.33f,1);
+		case 'b': return glm::vec4(0.33f,1,1,1);
+		case 'c': return glm::vec4(1,0.33f,0.33f,1);
+		case 'd': return glm::vec4(1,0.33f,1,1);
+		case 'e': return glm::vec4(1,1,0.33f,1);
+		case 'f': return glm::vec4(1,1,1,1);
+		case 'r': return Colors_White;
+		default: return Colors_White;
+	}
+}
+static bool isChatColorCode(char c){
+	c = std::tolower((unsigned char)c);
+	return (c>='0'&&c<='9')||(c>='a'&&c<='f')||c=='r';
+}
 struct GameData
 {
 	Camera c;
@@ -238,8 +265,9 @@ void loadCurrentSkin()
 
 	if (!gameData.currentSkinTexture.id)
 	{
-		gameData.currentSkinTexture
-			= loadPlayerSkin(RESOURCES_PATH "assets/models/steve.png");
+		gameData.currentSkinTexture = loadPlayerSkin(RESOURCES_PATH "assets/models/steve3.png");
+		if (!gameData.currentSkinTexture.id) gameData.currentSkinTexture = loadPlayerSkin(RESOURCES_PATH "assets/models/steve.png");
+		if (!gameData.currentSkinTexture.id) gameData.currentSkinTexture = loadPlayerSkin(RESOURCES_PATH "skins/steve3.png");
 	}
 
 	//todo repeating code
@@ -3234,23 +3262,23 @@ else
 			if (ImGui::CollapsingHeader("Sun Shadow Map",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)gameData.sunShadow.shadowTexturePreview.color, {256, 256}, 
+				ImGui::Image((void*)(intptr_t)gameData.sunShadow.shadowTexturePreview.color, {256, 256}, 
 					{0, 1}, {1, 0});
-				//ImGui::Image((void *)gameData.sunShadow.shadowMap.depth, {256, 256},
+				//ImGui::Image((void*)(intptr_t)gameData.sunShadow.shadowMap.depth, {256, 256},
 				//	{0, 1}, {1, 0});
 			}
 
 			if (ImGui::CollapsingHeader("HBAO Map",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboHBAO.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboHBAO.color, {256, 256},
 					{0, 1}, {1, 0});
 			}
 
 			if (ImGui::CollapsingHeader("Sky Map",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboSkyBox.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboSkyBox.color, {256, 256},
 					{0, 1}, {1, 0});
 			}
 
@@ -3259,37 +3287,37 @@ else
 			if (ImGui::CollapsingHeader("Screen space pos",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboLastFramePositions.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboLastFramePositions.color, {256, 256},
 					{0, 1}, {1, 0});
 			}
 
 			if (ImGui::CollapsingHeader("Last frame color",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboLastFrame.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboLastFrame.color, {256, 256},
 					{0, 1}, {1, 0});
 			}
 
 			if (ImGui::CollapsingHeader("Sun for SSGR",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboSunForGodRays.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboSunForGodRays.color, {256, 256},
 					{0, 1}, {1, 0});
 
-				ImGui::Image((void *)programData.renderer.fboSunForGodRaysSecond.color, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboSunForGodRaysSecond.color, {256, 256},
 					{0, 1}, {1, 0});
 			}
 
 			if (ImGui::CollapsingHeader("Filtered bloom color",
 				ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_FramePadding))
 			{
-				ImGui::Image((void *)programData.renderer.fboMain.fourthColor, {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.fboMain.fourthColor, {256, 256},
 					{0, 1}, {1, 0});
 
-				ImGui::Image((void *)programData.renderer.bluredColorBuffer[0], {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.bluredColorBuffer[0], {256, 256},
 					{0, 1}, {1, 0});
 
-				ImGui::Image((void *)programData.renderer.bluredColorBuffer[1], {256, 256},
+				ImGui::Image((void*)(intptr_t)programData.renderer.bluredColorBuffer[1], {256, 256},
 					{0, 1}, {1, 0});
 
 				ImGui::SliderFloat("Multiplier", &getShadingSettings().bloomMultiplier, 0, 7);
@@ -3750,8 +3778,21 @@ else
 
 				if (startPos < gameData.chatBufferPosition)
 				{
-					renderer.renderText({10, box.y + box.w - 10}, gameData.chatBuffer + startPos,
-						programData.ui.font, Colors_White, 64, 4, 0, false);
+					std::string view = std::string(gameData.chatBuffer + startPos);
+					glm::vec2 pen{10, box.y + box.w - 10};
+					glm::vec4 curCol = Colors_White;
+					for(size_t i=0;i<view.size();){
+						if((view[i]=='&'||view[i]=='§') && i+1<view.size() && isChatColorCode(view[i+1])){
+							curCol = getChatColor(view[i+1]); i+=2; continue;
+						}
+						size_t s=i; while(s<view.size() && !((view[s]=='&'||view[s]=='§') && s+1<view.size() && isChatColorCode(view[s+1]))) s++;
+						std::string seg=view.substr(i,s-i);
+						if(!seg.empty()){
+							renderer.renderText(pen, seg.c_str(), programData.ui.font, curCol, 64, 4, 0, false);
+							pen.x += renderer.getTextSize(seg.c_str(), programData.ui.font, 64).x;
+						}
+						i=s;
+					}
 				}
 
 			}
@@ -3927,14 +3968,21 @@ else
 
 				for (auto &c : gameData.chat)
 				{
-					if (textPosCopy < 0)
-					{
-						break;
+					if (textPosCopy < 0) break;
+					glm::vec2 pen{0, textPosCopy};
+					glm::vec4 curCol = Colors_White;
+					for(size_t i=0;i<c.size();){
+						if((c[i]=='&'||c[i]=='§') && i+1<c.size() && isChatColorCode(c[i+1])){
+							curCol = getChatColor(c[i+1]); i+=2; continue;
+						}
+						size_t segStart=i;
+						while(i<c.size() && !((c[i]=='&'||c[i]=='§') && i+1<c.size() && isChatColorCode(c[i+1]))) i++;
+						std::string seg=c.substr(segStart,i-segStart);
+						if(!seg.empty()){
+							renderer.renderText(pen, seg.c_str(), programData.ui.font, curCol, 64, 3, 0, false);
+							pen.x += renderer.getTextSize(seg.c_str(), programData.ui.font, 64).x;
+						}
 					}
-
-					renderer.renderText({0, textPosCopy}, c.c_str(), programData.ui.font,
-						Colors_White, 64, 3, 0, false);
-
 					textPosCopy -= textSize;
 				}
 
@@ -4305,6 +4353,10 @@ else
 		displaySettingsMenuButton(programData);
 
 		displaySkinSelectorMenuButton(programData);
+
+		displayWorldSettingsMenuButton(programData);
+
+		displayPlayerRolesMenuButton(programData);
 
 		if (programData.ui.menuRenderer.Button(loc_Exit(), Colors_Gray, programData.ui.buttonTexture))
 		{
