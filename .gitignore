@@ -10,3 +10,14 @@ resources/saves2/
 errorLogs.txt
 resources/worlds/
 playerSettings/
+
+# runtime artifacts (game/ and server/ are CMake output dirs — binaries, config, saves, logs)
+game/
+server/
+logs/
+imgui.ini
+
+# local editor state + python cache
+.claude/
+__pycache__/
+*.pyc
