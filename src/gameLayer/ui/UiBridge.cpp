@@ -4,10 +4,19 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <imguiThemes.h>
+#include <platformTools.h> // REMOVE_IMGUI
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <sstream>
+#include <vector>
+
+// definidos no bloco de estado abaixo
+namespace
+{
+	std::vector<std::string> getBindingNames();
+	std::string getLogText();
+}
 
 // ============================================================================
 // Backend ImGui (debug/editor) — contexto criado aqui, não no glfwMain.
@@ -23,7 +32,6 @@ namespace
 		ImGui::CreateContext();
 		imguiThemes::embraceTheDarkness();
 		ImGuiIO &io = ImGui::GetIO(); (void)io;
-		io.ConfigFlags |= ImGuiConfigFlags_NoviceFlagsMask; // placeholder evitado abaixo
 		io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard
 			| ImGuiConfigFlags_DockingEnable
 			| ImGuiConfigFlags_ViewportsEnable;
@@ -63,6 +71,30 @@ namespace
 			glfwMakeContextCurrent(backup);
 		}
 	}
+
+	// Janela de debug/editor: estado da bridge, bindings registrados e log de eventos.
+	void drawDebugWindows()
+	{
+		if (ImGui::Begin("UI Debug (UiBridge)"))
+		{
+			ImGui::Text("Backend ativo: %s", ui::toString(ui::getBackend()));
+			ImGui::Separator();
+
+			if (ImGui::CollapsingHeader("Bindings UI -> Gameplay"))
+			{
+				for (auto &name : getBindingNames())
+				{
+					ImGui::BulletText("%s", name.c_str());
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Log de eventos", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::TextUnformatted(getLogText().c_str());
+			}
+		}
+		ImGui::End();
+	}
 }
 
 // ============================================================================
@@ -80,6 +112,7 @@ namespace
 
 	std::mutex s_logMutex;
 	std::ostringstream s_logStream;
+	constexpr size_t MAX_LOG_CHARS = 16 * 1024;
 
 	void dispatchToGameplay(const std::string &name, const std::string &jsonArgs)
 	{
@@ -94,12 +127,26 @@ namespace
 				{
 					std::cout << "[UiBridge] bind nao encontrado: '" << name << "'\n";
 					warnedOnce[name] = true;
-			}
+				}
 				return;
 			}
 			cb = it->second;
 		}
 		cb(jsonArgs);
+	}
+
+	std::vector<std::string> getBindingNames()
+	{
+		std::lock_guard<std::mutex> lock(s_bindingsMutex);
+		std::vector<std::string> names;
+		for (auto &p : s_bindings) names.push_back(p.first);
+		return names;
+	}
+
+	std::string getLogText()
+	{
+		std::lock_guard<std::mutex> lock(s_logMutex);
+		return s_logStream.str();
 	}
 }
 
@@ -256,10 +303,26 @@ void ui::pushLog(const std::string &msg)
 {
 	std::lock_guard<std::mutex> lock(s_logMutex);
 	s_logStream << msg << "\n";
+	if (s_logStream.str().size() > MAX_LOG_CHARS)
+	{
+		// mantem apenas a cauda do log
+		std::string tail = s_logStream.str();
+		tail = tail.substr(tail.size() - MAX_LOG_CHARS / 2);
+		s_logStream.str("");
+		s_logStream << tail;
+	}
 }
 
 void ui::bind(const std::string &name, UiCallback cb)
 {
-	std::lock_guard<std::mutex> lock(s_bindingsMutex);
-	s_bindings[name] = std::move(cb);
+	{
+		std::lock_guard<std::mutex> lock(s_bindingsMutex);
+		s_bindings[name] = std::move(cb);
+	}
+	// repassa para o backend HTML: quando o engine real chegar (RmlUi/Ultralight),
+	// o evento chega aqui e é roteado por dispatchToGameplay.
+	gHtmlUi.bind(name, [name](const std::string &jsonArgs)
+	{
+		dispatchToGameplay(name, jsonArgs);
+	});
 }
